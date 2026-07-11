@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// Role values: ADMIN | LECTURER | STUDENT
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("STUDENT")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  enrollments       Enrollment[]
+  sessionsCreated   Session[]          @relation("LecturerSessions")
+  attendanceRecords AttendanceRecord[]
+}
+
+model Course {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  enrollments Enrollment[]
+  sessions    Session[]
+}
+
+model Enrollment {
+  id        String   @id @default(uuid())
+  userId    String
+  courseId  String
+  createdAt DateTime @default(now())
+
+  // Relations
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@unique([userId, courseId])
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  courseId  String
+  lecturerId String
+  startTime DateTime
+  endTime   DateTime?
+  latitude  Float
+  longitude Float
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  course            Course             @relation(fields: [courseId], references: [id])
+  lecturer          User               @relation("LecturerSessions", fields: [lecturerId], references: [id])
+  attendanceRecords AttendanceRecord[]
+}
+
+model AttendanceRecord {
+  id        String   @id @default(uuid())
+  sessionId String
+  studentId String
+  latitude  Float
+  longitude Float
+  distance  Float    // Distance from the session's center when marked
+  timestamp DateTime @default(now())
+
+  // Relations
+  session Session @relation(fields: [sessionId], references: [id])
+  student User    @relation(fields: [studentId], references: [id])
+
+  @@unique([sessionId, studentId])
+}

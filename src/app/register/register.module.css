@@ -1,0 +1,521 @@
+.page {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ─── Left Panel ─── */
+.leftPanel {
+  position: relative;
+  flex: 1;
+  background: linear-gradient(135deg, #e01e37 0%, #85101f 60%, #5c0a16 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 48px;
+  overflow: hidden;
+}
+
+.leftContent {
+  position: relative;
+  z-index: 2;
+  max-width: 420px;
+  width: 100%;
+}
+
+.logoArea {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 56px;
+}
+
+.logoIcon {
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.logoText {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.5px;
+}
+
+.heroText {
+  margin-bottom: 48px;
+}
+
+.heroText h1 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.2;
+  letter-spacing: -1px;
+  margin-bottom: 14px;
+}
+
+.heroText p {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1.7;
+}
+
+/* Steps guide */
+.stepsGuide {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 18px;
+  padding: 28px;
+  backdrop-filter: blur(6px);
+}
+
+.stepsTitle {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.6);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 20px;
+}
+
+.stepsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.stepGuideItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  opacity: 0.45;
+  transition: opacity 0.3s ease;
+}
+
+.stepGuideActive {
+  opacity: 1;
+}
+
+.stepGuideNum {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  border: 1.5px solid rgba(255,255,255,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.stepGuideActive .stepGuideNum {
+  background: rgba(255,255,255,0.25);
+  border-color: rgba(255,255,255,0.7);
+}
+
+.stepGuideItem strong {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 1px;
+}
+
+.stepGuideItem span {
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.65);
+}
+
+.stepConnector {
+  width: 1.5px;
+  height: 20px;
+  background: rgba(255,255,255,0.2);
+  margin-left: 14px;
+}
+
+/* Decorative circles */
+.circle1 {
+  position: absolute;
+  width: 380px;
+  height: 380px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  top: -100px;
+  right: -120px;
+  z-index: 1;
+}
+
+.circle2 {
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  bottom: -80px;
+  left: -60px;
+  z-index: 1;
+}
+
+/* ─── Right Panel ─── */
+.rightPanel {
+  width: 540px;
+  flex-shrink: 0;
+  background: #f9fafb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 40px;
+}
+
+.formCard {
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 4px 40px rgba(0,0,0,0.08);
+  border: 1px solid #f0f0f0;
+  padding: 40px;
+  overflow: hidden;
+}
+
+/* Progress bar */
+.progressBar {
+  height: 4px;
+  background: #f0f0f0;
+  border-radius: 99px;
+  margin: -40px -40px 32px;
+  position: relative;
+  top: 0;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #e01e37, #ff4d6d);
+  border-radius: 99px;
+  transition: width 0.4s ease;
+}
+
+.formHeader {
+  margin-bottom: 28px;
+}
+
+.stepLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #e01e37;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.formHeader h2 {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -0.5px;
+  margin-bottom: 5px;
+}
+
+.stepSubtitle {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+/* Form */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Input with icon */
+.inputWrapper {
+  position: relative;
+}
+
+.inputIcon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+.inputWithIcon {
+  padding-left: 44px !important;
+}
+
+.inputWithToggle {
+  padding-right: 44px !important;
+}
+
+.togglePassword {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.2s;
+}
+
+.togglePassword:hover {
+  color: #e01e37;
+}
+
+/* Role cards */
+.roleGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.roleCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 14px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.roleCard:hover {
+  border-color: #fca5a5;
+  background: #fff0f2;
+}
+
+.roleCardActive {
+  border-color: #e01e37 !important;
+  background: #fff0f2 !important;
+  box-shadow: 0 0 0 3px rgba(224,30,55,0.1);
+}
+
+.roleEmoji {
+  font-size: 1.5rem;
+  margin-bottom: 4px;
+}
+
+.roleLabel {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.roleDesc {
+  font-size: 0.75rem;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.roleCheck {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #e01e37;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: popIn 0.2s ease;
+}
+
+@keyframes popIn {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
+}
+
+/* Password strength */
+.strengthMeter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.strengthBars {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.strengthBar {
+  height: 4px;
+  flex: 1;
+  border-radius: 99px;
+  transition: background 0.3s ease;
+}
+
+/* Match text */
+.matchError {
+  font-size: 0.78rem;
+  color: #e01e37;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.matchSuccess {
+  font-size: 0.78rem;
+  color: #22c55e;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+/* Account summary */
+.accountSummary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #f9fafb;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.accountAvatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e01e37, #85101f);
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.accountSummary strong {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.accountSummary span {
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+.editBtn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #e01e37;
+  font-size: 0.83rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.2s;
+  font-family: 'Inter', sans-serif;
+}
+
+.editBtn:hover {
+  background: #fff0f2;
+}
+
+/* Buttons */
+.submitBtn {
+  width: 100%;
+  height: 48px;
+  font-size: 0.97rem;
+  border-radius: 12px;
+  margin-top: 4px;
+  letter-spacing: 0.1px;
+}
+
+.btnRow {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.backBtn {
+  height: 48px;
+  border-radius: 12px;
+  padding: 0 20px;
+  flex-shrink: 0;
+}
+
+.submitBtnFlex {
+  flex: 1;
+  width: auto !important;
+}
+
+/* Spinner */
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid rgba(255,255,255,0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Login prompt */
+.loginPrompt {
+  text-align: center;
+  margin-top: 24px;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.loginLink {
+  color: #e01e37;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.loginLink:hover {
+  color: #b5162b;
+  text-decoration: underline;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 900px) {
+  .page { flex-direction: column; }
+  .leftPanel { padding: 40px 32px; }
+  .heroText h1 { font-size: 2rem; }
+  .stepsGuide { display: none; }
+  .rightPanel { width: 100%; padding: 40px 24px; }
+}
+
+@media (max-width: 480px) {
+  .formCard { padding: 28px 20px; }
+  .progressBar { margin: -28px -20px 28px; }
+  .roleGrid { grid-template-columns: 1fr; }
+}

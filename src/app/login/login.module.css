@@ -1,0 +1,385 @@
+.page {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ─── Left Panel ─── */
+.leftPanel {
+  position: relative;
+  flex: 1;
+  background: linear-gradient(135deg, #e01e37 0%, #85101f 60%, #5c0a16 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 48px;
+  overflow: hidden;
+}
+
+.leftContent {
+  position: relative;
+  z-index: 2;
+  max-width: 420px;
+  width: 100%;
+}
+
+/* Logo */
+.logoArea {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 64px;
+}
+
+.logoIcon {
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.logoText {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.5px;
+}
+
+/* Hero Text */
+.heroText {
+  margin-bottom: 48px;
+}
+
+.heroText h1 {
+  font-size: 2.75rem;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.2;
+  letter-spacing: -1px;
+  margin-bottom: 16px;
+}
+
+.heroText p {
+  font-size: 1.05rem;
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1.7;
+}
+
+/* Feature list */
+.features {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.featureItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  padding: 16px 20px;
+  backdrop-filter: blur(6px);
+  transition: all 0.25s ease;
+}
+
+.featureItem:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateX(4px);
+}
+
+.featureIcon {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.featureItem strong {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 2px;
+}
+
+.featureItem span {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.5;
+}
+
+/* Decorative circles */
+.circle1 {
+  position: absolute;
+  width: 380px;
+  height: 380px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  top: -100px;
+  right: -120px;
+  z-index: 1;
+}
+
+.circle2 {
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  bottom: -80px;
+  left: -60px;
+  z-index: 1;
+}
+
+/* ─── Right Panel ─── */
+.rightPanel {
+  width: 520px;
+  flex-shrink: 0;
+  background: #f9fafb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 40px;
+}
+
+.formCard {
+  width: 100%;
+  max-width: 400px;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 4px 40px rgba(0, 0, 0, 0.08);
+  border: 1px solid #f0f0f0;
+  padding: 40px;
+}
+
+.formHeader {
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.formHeader h2 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -0.5px;
+  margin-bottom: 6px;
+}
+
+.formHeader p {
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+/* Form */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.errorAlert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Input with icon */
+.inputWrapper {
+  position: relative;
+}
+
+.inputIcon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.inputWithIcon {
+  padding-left: 44px !important;
+}
+
+.inputWithToggle {
+  padding-right: 44px !important;
+}
+
+.togglePassword {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.2s;
+}
+
+.togglePassword:hover {
+  color: #e01e37;
+}
+
+/* Form Meta */
+.formMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: -4px;
+}
+
+.rememberMe {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.rememberMe input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #e01e37;
+  cursor: pointer;
+}
+
+.forgotLink {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #e01e37;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.forgotLink:hover {
+  color: #b5162b;
+  text-decoration: underline;
+}
+
+/* Submit button */
+.submitBtn {
+  width: 100%;
+  height: 48px;
+  font-size: 1rem;
+  margin-top: 4px;
+  border-radius: 12px;
+  letter-spacing: 0.1px;
+}
+
+/* Spinner */
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid rgba(255,255,255,0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Divider */
+.divider {
+  text-align: center;
+  margin: 24px 0 16px;
+  position: relative;
+}
+
+.divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #e5e7eb;
+}
+
+.divider span {
+  position: relative;
+  background: #ffffff;
+  padding: 0 12px;
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+/* Register button */
+.registerBtn {
+  width: 100%;
+  height: 46px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+}
+
+/* Role hint */
+.roleHint {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 0.78rem;
+  color: #9ca3af;
+}
+
+.roleHint strong {
+  color: #6b7280;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 900px) {
+  .page {
+    flex-direction: column;
+  }
+
+  .leftPanel {
+    padding: 40px 32px;
+  }
+
+  .leftContent {
+    max-width: 100%;
+  }
+
+  .heroText h1 {
+    font-size: 2rem;
+  }
+
+  .features {
+    display: none;
+  }
+
+  .rightPanel {
+    width: 100%;
+    padding: 40px 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .formCard {
+    padding: 28px 24px;
+  }
+
+  .leftPanel {
+    padding: 32px 24px;
+  }
+}
