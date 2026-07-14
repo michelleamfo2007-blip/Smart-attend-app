@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import * as Location from 'expo-location';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -13,9 +12,41 @@ export default function StartSessionScreen() {
   const { user } = useAuth();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [fetchingClasses, setFetchingClasses] = useState(true);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const router = useRouter();
 
+  useEffect(() => {
+    fetchLecturerClasses();
+  }, []);
+
+  const fetchLecturerClasses = async () => {
+    setFetchingClasses(true);
+    try {
+      const { data, error } = await supabase
+        .from('classes')
+        .select('id, name, level, semester')
+        .eq('lecturer_id', user?.id);
+
+      if (error) throw error;
+      setClasses(data || []);
+      if (data && data.length > 0) {
+        setSelectedClassId(data[0].id); // default to first class
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to load classes');
+    } finally {
+      setFetchingClasses(false);
+    }
+  };
+
   const handleStartSession = async () => {
+    if (!selectedClassId) {
+      Alert.alert('Error', 'Please select a class first.');
+      return;
+    }
+
     setLoading(true);
     let { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
@@ -28,31 +59,18 @@ export default function StartSessionScreen() {
       let location = await Location.getCurrentPositionAsync({ 
         accuracy: Location.Accuracy.Balanced
       });
-      
-      // Find the first class assigned to this lecturer
-      const { data: classes, error: classError } = await supabase
-        .from('classes')
-        .select('id')
-        .eq('lecturer_id', user?.id)
-        .limit(1);
-
-      if (classError || !classes || classes.length === 0) {
-        throw new Error('You must be assigned to at least one class to start a session!');
-      }
-
-      const classId = classes[0].id;
 
       // Invalidate old active sessions for this class
       await supabase
         .from('active_sessions')
         .update({ active: false })
-        .eq('class_id', classId);
+        .eq('class_id', selectedClassId);
 
       // Create new active session
       const { error } = await supabase
         .from('active_sessions')
         .insert({
-          class_id: classId,
+          class_id: selectedClassId,
           lecturer_id: user?.id,
           latitude: location.coords.latitude,
           longitude: location.coords.longitude,
@@ -63,7 +81,7 @@ export default function StartSessionScreen() {
 
       Alert.alert(
         "Session Started",
-        `Location saved to database successfully!\nLat: ${location.coords.latitude.toFixed(4)}\nLon: ${location.coords.longitude.toFixed(4)}`,
+        `Location saved successfully!\nLat: ${location.coords.latitude.toFixed(4)}\nLon: ${location.coords.longitude.toFixed(4)}`,
         [{ text: "OK", onPress: () => router.back() }]
       );
     } catch (err: any) {
@@ -81,6 +99,35 @@ export default function StartSessionScreen() {
       </View>
 
       <View style={styles.content}>
+        {fetchingClasses ? (
+          <ActivityIndicator size="large" color="#8b5cf6" style={{ marginBottom: 20 }} />
+        ) : classes.length === 0 ? (
+          <ThemedText style={styles.errorText}>You are not assigned to any classes.</ThemedText>
+        ) : (
+          <View style={{ width: '100%', marginBottom: 20 }}>
+            <ThemedText style={{ marginBottom: 10, fontWeight: 'bold' }}>Select Class:</ThemedText>
+            <ScrollView style={styles.classList} nestedScrollEnabled>
+              {classes.map((cls) => (
+                <TouchableOpacity
+                  key={cls.id}
+                  style={[
+                    styles.classItem,
+                    selectedClassId === cls.id && styles.classItemSelected
+                  ]}
+                  onPress={() => setSelectedClassId(cls.id)}
+                >
+                  <Text style={[
+                    styles.classItemText,
+                    selectedClassId === cls.id && styles.classItemTextSelected
+                  ]}>
+                    {cls.name} (L{cls.level}, {cls.semester})
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
         <ThemedText style={styles.instructions}>
           Starting a session will record your current GPS location. Students will need to be within 50 meters of this location to mark themselves as present.
         </ThemedText>
@@ -90,9 +137,12 @@ export default function StartSessionScreen() {
         ) : null}
 
         <TouchableOpacity 
-          style={[styles.startButton, loading && styles.buttonDisabled]} 
+          style={[
+            styles.startButton, 
+            (loading || classes.length === 0) && styles.buttonDisabled
+          ]} 
           onPress={handleStartSession}
-          disabled={loading}
+          disabled={loading || classes.length === 0}
         >
           {loading ? (
             <ActivityIndicator color="white" />
@@ -108,8 +158,13 @@ export default function StartSessionScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: Spacing.four },
   header: { marginBottom: Spacing.six },
-  content: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  instructions: { textAlign: 'center', marginBottom: Spacing.eight, fontSize: 16, lineHeight: 24 },
+  content: { flex: 1, justifyContent: 'flex-start', alignItems: 'center' },
+  classList: { maxHeight: 200, width: '100%', borderWidth: 1, borderColor: '#ccc', borderRadius: 8 },
+  classItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  classItemSelected: { backgroundColor: '#8b5cf6' },
+  classItemText: { fontSize: 16, color: '#333' },
+  classItemTextSelected: { color: '#fff', fontWeight: 'bold' },
+  instructions: { textAlign: 'center', marginBottom: Spacing.eight, fontSize: 14, lineHeight: 20, marginTop: 10 },
   startButton: {
     backgroundColor: '#8b5cf6',
     paddingVertical: 16,
