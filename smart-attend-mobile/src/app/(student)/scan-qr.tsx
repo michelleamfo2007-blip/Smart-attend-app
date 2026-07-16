@@ -127,8 +127,7 @@ export default function ScanQRScreen() {
         .insert({
           student_id: user?.id,
           class_id: sessionData.class_id,
-          session_id: sessionData.id,
-          status: 'Present'
+          session_id: sessionData.id
         });
 
       if (insertError) {
