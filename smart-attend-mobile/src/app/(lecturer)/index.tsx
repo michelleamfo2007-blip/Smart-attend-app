@@ -20,6 +20,7 @@ export default function LecturerOverviewScreen() {
   const [myClasses, setMyClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [endingSessionId, setEndingSessionId] = useState<string | null>(null);
+  const [generatingCodeId, setGeneratingCodeId] = useState<string | null>(null);
 
   // useFocusEffect ensures data re-fetches when navigating back to this screen
   useFocusEffect(
@@ -110,6 +111,36 @@ export default function LecturerOverviewScreen() {
           { text: "End Session", style: "destructive", onPress: () => handleEndSession(sessionId) }
         ]
       );
+    }
+  };
+
+  const handleRegenerateCode = async (classId: string) => {
+    setGeneratingCodeId(classId);
+    try {
+      // Generate random 6 character code
+      const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      
+      const { error } = await supabase
+        .from('classes')
+        .update({ invite_code: newCode })
+        .eq('id', classId);
+
+      if (error) throw error;
+
+      setMyClasses(prev => prev.map(c => c.id === classId ? { ...c, invite_code: newCode } : c));
+      
+      if (Platform.OS === 'web') {
+        window.alert(`New invite code generated: ${newCode}`);
+      }
+    } catch (err: any) {
+      console.error(err);
+      if (Platform.OS === 'web') {
+        window.alert(`Failed to generate code: ${err.message}`);
+      } else {
+        Alert.alert("Error", "Failed to generate new invite code.");
+      }
+    } finally {
+      setGeneratingCodeId(null);
     }
   };
 
@@ -207,10 +238,26 @@ export default function LecturerOverviewScreen() {
             ) : (
               myClasses.map((c, index) => (
                 <View key={c.id} style={[styles.codeCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-                  <ThemedText style={{ fontWeight: 'bold' }}>{c.name}</ThemedText>
-                  <View style={styles.codeBadge}>
-                    <ThemedText style={{ color: theme.primary, fontWeight: '800', letterSpacing: 1 }}>{c.invite_code || 'NONE'}</ThemedText>
+                  <View>
+                    <ThemedText style={{ fontWeight: 'bold' }}>{c.name}</ThemedText>
+                    <View style={styles.codeBadge}>
+                      <ThemedText style={{ color: theme.primary, fontWeight: '800', letterSpacing: 1 }}>{c.invite_code || 'NONE'}</ThemedText>
+                    </View>
                   </View>
+                  <TouchableOpacity 
+                    style={[styles.generateBtn, { backgroundColor: theme.primaryLight }]}
+                    onPress={() => handleRegenerateCode(c.id)}
+                    disabled={generatingCodeId === c.id}
+                  >
+                    {generatingCodeId === c.id ? (
+                      <ActivityIndicator size="small" color={theme.primary} />
+                    ) : (
+                      <>
+                        <SymbolView name="arrow.triangle.2.circlepath" size={14} tintColor={theme.primary} />
+                        <Text style={{ color: theme.primary, fontWeight: 'bold', fontSize: 12 }}>New</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
                 </View>
               ))
             )}
@@ -229,12 +276,21 @@ export default function LecturerOverviewScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={[styles.actionButton, styles.secondaryButton, { borderColor: theme.primary }]} 
+              style={[styles.actionButton, styles.secondaryButton, { borderColor: theme.primary, marginBottom: Spacing.four }]} 
               onPress={() => router.push('/(lecturer)/roster')}
               activeOpacity={0.8}
             >
               <SymbolView name="list.bullet.rectangle.fill" size={24} tintColor={theme.primary} />
               <Text style={[styles.secondaryButtonText, { color: theme.primary }]}>View Class Roster</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.secondaryButton, { borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.05)' }]} 
+              onPress={() => router.push('/(lecturer)/disputes')}
+              activeOpacity={0.8}
+            >
+              <SymbolView name="exclamationmark.bubble.fill" size={24} tintColor="#f59e0b" />
+              <Text style={[styles.secondaryButtonText, { color: '#f59e0b' }]}>Manage Disputes</Text>
             </TouchableOpacity>
           </Animated.View>
 
@@ -329,14 +385,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: Spacing.four,
-    borderWidth: 1,
     borderRadius: 12,
+    borderWidth: 1,
     marginBottom: Spacing.three,
   },
   codeBadge: {
-    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-  }
+    marginTop: 8,
+    alignSelf: 'flex-start'
+  },
+  generateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
 });

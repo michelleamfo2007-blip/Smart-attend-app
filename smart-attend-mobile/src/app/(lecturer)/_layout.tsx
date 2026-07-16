@@ -67,6 +67,15 @@ export default function LecturerLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="disputes"
+        options={{
+          title: 'Disputes',
+          tabBarIcon: ({ color }) => (
+            <SymbolView name="exclamationmark.bubble.fill" size={24} tintColor={color} fallback={undefined} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, SectionList, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, SectionList, ActivityIndicator, RefreshControl } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -13,57 +13,64 @@ export default function RosterScreen() {
   const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const [groupedRecords, setGroupedRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchRoster = async () => {
+    try {
+      const { data: classes } = await supabase
+        .from('classes')
+        .select('id, name')
+        .eq('lecturer_id', user?.id);
+
+      if (classes && classes.length > 0) {
+        const classIds = classes.map(c => c.id);
+        const { data: attendanceRecords, error } = await supabase
+          .from('attendance_records')
+          .select(`
+            id,
+            timestamp,
+            users ( name ),
+            classes ( name )
+          `)
+          .in('class_id', classIds)
+          .order('timestamp', { ascending: false });
+
+        if (attendanceRecords && !error) {
+          // Group by "ClassName - Date"
+          const groups: { [key: string]: any[] } = {};
+          attendanceRecords.forEach(record => {
+            const className = (record as any).classes?.name || 'Unknown Class';
+            const dateStr = new Date(record.timestamp).toLocaleDateString();
+            const groupKey = `${className}  |  ${dateStr}`;
+            
+            if (!groups[groupKey]) groups[groupKey] = [];
+            groups[groupKey].push(record);
+          });
+
+          const sections = Object.keys(groups).map(key => ({
+            title: key,
+            data: groups[key]
+          }));
+
+          setGroupedRecords(sections);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch roster", err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchRoster = async () => {
-      try {
-        const { data: classes } = await supabase
-          .from('classes')
-          .select('id, name')
-          .eq('lecturer_id', user?.id);
-
-        if (classes && classes.length > 0) {
-          const classIds = classes.map(c => c.id);
-          const { data: attendanceRecords, error } = await supabase
-            .from('attendance_records')
-            .select(`
-              id,
-              timestamp,
-              users ( name ),
-              classes ( name )
-            `)
-            .in('class_id', classIds)
-            .order('timestamp', { ascending: false });
-
-          if (attendanceRecords && !error) {
-            // Group by "ClassName - Date"
-            const groups: { [key: string]: any[] } = {};
-            attendanceRecords.forEach(record => {
-              const className = (record as any).classes?.name || 'Unknown Class';
-              const dateStr = new Date(record.timestamp).toLocaleDateString();
-              const groupKey = `${className}  |  ${dateStr}`;
-              
-              if (!groups[groupKey]) groups[groupKey] = [];
-              groups[groupKey].push(record);
-            });
-
-            const sections = Object.keys(groups).map(key => ({
-              title: key,
-              data: groups[key]
-            }));
-
-            setGroupedRecords(sections);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to fetch roster", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchRoster();
   }, [user]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchRoster();
+  };
 
   const renderItem = ({ item }: { item: any }) => {
     const time = new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -108,6 +115,14 @@ export default function RosterScreen() {
           renderSectionHeader={renderSectionHeader}
           contentContainerStyle={styles.listContainer}
           stickySectionHeadersEnabled={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.primary}
+              colors={[theme.primary]}
+            />
+          }
         />
       )}
     </ThemedView>
