@@ -67,6 +67,26 @@ export default function MarkAttendanceScreen() {
     }
 
     try {
+      // Prevent double check-in for the same class today
+      const today = new Date().toISOString().split('T')[0];
+      const { data: existingRecord } = await supabase
+        .from('attendance_records')
+        .select('id')
+        .eq('class_id', session.class_id)
+        .eq('student_id', user?.id)
+        .gte('created_at', `${today}T00:00:00.000Z`)
+        .maybeSingle();
+
+      if (existingRecord) {
+        if (Platform.OS === 'web') {
+          window.alert('Already Checked In! You have already marked your attendance for this class today.');
+        } else {
+          Alert.alert('Already Checked In', 'You have already marked your attendance for this class today.');
+        }
+        setMarkingId(null);
+        return;
+      }
+
       // Get student's current location with a timeout to prevent hanging on emulators
       const locationPromise = Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced
