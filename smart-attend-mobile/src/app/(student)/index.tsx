@@ -41,7 +41,7 @@ export default function StudentOverviewScreen() {
         if (matchedClasses && matchedClasses.length > 0) {
           const classIds = matchedClasses.map(c => c.id);
           const { data: allSessions } = await supabase
-            .from('active_sessions')
+            .from('attendance_sessions')
             .select('id')
             .in('class_id', classIds);
             

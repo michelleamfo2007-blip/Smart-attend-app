@@ -37,14 +37,14 @@ export default function LecturerOverviewScreen() {
 
       // Fetch Active Sessions
       const { data: sessions, error } = await supabase
-        .from('active_sessions')
+        .from('attendance_sessions')
         .select(`
           id,
           created_at,
           classes (name)
         `)
         .eq('lecturer_id', user?.id)
-        .eq('active', true)
+        .eq('status', 'active')
         .order('created_at', { ascending: false });
         
       if (error) throw error;
@@ -60,8 +60,8 @@ export default function LecturerOverviewScreen() {
     setEndingSessionId(sessionId);
     try {
       const { error } = await supabase
-        .from('active_sessions')
-        .update({ active: false })
+        .from('attendance_sessions')
+        .update({ status: 'closed' })
         .eq('id', sessionId);
         
       if (error) throw error;
