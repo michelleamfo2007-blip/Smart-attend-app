@@ -128,8 +128,7 @@ export default function ScanQRScreen() {
           student_id: user?.id,
           class_id: sessionData.class_id,
           session_id: sessionData.id,
-          status: 'Present',
-          marked_by: 'Student'
+          status: 'Present'
         });
 
       if (insertError) {
