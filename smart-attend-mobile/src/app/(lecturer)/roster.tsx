@@ -1,19 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, FlatList, ActivityIndicator } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StyleSheet, View, Text, SectionList, ActivityIndicator } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, Colors } from '@/constants/theme';
 import { useColorScheme } from 'react-native';
-import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 
 export default function RosterScreen() {
   const { user } = useAuth();
   const scheme = useColorScheme() ?? 'light';
   const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
-  const [records, setRecords] = useState<any[]>([]);
+  const [groupedRecords, setGroupedRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,19 +19,41 @@ export default function RosterScreen() {
       try {
         const { data: classes } = await supabase
           .from('classes')
-          .select('id')
+          .select('id, name')
           .eq('lecturer_id', user?.id);
 
         if (classes && classes.length > 0) {
           const classIds = classes.map(c => c.id);
           const { data: attendanceRecords, error } = await supabase
             .from('attendance_records')
-            .select('*')
+            .select(`
+              id,
+              timestamp,
+              date,
+              users ( name ),
+              classes ( name )
+            `)
             .in('class_id', classIds)
             .order('timestamp', { ascending: false });
 
           if (attendanceRecords && !error) {
-            setRecords(attendanceRecords);
+            // Group by "ClassName - Date"
+            const groups: { [key: string]: any[] } = {};
+            attendanceRecords.forEach(record => {
+              const className = record.classes?.name || 'Unknown Class';
+              const dateStr = record.date || new Date(record.timestamp).toLocaleDateString();
+              const groupKey = `${className}  |  ${dateStr}`;
+              
+              if (!groups[groupKey]) groups[groupKey] = [];
+              groups[groupKey].push(record);
+            });
+
+            const sections = Object.keys(groups).map(key => ({
+              title: key,
+              data: groups[key]
+            }));
+
+            setGroupedRecords(sections);
           }
         }
       } catch (err) {
@@ -47,39 +67,48 @@ export default function RosterScreen() {
   }, [user]);
 
   const renderItem = ({ item }: { item: any }) => {
-    const date = new Date(item.timestamp).toLocaleString();
+    const time = new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const studentName = item.users?.name || item.student_name || 'Unknown Student';
     return (
       <View style={[styles.recordCard, { backgroundColor: theme.backgroundElement, borderColor: theme.backgroundSelected }]}>
         <View style={styles.recordHeader}>
-          <ThemedText style={styles.studentName}>{item.student_name}</ThemedText>
+          <ThemedText style={styles.studentName}>{studentName}</ThemedText>
           <View style={styles.badge}>
             <Text style={styles.badgeText}>Present</Text>
           </View>
         </View>
-        <ThemedText themeColor="textSecondary" style={styles.dateText}>{date}</ThemedText>
+        <ThemedText themeColor="textSecondary" style={styles.dateText}>Checked in at {time}</ThemedText>
       </View>
     );
   };
+
+  const renderSectionHeader = ({ section: { title } }: any) => (
+    <View style={[styles.sectionHeader, { backgroundColor: theme.backgroundSelected }]}>
+      <ThemedText style={styles.sectionHeaderText}>{title}</ThemedText>
+    </View>
+  );
 
   return (
     <ThemedView style={styles.container}>
       <View style={styles.header}>
         <ThemedText type="title">Class Roster</ThemedText>
-        <ThemedText themeColor="textSecondary">Students who checked in</ThemedText>
+        <ThemedText themeColor="textSecondary">Attendance grouped by class and day</ThemedText>
       </View>
 
       {loading ? (
         <ActivityIndicator style={{ flex: 1 }} />
-      ) : records.length === 0 ? (
+      ) : groupedRecords.length === 0 ? (
         <View style={styles.emptyContainer}>
           <ThemedText themeColor="textSecondary">No attendance records found.</ThemedText>
         </View>
       ) : (
-        <FlatList
-          data={records}
+        <SectionList
+          sections={groupedRecords}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
+          renderSectionHeader={renderSectionHeader}
           contentContainerStyle={styles.listContainer}
+          stickySectionHeadersEnabled={false}
         />
       )}
     </ThemedView>
@@ -87,15 +116,26 @@ export default function RosterScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: Spacing.four },
+  container: { flex: 1, padding: Spacing.four, paddingTop: Spacing.six },
   header: { marginBottom: Spacing.six },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  listContainer: { paddingBottom: Spacing.eight, gap: Spacing.four },
+  listContainer: { paddingBottom: Spacing.eight },
+  sectionHeader: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginTop: Spacing.four,
+    marginBottom: Spacing.three,
+  },
+  sectionHeaderText: {
+    fontWeight: '800',
+    fontSize: 14,
+  },
   recordCard: {
     padding: Spacing.four,
     borderRadius: 8,
     borderWidth: 1,
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.three,
   },
   recordHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.one },
   studentName: { fontWeight: 'bold', fontSize: 16 },
