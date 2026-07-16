@@ -69,7 +69,9 @@ export default function LoginScreen() {
         id: foundUser.id,
         name: foundUser.name,
         email: foundUser.email,
-        role: foundUser.role
+        role: foundUser.role,
+        level: foundUser.level,
+        semester: foundUser.semester
       };
 
       await login(userSession);
