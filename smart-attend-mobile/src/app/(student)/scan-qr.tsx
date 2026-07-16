@@ -17,12 +17,12 @@ function getDistanceFromLatLonInM(lat1: number, lon1: number, lat2: number, lon2
   const R = 6371e3;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c; 
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }
 
 export default function ScanQRScreen() {
@@ -55,11 +55,11 @@ export default function ScanQRScreen() {
     if (scanned || processing) return;
     setScanned(true);
     setProcessing(true);
-    
+
     console.log("SCANNED DATA:", data);
     setStatusType('info');
     setStatusMsg('QR detected! Verifying...');
-    
+
     Alert.alert("Debug", "QR Scanned: " + data);
 
     try {
@@ -104,7 +104,7 @@ export default function ScanQRScreen() {
       }
 
       const locationPromise = Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const timeoutPromise = new Promise((_, reject) => 
+      const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error("Location fetch timed out.")), 10000)
       );
       const studentLocation: any = await Promise.race([locationPromise, timeoutPromise]);
@@ -126,6 +126,7 @@ export default function ScanQRScreen() {
         .from('attendance_records')
         .insert({
           student_id: user?.id,
+          student_name: user?.name,
           class_id: sessionData.class_id,
           session_id: sessionData.id
         });
@@ -138,8 +139,8 @@ export default function ScanQRScreen() {
       }
 
       setStatusType('success');
-      setStatusMsg('Successfully checked in! 🎉');
-      
+      setStatusMsg('Successfully checked in!');
+
       if (Platform.OS === 'web') {
         window.alert('Successfully checked in!');
       }
@@ -167,7 +168,7 @@ export default function ScanQRScreen() {
 
   return (
     <View style={styles.container}>
-      <CameraView 
+      <CameraView
         style={StyleSheet.absoluteFill}
         facing="back"
         barcodeScannerSettings={{
