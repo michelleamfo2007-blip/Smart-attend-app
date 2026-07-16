@@ -1,6 +1,6 @@
 import { Tabs, router } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
-import { useColorScheme, View } from 'react-native';
+import { useColorScheme, View, Platform } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { SymbolView } from 'expo-symbols';
 import { useEffect } from 'react';
@@ -31,8 +31,8 @@ export default function AdminLayout() {
           backgroundColor: colors.backgroundElement, 
           borderTopWidth: 1, 
           borderTopColor: colors.border,
-          height: 64,
-          paddingBottom: 8,
+          height: Platform.OS === 'web' ? 76 : 64,
+          paddingBottom: Platform.OS === 'web' ? 20 : 8,
           paddingTop: 8,
         },
         tabBarLabelStyle: {

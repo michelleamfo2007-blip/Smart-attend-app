@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Platform } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Platform, Alert } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -65,7 +65,16 @@ export default function ProfileScreen() {
 
       <ThemedText style={styles.sectionTitle}>Settings</ThemedText>
       <View style={[styles.menuGroup, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-        <TouchableOpacity style={styles.menuItem} onPress={() => {}}>
+        <TouchableOpacity 
+          style={styles.menuItem} 
+          onPress={() => {
+            if (Platform.OS === 'web') {
+              window.alert("Notifications are coming soon!");
+            } else {
+              Alert.alert("Coming Soon", "Notifications will be available in a future update.");
+            }
+          }}
+        >
           <View style={[styles.menuIcon, { backgroundColor: 'rgba(107, 114, 128, 0.1)' }]}>
             <SymbolView name="bell.fill" size={20} tintColor="#6b7280" />
           </View>
