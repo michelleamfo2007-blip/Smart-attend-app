@@ -147,7 +147,7 @@ export default function ScanQRScreen() {
 
       // Auto go back after 2 seconds
       setTimeout(() => {
-        if (router.canGoBack()) router.back();
+        router.replace('/(student)');
       }, 2500);
 
     } catch (error: any) {
