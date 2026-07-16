@@ -50,6 +50,15 @@ export default function StudentLayout() {
         }}
       />
       <Tabs.Screen
+        name="schedule"
+        options={{
+          title: 'Schedule',
+          tabBarIcon: ({ color }) => (
+            <SymbolView name="calendar" size={24} tintColor={color} fallback={undefined} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="mark-attendance"
         options={{
           title: 'Mark Present',
@@ -80,6 +89,20 @@ export default function StudentLayout() {
         name="scan-qr"
         options={{
           title: 'Scan QR',
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="analytics"
+        options={{
+          title: 'Module Analytics',
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="disputes"
+        options={{
+          title: 'Disputes & Support',
           href: null,
         }}
       />
