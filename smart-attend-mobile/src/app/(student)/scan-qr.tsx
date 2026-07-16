@@ -55,8 +55,12 @@ export default function ScanQRScreen() {
     if (scanned || processing) return;
     setScanned(true);
     setProcessing(true);
+    
+    console.log("SCANNED DATA:", data);
     setStatusType('info');
-    setStatusMsg('Verifying location and checking in...');
+    setStatusMsg('QR detected! Verifying...');
+    
+    Alert.alert("Debug", "QR Scanned: " + data);
 
     try {
       let qrData;
@@ -169,6 +173,9 @@ export default function ScanQRScreen() {
       <CameraView 
         style={StyleSheet.absoluteFill}
         facing="back"
+        barcodeScannerSettings={{
+          barcodeTypes: ["qr"],
+        }}
         onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
       >
         <View style={styles.overlay}>
