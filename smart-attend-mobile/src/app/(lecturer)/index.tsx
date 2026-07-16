@@ -17,6 +17,7 @@ export default function LecturerOverviewScreen() {
 
   const [stats, setStats] = useState({ courses: 0, students: 0 });
   const [activeSessions, setActiveSessions] = useState<any[]>([]);
+  const [myClasses, setMyClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [endingSessionId, setEndingSessionId] = useState<string | null>(null);
 
@@ -49,6 +50,16 @@ export default function LecturerOverviewScreen() {
         
       if (error) throw error;
       setActiveSessions(sessions || []);
+
+      // Fetch My Classes for Invite Codes
+      const { data: classesData, error: classesError } = await supabase
+        .from('classes')
+        .select('id, name, invite_code')
+        .eq('lecturer_id', user?.id);
+      
+      if (!classesError && classesData) {
+        setMyClasses(classesData);
+      }
     } catch (err) {
       console.error("Failed to fetch dashboard data", err);
     } finally {
@@ -186,6 +197,25 @@ export default function LecturerOverviewScreen() {
             </View>
           </Animated.View>
 
+          {/* My Classes & Invite Codes */}
+          <Animated.View entering={FadeInDown.duration(600).delay(350)} style={{ marginBottom: Spacing.six }}>
+            <ThemedText type="defaultSemiBold" style={{ marginBottom: Spacing.two }}>My Class Invite Codes</ThemedText>
+            <ThemedText themeColor="textSecondary" style={{ marginBottom: Spacing.four, fontSize: 13 }}>Share these codes with your students so they can sign up for your class.</ThemedText>
+            
+            {myClasses.length === 0 && !loading ? (
+              <ThemedText themeColor="textSecondary" style={{ fontStyle: 'italic' }}>No classes assigned yet.</ThemedText>
+            ) : (
+              myClasses.map((c, index) => (
+                <View key={c.id} style={[styles.codeCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+                  <ThemedText style={{ fontWeight: 'bold' }}>{c.name}</ThemedText>
+                  <View style={styles.codeBadge}>
+                    <ThemedText style={{ color: theme.primary, fontWeight: '800', letterSpacing: 1 }}>{c.invite_code || 'NONE'}</ThemedText>
+                  </View>
+                </View>
+              ))
+            )}
+          </Animated.View>
+
           <Animated.View entering={FadeInUp.duration(600).delay(400)} style={styles.actionSection}>
             <ThemedText type="defaultSemiBold" style={{ marginBottom: Spacing.two }}>Quick Actions</ThemedText>
             
@@ -293,5 +323,20 @@ const styles = StyleSheet.create({
   logoutButton: {
     flexDirection: 'row', padding: 16, backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: 12, alignItems: 'center', justifyContent: 'center', gap: 8,
   },
-  logoutText: { color: '#ef4444', fontWeight: '700', fontSize: 15 }
+  logoutText: { color: '#ef4444', fontWeight: '700', fontSize: 15 },
+  codeCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: Spacing.four,
+    borderWidth: 1,
+    borderRadius: 12,
+    marginBottom: Spacing.three,
+  },
+  codeBadge: {
+    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  }
 });
