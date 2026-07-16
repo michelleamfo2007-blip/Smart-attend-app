@@ -9,6 +9,8 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing, Colors } from '@/constants/theme';
 import { useColorScheme } from 'react-native';
 import { supabase } from '../lib/supabase';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { AnimatedIcon } from '@/components/animated-icon';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -19,6 +21,27 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const { user, loading: authLoading } = useAuth();
+  const [showSplash, setShowSplash] = useState(true);
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  React.useEffect(() => {
+    if (!showSplash && !authLoading && user) {
+      if (user.role === 'ADMIN') {
+        router.replace('/(admin)');
+      } else if (user.role === 'LECTURER') {
+        router.replace('/(lecturer)');
+      } else {
+        router.replace('/(student)');
+      }
+    }
+  }, [showSplash, authLoading, user]);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -66,11 +89,23 @@ export default function LoginScreen() {
     }
   };
 
+  if (showSplash) {
+    return (
+      <View style={styles.splashContainer}>
+        <Animated.View entering={FadeIn.duration(1000)} exiting={FadeOut.duration(500)} style={styles.splashInner}>
+          <AnimatedIcon />
+          <ThemedText style={styles.splashText} type="title">SmartAttend</ThemedText>
+        </Animated.View>
+      </View>
+    );
+  }
+
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.content}>
+    <Animated.View entering={FadeIn.duration(800)} style={{ flex: 1 }}>
+      <ThemedView style={styles.container}>
+        <SafeAreaView style={styles.safeArea}>
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+            <View style={styles.content}>
             <View style={styles.header}>
               <ThemedText type="title" style={styles.title}>SmartAttend</ThemedText>
               <ThemedText style={styles.subtitle} themeColor="textSecondary">Sign in to your account</ThemedText>
@@ -125,10 +160,14 @@ export default function LoginScreen() {
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
+  splashContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#208AEF' },
+  splashInner: { alignItems: 'center', gap: 20 },
+  splashText: { color: 'white', fontSize: 32, fontWeight: 'bold', marginTop: 20 },
   container: { flex: 1 },
   safeArea: { flex: 1 },
   scrollContent: { flexGrow: 1, padding: Spacing.four, justifyContent: 'center' },
