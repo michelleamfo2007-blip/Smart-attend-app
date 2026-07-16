@@ -39,7 +39,7 @@ export default function ProfileScreen() {
         </View>
         <View style={styles.idBadgeFooter}>
           <View style={styles.barcodePlaceholder} />
-          <Text style={styles.idNumber}>ID: {user?.id.substring(0, 8).toUpperCase()}</Text>
+          <Text style={styles.idNumber}>ID: {user?.id?.substring(0, 8).toUpperCase()}</Text>
         </View>
       </View>
 
