@@ -76,6 +76,15 @@ export default function LecturerLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color }) => (
+            <SymbolView name="person.fill" size={24} tintColor={color} fallback={undefined} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

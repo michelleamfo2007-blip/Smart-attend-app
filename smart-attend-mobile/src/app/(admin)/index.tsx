@@ -10,7 +10,7 @@ import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated'
 import { SymbolView } from 'expo-symbols';
 
 export default function AdminOverviewScreen() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
   const scheme = useColorScheme() ?? 'light';
   const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
@@ -105,13 +105,6 @@ export default function AdminOverviewScreen() {
           </Animated.View>
 
         </ScrollView>
-
-        <Animated.View entering={FadeInUp.duration(600).delay(500)} style={styles.footer}>
-          <TouchableOpacity style={styles.logoutButton} onPress={logout} activeOpacity={0.8}>
-            <SymbolView name="rectangle.portrait.and.arrow.right" size={20} tintColor="#ef4444" />
-            <Text style={styles.logoutText}>Log Out</Text>
-          </TouchableOpacity>
-        </Animated.View>
       </ThemedView>
     </Animated.View>
   );
@@ -142,10 +135,5 @@ const styles = StyleSheet.create({
   primaryButtonText: { color: 'white', fontWeight: '700', fontSize: 16, letterSpacing: 0.5 },
   divider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: Spacing.two },
   secondaryButton: { backgroundColor: 'transparent', borderWidth: 2 },
-  secondaryButtonText: { fontWeight: '700', fontSize: 16, letterSpacing: 0.5 },
-  footer: { marginTop: 'auto', marginBottom: Spacing.two },
-  logoutButton: {
-    flexDirection: 'row', padding: 16, backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: 12, alignItems: 'center', justifyContent: 'center', gap: 8,
-  },
-  logoutText: { color: '#ef4444', fontWeight: '700', fontSize: 15 }
+  secondaryButtonText: { fontWeight: '700', fontSize: 16, letterSpacing: 0.5 }
 });

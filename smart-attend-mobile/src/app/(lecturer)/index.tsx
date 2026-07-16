@@ -10,7 +10,7 @@ import Animated, { FadeIn, FadeInDown, FadeInUp, Layout } from 'react-native-rea
 import { SymbolView } from 'expo-symbols';
 
 export default function LecturerOverviewScreen() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
   const scheme = useColorScheme() ?? 'light';
   const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
@@ -154,6 +154,21 @@ export default function LecturerOverviewScreen() {
             <ThemedText style={styles.subtitle} themeColor="textSecondary">Lecturer Portal</ThemedText>
           </Animated.View>
 
+          {/* Upcoming Class (Mock) */}
+          <Animated.View entering={FadeInDown.duration(600).delay(200)} style={{ marginBottom: Spacing.six }}>
+            <ThemedText type="defaultSemiBold" style={{ marginBottom: Spacing.two }}>Upcoming Class</ThemedText>
+            <View style={[styles.upcomingCard, { backgroundColor: theme.primary, borderColor: theme.primary }]}>
+              <View style={styles.upcomingHeader}>
+                <View style={styles.upcomingBadge}>
+                  <Text style={styles.upcomingBadgeText}>TODAY</Text>
+                </View>
+                <SymbolView name="calendar.badge.clock" size={20} tintColor="white" />
+              </View>
+              <ThemedText style={styles.upcomingTitle}>L5DC/BM - Introduction to Business</ThemedText>
+              <ThemedText style={styles.upcomingTime}>9:00 AM - 11:00 AM • Room 402</ThemedText>
+            </View>
+          </Animated.View>
+
           {/* Active Sessions Section */}
           <Animated.View entering={FadeInDown.duration(600).delay(250)} style={styles.activeSessionsContainer}>
             <ThemedText type="defaultSemiBold" style={{ marginBottom: Spacing.two }}>Live Sessions</ThemedText>
@@ -295,13 +310,6 @@ export default function LecturerOverviewScreen() {
           </Animated.View>
 
         </ScrollView>
-
-        <Animated.View entering={FadeInUp.duration(600).delay(500)} style={styles.footer}>
-          <TouchableOpacity style={styles.logoutButton} onPress={logout} activeOpacity={0.8}>
-            <SymbolView name="rectangle.portrait.and.arrow.right" size={20} tintColor="#ef4444" />
-            <Text style={styles.logoutText}>Log Out</Text>
-          </TouchableOpacity>
-        </Animated.View>
       </ThemedView>
     </Animated.View>
   );
@@ -374,7 +382,21 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: { color: 'white', fontWeight: '700', fontSize: 16, letterSpacing: 0.5 },
   secondaryButton: { backgroundColor: 'transparent', borderWidth: 2 },
-  secondaryButtonText: { fontWeight: '700', fontSize: 16, letterSpacing: 0.5 },
+  secondaryButtonText: { fontWeight: 'bold', fontSize: 16 },
+  upcomingCard: {
+    padding: Spacing.four,
+    borderRadius: 16,
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  upcomingHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  upcomingBadge: { backgroundColor: 'rgba(255, 255, 255, 0.2)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
+  upcomingBadgeText: { color: 'white', fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+  upcomingTitle: { color: 'white', fontSize: 18, fontWeight: '700', marginBottom: 4 },
+  upcomingTime: { color: 'rgba(255, 255, 255, 0.9)', fontSize: 14, fontWeight: '500' },
   footer: { marginTop: 'auto', marginBottom: Spacing.two },
   logoutButton: {
     flexDirection: 'row', padding: 16, backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: 12, alignItems: 'center', justifyContent: 'center', gap: 8,

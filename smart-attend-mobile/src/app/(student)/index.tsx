@@ -12,7 +12,7 @@ import { useColorScheme } from 'react-native';
 import { Colors } from '@/constants/theme';
 
 export default function StudentOverviewScreen() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [stats, setStats] = useState<any>(null);
   const [upcomingClass, setUpcomingClass] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -149,12 +149,6 @@ export default function StudentOverviewScreen() {
           </TouchableOpacity>
         </Animated.View>
 
-        <Animated.View entering={FadeInUp.duration(600).delay(500)} style={styles.footer}>
-          <TouchableOpacity style={styles.logoutButton} onPress={logout} activeOpacity={0.8}>
-            <SymbolView name="rectangle.portrait.and.arrow.right" size={20} tintColor="#ef4444" />
-            <Text style={styles.logoutText}>Log Out</Text>
-          </TouchableOpacity>
-        </Animated.View>
       </ScrollView>
     </Animated.View>
   );
@@ -243,24 +237,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 16,
     letterSpacing: 0.5,
-  },
-  footer: {
-    marginTop: 'auto',
-    marginBottom: Spacing.two,
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    padding: 16,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  logoutText: {
-    color: '#ef4444',
-    fontWeight: '700',
-    fontSize: 15,
   },
   progressContainer: {
     height: 6,
