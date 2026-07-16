@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { StyleSheet, View, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, Text, ActivityIndicator, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
@@ -84,7 +84,7 @@ export default function StudentOverviewScreen() {
 
   return (
     <Animated.View entering={FadeIn.duration(800)} style={{ flex: 1, backgroundColor: theme.background }}>
-      <ThemedView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.container} style={{ flex: 1 }}>
         <Animated.View entering={FadeInDown.duration(600).delay(200)} style={styles.header}>
           <ThemedText type="title" style={styles.welcomeText}>Welcome, {user?.name?.split(' ')[0]}</ThemedText>
           <ThemedText style={styles.subtitle} themeColor="textSecondary">Student Portal</ThemedText>
@@ -155,16 +155,16 @@ export default function StudentOverviewScreen() {
             <Text style={styles.logoutText}>Log Out</Text>
           </TouchableOpacity>
         </Animated.View>
-      </ThemedView>
+      </ScrollView>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     padding: Spacing.four,
     paddingTop: Spacing.six,
+    flexGrow: 1,
   },
   header: {
     marginBottom: Spacing.six,
