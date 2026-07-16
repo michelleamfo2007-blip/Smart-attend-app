@@ -15,14 +15,22 @@ export default function AdminOverviewScreen() {
   const scheme = useColorScheme() ?? 'light';
   const theme = Colors[scheme];
 
-  const [stats, setStats] = useState({ users: 0, classes: 0 });
+  const [stats, setStats] = useState({ users: 0, classes: 0, lecturers: 0, students: 0 });
   const [loadingStats, setLoadingStats] = useState(true);
 
   const fetchStats = async () => {
     try {
       const { count: usersCount } = await supabase.from('users').select('*', { count: 'exact', head: true });
+      const { count: lecturersCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'LECTURER');
+      const { count: studentsCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'STUDENT');
       const { count: classesCount } = await supabase.from('classes').select('*', { count: 'exact', head: true });
-      setStats({ users: usersCount || 0, classes: classesCount || 0 });
+      
+      setStats({ 
+        users: usersCount || 0, 
+        classes: classesCount || 0,
+        lecturers: lecturersCount || 0,
+        students: studentsCount || 0
+      });
     } catch (error) {
       console.error('Error fetching stats:', error);
     } finally {
@@ -44,6 +52,20 @@ export default function AdminOverviewScreen() {
           </Animated.View>
 
           <Animated.View entering={FadeInDown.duration(600).delay(300)} style={styles.statsContainer}>
+            <View style={[styles.statCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+              <View style={[styles.iconContainer, { backgroundColor: theme.primaryLight }]}>
+                <SymbolView name="person.fill" size={24} tintColor={theme.primary} />
+              </View>
+              {loadingStats ? <ActivityIndicator color={theme.primary} /> : <ThemedText style={[styles.statValue, { color: theme.primary }]}>{stats.students}</ThemedText>}
+              <ThemedText themeColor="textSecondary" style={styles.statLabel}>Students</ThemedText>
+            </View>
+            <View style={[styles.statCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+              <View style={[styles.iconContainer, { backgroundColor: theme.primaryLight }]}>
+                <SymbolView name="person.crop.rectangle.fill" size={24} tintColor={theme.primary} />
+              </View>
+              {loadingStats ? <ActivityIndicator color={theme.primary} /> : <ThemedText style={[styles.statValue, { color: theme.primary }]}>{stats.lecturers}</ThemedText>}
+              <ThemedText themeColor="textSecondary" style={styles.statLabel}>Lecturers</ThemedText>
+            </View>
             <View style={[styles.statCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
               <View style={[styles.iconContainer, { backgroundColor: theme.primaryLight }]}>
                 <SymbolView name="person.3.fill" size={24} tintColor={theme.primary} />
@@ -100,9 +122,9 @@ const styles = StyleSheet.create({
   header: { marginBottom: Spacing.six },
   welcomeText: { fontSize: 32, fontWeight: '800', marginBottom: 4 },
   subtitle: { fontSize: 16, fontWeight: '500' },
-  statsContainer: { flexDirection: 'row', gap: Spacing.four, marginBottom: Spacing.six },
+  statsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.four, marginBottom: Spacing.six },
   statCard: {
-    flex: 1, padding: Spacing.four, borderRadius: 16, borderWidth: 1,
+    flexGrow: 1, minWidth: '45%', padding: Spacing.four, borderRadius: 16, borderWidth: 1,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 3,
   },
   iconContainer: {
