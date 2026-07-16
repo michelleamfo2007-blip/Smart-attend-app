@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, FlatList, ActivityIndicator, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { StyleSheet, View, Text, FlatList, ActivityIndicator, TouchableOpacity, TextInput, Alert, ScrollView } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, Colors } from '@/constants/theme';
@@ -199,9 +199,10 @@ export default function ManageClassesScreen() {
       </View>
 
       {isFormVisible ? (
-        <View style={[styles.createForm, { backgroundColor: theme.backgroundElement, borderColor: theme.backgroundSelected }]}>
-          <ThemedText style={styles.formTitle}>{editingClassId ? 'Edit Class' : 'Create New Class'}</ThemedText>
-          <TextInput
+        <View style={[styles.createForm, { backgroundColor: theme.backgroundElement, borderColor: theme.backgroundSelected, flexShrink: 1, maxHeight: '80%' }]}>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <ThemedText style={styles.formTitle}>{editingClassId ? 'Edit Class' : 'Create New Class'}</ThemedText>
+            <TextInput
             style={[styles.input, { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.backgroundSelected }]}
             placeholder="Course Name (e.g., CS 101)"
             placeholderTextColor={theme.textSecondary}
@@ -274,14 +275,15 @@ export default function ManageClassesScreen() {
             )}
           </View>
 
-          <View style={styles.formActions}>
-            <TouchableOpacity style={styles.cancelButton} onPress={() => setIsFormVisible(false)}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.saveButton} onPress={handleSaveClass}>
-              <Text style={styles.saveButtonText}>{editingClassId ? 'Update Class' : 'Save Class'}</Text>
-            </TouchableOpacity>
-          </View>
+            <View style={styles.formActions}>
+              <TouchableOpacity style={styles.cancelButton} onPress={() => setIsFormVisible(false)}>
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.saveButton} onPress={handleSaveClass}>
+                <Text style={styles.saveButtonText}>{editingClassId ? 'Update Class' : 'Save Class'}</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
         </View>
       ) : (
         <TouchableOpacity style={styles.addButton} onPress={handleOpenCreate}>
