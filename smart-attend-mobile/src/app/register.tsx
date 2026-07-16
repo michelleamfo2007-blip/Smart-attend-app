@@ -15,7 +15,7 @@ export default function RegisterScreen() {
   const router = useRouter();
   const { login } = useAuth();
   const scheme = useColorScheme() ?? 'light';
-  const theme = Colors[scheme];
+  const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
   
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');

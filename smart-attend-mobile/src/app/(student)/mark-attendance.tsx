@@ -16,7 +16,7 @@ const ACCEPTABLE_RADIUS_METERS = 50;
 export default function MarkAttendanceScreen() {
   const { user } = useAuth();
   const scheme = useColorScheme() ?? 'light';
-  const theme = Colors[scheme];
+  const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [markingId, setMarkingId] = useState<string | null>(null);

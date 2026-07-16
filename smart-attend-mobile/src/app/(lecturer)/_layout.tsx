@@ -8,7 +8,7 @@ import { useEffect } from 'react';
 export default function LecturerLayout() {
   const { user, loading } = useAuth();
   const scheme = useColorScheme() ?? 'light';
-  const colors = Colors[scheme];
+  const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'LECTURER')) {

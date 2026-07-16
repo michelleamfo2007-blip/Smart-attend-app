@@ -17,7 +17,7 @@ export default function StudentOverviewScreen() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const scheme = useColorScheme() ?? 'light';
-  const theme = Colors[scheme];
+  const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
 
   useEffect(() => {
     const fetchStats = async () => {

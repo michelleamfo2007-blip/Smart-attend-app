@@ -12,7 +12,7 @@ import { supabase } from '../../lib/supabase';
 export default function RosterScreen() {
   const { user } = useAuth();
   const scheme = useColorScheme() ?? 'light';
-  const theme = Colors[scheme];
+  const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const [records, setRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 

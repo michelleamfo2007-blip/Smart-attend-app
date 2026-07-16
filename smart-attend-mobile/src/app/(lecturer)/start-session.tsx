@@ -13,7 +13,7 @@ import { SymbolView } from 'expo-symbols';
 export default function StartSessionScreen() {
   const { user } = useAuth();
   const scheme = useColorScheme() ?? 'light';
-  const theme = Colors[scheme];
+  const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
   
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);

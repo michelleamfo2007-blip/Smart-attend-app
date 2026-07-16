@@ -13,7 +13,7 @@ export default function AdminOverviewScreen() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const scheme = useColorScheme() ?? 'light';
-  const theme = Colors[scheme];
+  const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
 
   const [stats, setStats] = useState({ users: 0, classes: 0, lecturers: 0, students: 0 });
   const [loadingStats, setLoadingStats] = useState(true);

@@ -9,7 +9,7 @@ import { supabase } from '../../lib/supabase';
 
 export default function ManageClassesScreen() {
   const scheme = useColorScheme() ?? 'light';
-  const theme = Colors[scheme];
+  const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const [classes, setClasses] = useState<any[]>([]);
   const [lecturers, setLecturers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +43,7 @@ export default function ManageClassesScreen() {
           id: c.id,
           name: c.name,
           lecturerId: c.lecturer_id,
-          lecturerName: c.users?.name || 'Unknown',
+          lecturerName: (c.users as any)?.name || 'Unknown',
           level: c.level,
           semester: c.semester,
           scheduleTime: c.schedule_time
@@ -148,7 +148,7 @@ export default function ManageClassesScreen() {
           id: insertedClass.id,
           name: insertedClass.name,
           lecturerId: insertedClass.lecturer_id,
-          lecturerName: insertedClass.users?.name || lecturer?.name || 'Unknown',
+          lecturerName: (insertedClass.users as any)?.name || lecturer?.name || 'Unknown',
           level: insertedClass.level,
           semester: insertedClass.semester,
           scheduleTime: insertedClass.schedule_time

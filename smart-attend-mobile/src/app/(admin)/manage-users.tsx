@@ -10,7 +10,7 @@ import { supabase } from '../../lib/supabase';
 
 export default function ManageUsersScreen() {
   const scheme = useColorScheme() ?? 'light';
-  const theme = Colors[scheme];
+  const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 

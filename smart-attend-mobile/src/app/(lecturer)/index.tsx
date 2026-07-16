@@ -13,7 +13,7 @@ export default function LecturerOverviewScreen() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const scheme = useColorScheme() ?? 'light';
-  const theme = Colors[scheme];
+  const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
 
   const [stats, setStats] = useState({ courses: 0, students: 0 });
   const [activeSessions, setActiveSessions] = useState<any[]>([]);
