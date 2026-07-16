@@ -6,12 +6,18 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { supabase } from '../../lib/supabase';
+import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { SymbolView } from 'expo-symbols';
+import { useColorScheme } from 'react-native';
+import { Colors } from '@/constants/theme';
 
 export default function StudentOverviewScreen() {
   const { user, logout } = useAuth();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const scheme = useColorScheme() ?? 'light';
+  const theme = Colors[scheme];
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -63,41 +69,58 @@ export default function StudentOverviewScreen() {
   if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
 
   return (
-    <ThemedView style={styles.container}>
-      <View style={styles.header}>
-        <ThemedText type="title">Welcome, {user?.name}</ThemedText>
-        <ThemedText themeColor="textSecondary">Student Portal</ThemedText>
-      </View>
+    <Animated.View entering={FadeIn.duration(800)} style={{ flex: 1, backgroundColor: theme.background }}>
+      <ThemedView style={styles.container}>
+        <Animated.View entering={FadeInDown.duration(600).delay(200)} style={styles.header}>
+          <ThemedText type="title" style={styles.welcomeText}>Welcome, {user?.name?.split(' ')[0]}</ThemedText>
+          <ThemedText style={styles.subtitle} themeColor="textSecondary">Student Portal</ThemedText>
+        </Animated.View>
 
-      <View style={styles.statsContainer}>
-        <View style={styles.statCard}>
-          <ThemedText style={styles.statValue}>{stats?.attended}/{stats?.totalSessions}</ThemedText>
-          <ThemedText themeColor="textSecondary">Sessions Attended</ThemedText>
-        </View>
-        <View style={styles.statCard}>
-          <ThemedText style={styles.statValue}>{stats?.attendanceRate}%</ThemedText>
-          <ThemedText themeColor="textSecondary">Attendance Rate</ThemedText>
-        </View>
-      </View>
+        <Animated.View entering={FadeInDown.duration(600).delay(300)} style={styles.statsContainer}>
+          <View style={[styles.statCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+            <View style={[styles.iconContainer, { backgroundColor: theme.primaryLight }]}>
+              <SymbolView name="calendar.badge.clock" size={24} tintColor={theme.primary} />
+            </View>
+            <ThemedText style={[styles.statValue, { color: theme.primary }]}>{stats?.attended}/{stats?.totalSessions}</ThemedText>
+            <ThemedText themeColor="textSecondary" style={styles.statLabel}>Sessions Attended</ThemedText>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+            <View style={[styles.iconContainer, { backgroundColor: theme.primaryLight }]}>
+              <SymbolView name="chart.bar.fill" size={24} tintColor={theme.primary} />
+            </View>
+            <ThemedText style={[styles.statValue, { color: theme.primary }]}>{stats?.attendanceRate}%</ThemedText>
+            <ThemedText themeColor="textSecondary" style={styles.statLabel}>Attendance Rate</ThemedText>
+          </View>
+        </Animated.View>
 
-      <TouchableOpacity 
-        style={styles.markAttendanceButton} 
-        onPress={() => router.push('/(student)/mark-attendance')}
-      >
-        <Text style={styles.markAttendanceText}>Mark Attendance</Text>
-      </TouchableOpacity>
+        <Animated.View entering={FadeInUp.duration(600).delay(400)} style={styles.actionContainer}>
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.primaryButton, { backgroundColor: theme.primary }]} 
+            onPress={() => router.push('/(student)/mark-attendance')}
+            activeOpacity={0.8}
+          >
+            <SymbolView name="qrcode.viewfinder" size={24} tintColor="white" />
+            <Text style={styles.primaryButtonText}>Mark Attendance</Text>
+          </TouchableOpacity>
 
-      <TouchableOpacity 
-        style={styles.historyButton} 
-        onPress={() => router.push('/(student)/history')}
-      >
-        <Text style={styles.historyText}>View My History</Text>
-      </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.secondaryButton, { borderColor: theme.primary }]} 
+            onPress={() => router.push('/(student)/history')}
+            activeOpacity={0.8}
+          >
+            <SymbolView name="clock.arrow.circlepath" size={24} tintColor={theme.primary} />
+            <Text style={[styles.secondaryButtonText, { color: theme.primary }]}>View My History</Text>
+          </TouchableOpacity>
+        </Animated.View>
 
-      <TouchableOpacity style={styles.logoutButton} onPress={logout}>
-        <Text style={styles.logoutText}>Log Out</Text>
-      </TouchableOpacity>
-    </ThemedView>
+        <Animated.View entering={FadeInUp.duration(600).delay(500)} style={styles.footer}>
+          <TouchableOpacity style={styles.logoutButton} onPress={logout} activeOpacity={0.8}>
+            <SymbolView name="rectangle.portrait.and.arrow.right" size={20} tintColor="#ef4444" />
+            <Text style={styles.logoutText}>Log Out</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      </ThemedView>
+    </Animated.View>
   );
 }
 
@@ -105,9 +128,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: Spacing.four,
+    paddingTop: Spacing.six,
   },
   header: {
     marginBottom: Spacing.six,
+  },
+  welcomeText: {
+    fontSize: 32,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 16,
+    fontWeight: '500',
   },
   statsContainer: {
     flexDirection: 'row',
@@ -117,53 +150,80 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     padding: Spacing.four,
-    backgroundColor: 'rgba(59, 130, 246, 0.1)', // Light blue
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
   statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#3b82f6',
+    fontSize: 28,
+    fontWeight: '800',
     marginBottom: 4,
   },
-  markAttendanceButton: {
-    padding: 16,
-    backgroundColor: '#3b82f6',
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: Spacing.four,
+  statLabel: {
+    fontSize: 13,
+    fontWeight: '500',
   },
-  markAttendanceText: {
+  actionContainer: {
+    gap: Spacing.four,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    padding: 18,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  primaryButton: {
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  primaryButtonText: {
     color: 'white',
-    fontWeight: 'bold',
+    fontWeight: '700',
     fontSize: 16,
+    letterSpacing: 0.5,
   },
-  historyButton: {
-    padding: 16,
-    backgroundColor: 'white',
-    borderRadius: 8,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#3b82f6',
-    marginBottom: Spacing.four,
+  secondaryButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 2,
   },
-  historyText: {
-    color: '#3b82f6',
-    fontWeight: 'bold',
+  secondaryButtonText: {
+    fontWeight: '700',
     fontSize: 16,
+    letterSpacing: 0.5,
+  },
+  footer: {
+    marginTop: 'auto',
+    marginBottom: Spacing.two,
   },
   logoutButton: {
+    flexDirection: 'row',
     padding: 16,
-    backgroundColor: '#ef4444',
-    borderRadius: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: 12,
     alignItems: 'center',
-    marginTop: 'auto',
+    justifyContent: 'center',
+    gap: 8,
   },
   logoutText: {
-    color: 'white',
-    fontWeight: 'bold',
+    color: '#ef4444',
+    fontWeight: '700',
+    fontSize: 15,
   }
 });

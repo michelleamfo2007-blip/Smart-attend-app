@@ -23,17 +23,38 @@ export default function StudentLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#3b82f6', // Student primary color
-        headerStyle: { backgroundColor: colors.background },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textSecondary,
+        headerStyle: { backgroundColor: colors.background, shadowOpacity: 0, elevation: 0, borderBottomWidth: 1, borderBottomColor: colors.border },
         headerTintColor: colors.text,
-        tabBarStyle: { backgroundColor: colors.background },
+        tabBarStyle: { 
+          backgroundColor: colors.backgroundElement, 
+          borderTopWidth: 1, 
+          borderTopColor: colors.border,
+          height: 64,
+          paddingBottom: 8,
+          paddingTop: 8,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '500',
+        },
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Overview',
           tabBarIcon: ({ color }) => (
-            <SymbolView name="house.fill" tintColor={color} fallback={undefined} />
+            <SymbolView name="house.fill" size={24} tintColor={color} fallback={undefined} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="mark-attendance"
+        options={{
+          title: 'Mark Present',
+          tabBarIcon: ({ color }) => (
+            <SymbolView name="qrcode.viewfinder" size={24} tintColor={color} fallback={undefined} />
           ),
         }}
       />
@@ -42,7 +63,7 @@ export default function StudentLayout() {
         options={{
           title: 'History',
           tabBarIcon: ({ color }) => (
-            <SymbolView name="checkmark.circle.fill" tintColor={color} fallback={undefined} />
+            <SymbolView name="clock.fill" size={24} tintColor={color} fallback={undefined} />
           ),
         }}
       />

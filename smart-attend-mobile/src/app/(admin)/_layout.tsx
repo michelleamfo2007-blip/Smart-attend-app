@@ -23,26 +23,47 @@ export default function AdminLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#e01e37', // Admin primary color
-        headerStyle: { backgroundColor: colors.background },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textSecondary,
+        headerStyle: { backgroundColor: colors.background, shadowOpacity: 0, elevation: 0, borderBottomWidth: 1, borderBottomColor: colors.border },
         headerTintColor: colors.text,
-        tabBarStyle: { backgroundColor: colors.background },
+        tabBarStyle: { 
+          backgroundColor: colors.backgroundElement, 
+          borderTopWidth: 1, 
+          borderTopColor: colors.border,
+          height: 64,
+          paddingBottom: 8,
+          paddingTop: 8,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '500',
+        },
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Overview',
           tabBarIcon: ({ color }) => (
-            <SymbolView name="house.fill" tintColor={color} fallback={undefined} />
+            <SymbolView name="house.fill" size={24} tintColor={color} fallback={undefined} />
           ),
         }}
       />
       <Tabs.Screen
-        name="users"
+        name="manage-users"
         options={{
           title: 'Users',
           tabBarIcon: ({ color }) => (
-            <SymbolView name="person.3.fill" tintColor={color} fallback={undefined} />
+            <SymbolView name="person.2.fill" size={24} tintColor={color} fallback={undefined} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="manage-classes"
+        options={{
+          title: 'Classes',
+          tabBarIcon: ({ color }) => (
+            <SymbolView name="book.fill" size={24} tintColor={color} fallback={undefined} />
           ),
         }}
       />

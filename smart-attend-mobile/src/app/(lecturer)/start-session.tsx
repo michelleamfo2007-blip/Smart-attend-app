@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Alert, ScrollView, useColorScheme, Platform } from 'react-native';
 import * as Location from 'expo-location';
 import { useAuth } from '../../context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Spacing, Colors } from '@/constants/theme';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { SymbolView } from 'expo-symbols';
 
 export default function StartSessionScreen() {
   const { user } = useAuth();
+  const scheme = useColorScheme() ?? 'light';
+  const theme = Colors[scheme];
+  
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [fetchingClasses, setFetchingClasses] = useState(true);
@@ -32,7 +37,7 @@ export default function StartSessionScreen() {
       if (error) throw error;
       setClasses(data || []);
       if (data && data.length > 0) {
-        setSelectedClassId(data[0].id); // default to first class
+        setSelectedClassId(data[0].id);
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to load classes');
@@ -56,9 +61,16 @@ export default function StartSessionScreen() {
     }
 
     try {
-      let location = await Location.getCurrentPositionAsync({ 
+      // Get location with a timeout
+      const locationPromise = Location.getCurrentPositionAsync({ 
         accuracy: Location.Accuracy.Balanced
       });
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Location fetch timed out. Please check your GPS/Location settings.")), 10000)
+      );
+
+      let location: any = await Promise.race([locationPromise, timeoutPromise]);
 
       // Invalidate old active sessions for this class
       await supabase
@@ -79,103 +91,186 @@ export default function StartSessionScreen() {
 
       if (error) throw error;
 
-      Alert.alert(
-        "Session Started",
-        `Location saved successfully!\nLat: ${location.coords.latitude.toFixed(4)}\nLon: ${location.coords.longitude.toFixed(4)}`,
-        [{ text: "OK", onPress: () => router.back() }]
-      );
+      if (Platform.OS === 'web') {
+        window.alert(`Session Started! Location saved securely.\nLat: ${location.coords.latitude.toFixed(4)}\nLon: ${location.coords.longitude.toFixed(4)}`);
+        router.back();
+      } else {
+        Alert.alert(
+          "Session Started",
+          `Location saved securely!\nLat: ${location.coords.latitude.toFixed(4)}\nLon: ${location.coords.longitude.toFixed(4)}`,
+          [{ text: "OK", onPress: () => router.back() }]
+        );
+      }
     } catch (err: any) {
+      console.error("Start Session Error:", err);
       setErrorMsg(err.message || 'Failed to get location or save session');
+      if (Platform.OS === 'web') {
+         window.alert(`Error: ${err.message || 'Failed to get location'}`);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <View style={styles.header}>
-        <ThemedText type="title">Start Attendance Session</ThemedText>
-        <ThemedText themeColor="textSecondary">Create a new GPS-based session</ThemedText>
-      </View>
+    <Animated.View entering={FadeIn.duration(800)} style={{ flex: 1, backgroundColor: theme.background }}>
+      <ThemedView style={styles.container}>
+        <Animated.View entering={FadeInDown.duration(600).delay(200)} style={styles.header}>
+          <SymbolView name="location.fill" size={32} tintColor={theme.primary} style={{ marginBottom: 12 }} />
+          <ThemedText type="title" style={styles.titleText}>Start Session</ThemedText>
+          <ThemedText style={styles.subtitle} themeColor="textSecondary">GPS Location-Based Attendance</ThemedText>
+        </Animated.View>
 
-      <View style={styles.content}>
-        {fetchingClasses ? (
-          <ActivityIndicator size="large" color="#8b5cf6" style={{ marginBottom: 20 }} />
-        ) : classes.length === 0 ? (
-          <ThemedText style={styles.errorText}>You are not assigned to any classes.</ThemedText>
-        ) : (
-          <View style={{ width: '100%', marginBottom: 20 }}>
-            <ThemedText style={{ marginBottom: 10, fontWeight: 'bold' }}>Select Class:</ThemedText>
-            <ScrollView style={styles.classList} nestedScrollEnabled>
-              {classes.map((cls) => (
-                <TouchableOpacity
-                  key={cls.id}
-                  style={[
-                    styles.classItem,
-                    selectedClassId === cls.id && styles.classItemSelected
-                  ]}
-                  onPress={() => setSelectedClassId(cls.id)}
-                >
-                  <Text style={[
-                    styles.classItemText,
-                    selectedClassId === cls.id && styles.classItemTextSelected
-                  ]}>
-                    {cls.name} (L{cls.level}, {cls.semester})
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+          <Animated.View entering={FadeInDown.duration(600).delay(300)} style={{ width: '100%' }}>
+            {fetchingClasses ? (
+              <ActivityIndicator size="large" color={theme.primary} style={{ marginVertical: 40 }} />
+            ) : classes.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <SymbolView name="exclamationmark.triangle.fill" size={48} tintColor={theme.textSecondary} style={{ opacity: 0.5, marginBottom: 16 }} />
+                <ThemedText style={styles.errorText}>You are not assigned to any classes.</ThemedText>
+              </View>
+            ) : (
+              <View style={{ width: '100%', marginBottom: Spacing.six }}>
+                <ThemedText style={styles.sectionTitle}>Select a Class</ThemedText>
+                <View style={styles.classList}>
+                  {classes.map((cls) => {
+                    const isSelected = selectedClassId === cls.id;
+                    return (
+                      <TouchableOpacity
+                        key={cls.id}
+                        activeOpacity={0.7}
+                        style={[
+                          styles.classItem,
+                          { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+                          isSelected && { borderColor: theme.primary, backgroundColor: theme.primaryLight }
+                        ]}
+                        onPress={() => setSelectedClassId(cls.id)}
+                      >
+                        <View style={styles.classItemRow}>
+                          <View style={styles.classItemInfo}>
+                            <ThemedText style={[styles.classItemTitle, isSelected && { color: theme.primary }]}>
+                              {cls.name}
+                            </ThemedText>
+                            <ThemedText style={{ fontSize: 13 }} themeColor="textSecondary">
+                              L{cls.level} • {cls.semester} Semester
+                            </ThemedText>
+                          </View>
+                          {isSelected && (
+                            <SymbolView name="checkmark.circle.fill" size={24} tintColor={theme.primary} />
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
 
-        <ThemedText style={styles.instructions}>
-          Starting a session will record your current GPS location. Students will need to be within 50 meters of this location to mark themselves as present.
-        </ThemedText>
-        
-        {errorMsg ? (
-          <Text style={styles.errorText}>{errorMsg}</Text>
-        ) : null}
+            <Animated.View entering={FadeInUp.duration(600).delay(400)} style={[styles.infoBox, { backgroundColor: theme.backgroundSelected }]}>
+              <SymbolView name="info.circle.fill" size={20} tintColor={theme.textSecondary} />
+              <ThemedText style={styles.instructions} themeColor="textSecondary">
+                Starting a session will record your current GPS location. Students will need to be physically within 50 meters of this exact location to mark themselves present.
+              </ThemedText>
+            </Animated.View>
+            
+            {errorMsg ? (
+              <Animated.View entering={FadeInUp.duration(400)} style={styles.errorBox}>
+                <SymbolView name="exclamationmark.circle.fill" size={20} tintColor="#ef4444" />
+                <Text style={styles.errorText}>{errorMsg}</Text>
+              </Animated.View>
+            ) : null}
 
-        <TouchableOpacity 
-          style={[
-            styles.startButton, 
-            (loading || classes.length === 0) && styles.buttonDisabled
-          ]} 
-          onPress={handleStartSession}
-          disabled={loading || classes.length === 0}
-        >
-          {loading ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <Text style={styles.startButtonText}>Start Session Here</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </ThemedView>
+          </Animated.View>
+        </ScrollView>
+
+        <Animated.View entering={FadeInUp.duration(600).delay(500)} style={styles.footer}>
+          <TouchableOpacity 
+            style={[
+              styles.startButton, 
+              { backgroundColor: theme.primary },
+              (loading || classes.length === 0) && styles.buttonDisabled
+            ]} 
+            onPress={handleStartSession}
+            disabled={loading || classes.length === 0}
+            activeOpacity={0.8}
+          >
+            {loading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <>
+                <SymbolView name="location.circle.fill" size={24} tintColor="white" />
+                <Text style={styles.startButtonText}>Broadcast GPS Location</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </Animated.View>
+
+      </ThemedView>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: Spacing.four },
-  header: { marginBottom: Spacing.six },
-  content: { flex: 1, justifyContent: 'flex-start', alignItems: 'center' },
-  classList: { maxHeight: 200, width: '100%', borderWidth: 1, borderColor: '#ccc', borderRadius: 8 },
-  classItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  classItemSelected: { backgroundColor: '#8b5cf6' },
-  classItemText: { fontSize: 16, color: '#333' },
-  classItemTextSelected: { color: '#fff', fontWeight: 'bold' },
-  instructions: { textAlign: 'center', marginBottom: Spacing.eight, fontSize: 14, lineHeight: 20, marginTop: 10 },
-  startButton: {
-    backgroundColor: '#8b5cf6',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 8,
+  container: { flex: 1, padding: Spacing.four, paddingTop: Spacing.six },
+  header: { marginBottom: Spacing.six, alignItems: 'center' },
+  titleText: { fontSize: 32, fontWeight: '800', marginBottom: 4 },
+  subtitle: { fontSize: 16, fontWeight: '500' },
+  content: { paddingBottom: 100 }, // spacing for floating button
+  sectionTitle: { marginBottom: 12, fontWeight: '700', fontSize: 16 },
+  classList: { gap: Spacing.three },
+  classItem: {
+    padding: Spacing.four,
+    borderWidth: 1,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  classItemRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  classItemInfo: { flex: 1 },
+  classItemTitle: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  infoBox: {
+    flexDirection: 'row',
+    padding: Spacing.four,
+    borderRadius: 12,
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: Spacing.six,
+  },
+  instructions: { flex: 1, fontSize: 14, lineHeight: 20 },
+  errorBox: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    padding: Spacing.four,
+    borderRadius: 12,
     alignItems: 'center',
-    width: '100%',
+    gap: 12,
+    marginBottom: Spacing.six,
   },
-  buttonDisabled: {
-    opacity: 0.7,
+  errorText: { color: '#ef4444', fontWeight: '600', flex: 1 },
+  emptyContainer: { alignItems: 'center', paddingVertical: Spacing.six },
+  footer: {
+    position: 'absolute',
+    bottom: Spacing.six,
+    left: Spacing.four,
+    right: Spacing.four,
   },
-  startButtonText: { color: 'white', fontWeight: 'bold', fontSize: 18 },
-  errorText: { color: 'red', marginBottom: Spacing.four, textAlign: 'center' }
+  startButton: {
+    flexDirection: 'row',
+    paddingVertical: 18,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  buttonDisabled: { opacity: 0.6, shadowOpacity: 0, elevation: 0 },
+  startButtonText: { color: 'white', fontWeight: 'bold', fontSize: 18, letterSpacing: 0.5 },
 });

@@ -7,8 +7,9 @@ import { useAuth, UserRole, User } from '../context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, Colors } from '@/constants/theme';
-import { useColorScheme } from 'react-native';
+import { useColorScheme, KeyboardAvoidingView, Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -91,20 +92,27 @@ export default function RegisterScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.content}>
-            <View style={styles.header}>
+    <Animated.View entering={FadeIn.duration(800)} style={{ flex: 1, backgroundColor: theme.background }}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        style={styles.container}
+      >
+        <SafeAreaView style={styles.safeArea}>
+          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <View style={styles.content}>
+            <Animated.View entering={FadeInDown.duration(600).delay(200)} style={styles.header}>
               <ThemedText type="title" style={styles.title}>Create Account</ThemedText>
               <ThemedText style={styles.subtitle} themeColor="textSecondary">Join SmartAttend today</ThemedText>
-            </View>
+            </Animated.View>
             
-            <View style={styles.form}>
+            <Animated.View entering={FadeInDown.duration(600).delay(300)} style={styles.form}>
               <View style={styles.inputGroup}>
                 <ThemedText type="defaultSemiBold">Full Name</ThemedText>
                 <TextInput
-                  style={[styles.input, { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.backgroundSelected }]}
+                  style={[
+                    styles.input, 
+                    { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }
+                  ]}
                   placeholder="John Doe"
                   placeholderTextColor={theme.textSecondary}
                   value={name}
@@ -116,7 +124,10 @@ export default function RegisterScreen() {
               <View style={styles.inputGroup}>
                 <ThemedText type="defaultSemiBold">Email address</ThemedText>
                 <TextInput
-                  style={[styles.input, { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.backgroundSelected }]}
+                  style={[
+                    styles.input, 
+                    { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }
+                  ]}
                   placeholder="you@university.edu"
                   placeholderTextColor={theme.textSecondary}
                   value={email}
@@ -129,7 +140,10 @@ export default function RegisterScreen() {
               <View style={styles.inputGroup}>
                 <ThemedText type="defaultSemiBold">Password</ThemedText>
                 <TextInput
-                  style={[styles.input, { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.backgroundSelected }]}
+                  style={[
+                    styles.input, 
+                    { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }
+                  ]}
                   placeholder="Create a password"
                   placeholderTextColor={theme.textSecondary}
                   value={password}
@@ -142,14 +156,16 @@ export default function RegisterScreen() {
                 <ThemedText type="defaultSemiBold">I am a...</ThemedText>
                 <View style={styles.roleContainer}>
                   <TouchableOpacity 
-                    style={[styles.roleCard, { backgroundColor: theme.backgroundElement, borderColor: theme.backgroundSelected }, role === 'STUDENT' && styles.roleCardActive]}
+                    style={[styles.roleCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }, role === 'STUDENT' && { borderColor: theme.primary, backgroundColor: theme.primaryLight }]}
                     onPress={() => setRole('STUDENT')}
+                    activeOpacity={0.7}
                   >
                     <ThemedText style={[styles.roleText, role === 'STUDENT' && styles.roleTextActive]}>Student</ThemedText>
                   </TouchableOpacity>
                   <TouchableOpacity 
-                    style={[styles.roleCard, { backgroundColor: theme.backgroundElement, borderColor: theme.backgroundSelected }, role === 'LECTURER' && styles.roleCardActive]}
+                    style={[styles.roleCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }, role === 'LECTURER' && { borderColor: theme.primary, backgroundColor: theme.primaryLight }]}
                     onPress={() => setRole('LECTURER')}
+                    activeOpacity={0.7}
                   >
                     <ThemedText style={[styles.roleText, role === 'LECTURER' && styles.roleTextActive]}>Lecturer</ThemedText>
                   </TouchableOpacity>
@@ -164,8 +180,9 @@ export default function RegisterScreen() {
                       {['Level 3', 'Level 4', 'Level 5', 'Level 6'].map(lvl => (
                         <TouchableOpacity 
                           key={lvl}
-                          style={[styles.roleCard, { backgroundColor: theme.backgroundElement, borderColor: theme.backgroundSelected, padding: 8 }, level === lvl && styles.roleCardActive]}
+                          style={[styles.roleCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border, padding: 8 }, level === lvl && { borderColor: theme.primary, backgroundColor: theme.primaryLight }]}
                           onPress={() => setLevel(lvl)}
+                          activeOpacity={0.7}
                         >
                           <ThemedText style={[{fontSize: 12, textAlign: 'center'}, styles.roleText, level === lvl && styles.roleTextActive]}>{lvl.replace('Level ', 'L')}</ThemedText>
                         </TouchableOpacity>
@@ -179,8 +196,9 @@ export default function RegisterScreen() {
                       {['First', 'Second'].map(sem => (
                         <TouchableOpacity 
                           key={sem}
-                          style={[styles.roleCard, { backgroundColor: theme.backgroundElement, borderColor: theme.backgroundSelected }, semester === sem && styles.roleCardActive]}
+                          style={[styles.roleCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }, semester === sem && { borderColor: theme.primary, backgroundColor: theme.primaryLight }]}
                           onPress={() => setSemester(sem)}
+                          activeOpacity={0.7}
                         >
                           <ThemedText style={[styles.roleText, semester === sem && styles.roleTextActive]}>{sem}</ThemedText>
                         </TouchableOpacity>
@@ -191,9 +209,10 @@ export default function RegisterScreen() {
               )}
 
               <TouchableOpacity 
-                style={styles.button} 
+                style={[styles.button, { backgroundColor: theme.primary }]} 
                 onPress={handleRegister}
                 disabled={loading}
+                activeOpacity={0.8}
               >
                 {loading ? (
                   <ActivityIndicator color="white" />
@@ -205,14 +224,15 @@ export default function RegisterScreen() {
               <View style={styles.loginContainer}>
                 <ThemedText themeColor="textSecondary">Already have an account? </ThemedText>
                 <TouchableOpacity onPress={() => router.push('/')}>
-                  <ThemedText style={styles.loginLink}>Sign In</ThemedText>
+                  <ThemedText style={[styles.loginLink, { color: theme.primary }]}>Sign In</ThemedText>
                 </TouchableOpacity>
               </View>
-            </View>
+            </Animated.View>
           </View>
         </ScrollView>
       </SafeAreaView>
-    </ThemedView>
+    </KeyboardAvoidingView>
+    </Animated.View>
   );
 }
 
@@ -228,33 +248,42 @@ const styles = StyleSheet.create({
   inputGroup: { gap: Spacing.two },
   input: {
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 14,
+    borderRadius: 12,
+    padding: 16,
     fontSize: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   roleContainer: { flexDirection: 'row', gap: Spacing.four },
   roleCard: {
     flex: 1,
     padding: Spacing.four,
     borderWidth: 1,
-    borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  roleCardActive: {
-    borderColor: '#3b82f6',
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-  },
-  roleText: { color: '#6b7280', fontWeight: '500' },
-  roleTextActive: { color: '#3b82f6', fontWeight: 'bold' },
+  roleText: { color: '#64748B', fontWeight: '500' },
+  roleTextActive: { color: '#2563EB', fontWeight: 'bold' },
   button: {
-    backgroundColor: '#e01e37',
-    padding: 16,
-    borderRadius: 8,
+    padding: 18,
+    borderRadius: 12,
     alignItems: 'center',
-    marginTop: Spacing.two,
+    marginTop: Spacing.four,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
-  buttonText: { color: 'white', fontSize: 16, fontWeight: '600' },
+  buttonText: { color: 'white', fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
   loginContainer: { flexDirection: 'row', justifyContent: 'center', marginTop: Spacing.four },
-  loginLink: { color: '#e01e37', fontWeight: 'bold' },
+  loginLink: { fontWeight: 'bold' },
 });

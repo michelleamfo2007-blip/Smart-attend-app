@@ -23,26 +23,47 @@ export default function LecturerLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#8b5cf6', // Lecturer primary color
-        headerStyle: { backgroundColor: colors.background },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textSecondary,
+        headerStyle: { backgroundColor: colors.background, shadowOpacity: 0, elevation: 0, borderBottomWidth: 1, borderBottomColor: colors.border },
         headerTintColor: colors.text,
-        tabBarStyle: { backgroundColor: colors.background },
+        tabBarStyle: { 
+          backgroundColor: colors.backgroundElement, 
+          borderTopWidth: 1, 
+          borderTopColor: colors.border,
+          height: 64,
+          paddingBottom: 8,
+          paddingTop: 8,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '500',
+        },
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Overview',
           tabBarIcon: ({ color }) => (
-            <SymbolView name="house.fill" tintColor={color} fallback={undefined} />
+            <SymbolView name="house.fill" size={24} tintColor={color} fallback={undefined} />
           ),
         }}
       />
       <Tabs.Screen
-        name="sessions"
+        name="start-session"
         options={{
-          title: 'Sessions',
+          title: 'Session',
           tabBarIcon: ({ color }) => (
-            <SymbolView name="calendar" tintColor={color} fallback={undefined} />
+            <SymbolView name="play.circle.fill" size={24} tintColor={color} fallback={undefined} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="roster"
+        options={{
+          title: 'Roster',
+          tabBarIcon: ({ color }) => (
+            <SymbolView name="person.3.fill" size={24} tintColor={color} fallback={undefined} />
           ),
         }}
       />

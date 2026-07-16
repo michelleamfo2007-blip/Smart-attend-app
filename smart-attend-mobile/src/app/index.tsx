@@ -7,9 +7,9 @@ import { useAuth, User } from '../context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, Colors } from '@/constants/theme';
-import { useColorScheme } from 'react-native';
+import { useColorScheme, KeyboardAvoidingView, Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeIn, FadeOut } from 'react-native-reanimated';
 import { AnimatedIcon } from '@/components/animated-icon';
 
 export default function LoginScreen() {
@@ -101,21 +101,28 @@ export default function LoginScreen() {
   }
 
   return (
-    <Animated.View entering={FadeIn.duration(800)} style={{ flex: 1 }}>
-      <ThemedView style={styles.container}>
+    <Animated.View entering={FadeIn.duration(800)} style={{ flex: 1, backgroundColor: theme.background }}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        style={styles.container}
+      >
         <SafeAreaView style={styles.safeArea}>
-          <ScrollView contentContainerStyle={styles.scrollContent}>
+          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             <View style={styles.content}>
-            <View style={styles.header}>
+            <Animated.View entering={FadeInDown.duration(600).delay(300)} style={styles.header}>
+              <AnimatedIcon />
               <ThemedText type="title" style={styles.title}>SmartAttend</ThemedText>
               <ThemedText style={styles.subtitle} themeColor="textSecondary">Sign in to your account</ThemedText>
-            </View>
+            </Animated.View>
             
-            <View style={styles.form}>
+            <Animated.View entering={FadeInDown.duration(600).delay(400)} style={styles.form}>
               <View style={styles.inputGroup}>
                 <ThemedText type="defaultSemiBold">Email address</ThemedText>
                 <TextInput
-                  style={[styles.input, { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.backgroundSelected }]}
+                  style={[
+                    styles.input, 
+                    { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }
+                  ]}
                   placeholder="you@university.edu"
                   placeholderTextColor={theme.textSecondary}
                   value={email}
@@ -128,7 +135,10 @@ export default function LoginScreen() {
               <View style={styles.inputGroup}>
                 <ThemedText type="defaultSemiBold">Password</ThemedText>
                 <TextInput
-                  style={[styles.input, { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.backgroundSelected }]}
+                  style={[
+                    styles.input, 
+                    { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }
+                  ]}
                   placeholder="Enter your password"
                   placeholderTextColor={theme.textSecondary}
                   value={password}
@@ -138,9 +148,10 @@ export default function LoginScreen() {
               </View>
 
               <TouchableOpacity 
-                style={styles.button} 
+                style={[styles.button, { backgroundColor: theme.primary }]} 
                 onPress={handleLogin}
                 disabled={loading}
+                activeOpacity={0.8}
               >
                 {loading ? (
                   <ActivityIndicator color="white" />
@@ -152,45 +163,54 @@ export default function LoginScreen() {
               <View style={styles.registerContainer}>
                 <ThemedText themeColor="textSecondary">Don't have an account? </ThemedText>
                 <TouchableOpacity onPress={() => router.push('/register')}>
-                  <ThemedText style={styles.registerLink}>Sign Up</ThemedText>
+                  <ThemedText style={[styles.registerLink, { color: theme.primary }]}>Sign Up</ThemedText>
                 </TouchableOpacity>
               </View>
-            </View>
+            </Animated.View>
           </View>
         </ScrollView>
       </SafeAreaView>
-    </ThemedView>
+    </KeyboardAvoidingView>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  splashContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#208AEF' },
+  splashContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#2563EB' },
   splashInner: { alignItems: 'center', gap: 20 },
   splashText: { color: 'white', fontSize: 32, fontWeight: 'bold', marginTop: 20 },
   container: { flex: 1 },
   safeArea: { flex: 1 },
   scrollContent: { flexGrow: 1, padding: Spacing.four, justifyContent: 'center' },
   content: { maxWidth: 400, width: '100%', alignSelf: 'center' },
-  header: { alignItems: 'center', marginBottom: Spacing.six },
-  title: { fontSize: 32, marginBottom: Spacing.one },
+  header: { alignItems: 'center', marginBottom: Spacing.six, gap: 8 },
+  title: { fontSize: 32, marginTop: Spacing.four },
   subtitle: { fontSize: 16 },
   form: { gap: Spacing.four },
   inputGroup: { gap: Spacing.two },
   input: {
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 14,
+    borderRadius: 12,
+    padding: 16,
     fontSize: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   button: {
-    backgroundColor: '#e01e37',
-    padding: 16,
-    borderRadius: 8,
+    padding: 18,
+    borderRadius: 12,
     alignItems: 'center',
-    marginTop: Spacing.two,
+    marginTop: Spacing.four,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
-  buttonText: { color: 'white', fontSize: 16, fontWeight: '600' },
+  buttonText: { color: 'white', fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
   registerContainer: { flexDirection: 'row', justifyContent: 'center', marginTop: Spacing.four },
-  registerLink: { color: '#e01e37', fontWeight: 'bold' },
+  registerLink: { fontWeight: 'bold' },
 });
