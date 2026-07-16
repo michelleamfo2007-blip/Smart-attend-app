@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Dimensions, Alert, Platform } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Dimensions, Alert, Platform, TextInput } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
 import { supabase } from '../../lib/supabase';
@@ -33,6 +33,8 @@ export default function ScanQRScreen() {
   const [processing, setProcessing] = useState(false);
   const [statusMsg, setStatusMsg] = useState('Scan the QR code displayed by your lecturer');
   const [statusType, setStatusType] = useState<'info' | 'error' | 'success'>('info');
+  const [isManualEntry, setIsManualEntry] = useState(false);
+  const [manualCode, setManualCode] = useState('');
 
   const MAX_DISTANCE_METERS = 50;
 
@@ -160,6 +162,19 @@ export default function ScanQRScreen() {
     }
   };
 
+  const handleManualSubmit = () => {
+    if (!manualCode.trim()) return;
+    try {
+      // Simulate what a QR scan would pass. 
+      // Note: A real implementation might have a short 6-digit code for manual entry.
+      // Assuming the user pastes the full JSON string for now, or we'd need to change how manual entry works.
+      handleBarCodeScanned({ type: 'manual', data: manualCode });
+      setIsManualEntry(false);
+    } catch (e) {
+      Alert.alert("Error", "Invalid manual code");
+    }
+  };
+
   const getStatusColor = () => {
     if (statusType === 'error') return '#ef4444';
     if (statusType === 'success') return '#10b981';
@@ -194,6 +209,31 @@ export default function ScanQRScreen() {
               <View style={[styles.corner, styles.bottomLeft]} />
               <View style={[styles.corner, styles.bottomRight]} />
             </View>
+            <Text style={styles.microcopy}>
+              Point your camera at the QR code shown on the presentation screen.
+            </Text>
+            
+            {isManualEntry ? (
+              <View style={styles.manualEntryContainer}>
+                <TextInput
+                  style={styles.manualInput}
+                  placeholder="Paste QR JSON Payload"
+                  placeholderTextColor="rgba(255,255,255,0.5)"
+                  value={manualCode}
+                  onChangeText={setManualCode}
+                />
+                <TouchableOpacity style={styles.manualSubmitBtn} onPress={handleManualSubmit}>
+                  <Text style={styles.manualSubmitText}>Submit</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.manualCancelBtn} onPress={() => setIsManualEntry(false)}>
+                  <Text style={styles.manualCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity onPress={() => setIsManualEntry(true)} style={{ marginTop: 24 }}>
+                <Text style={styles.manualLinkText}>Can't scan? Enter code manually</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Status Toast */}
@@ -297,5 +337,46 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
-  }
+  },
+  microcopy: {
+    color: 'rgba(255,255,255,0.8)',
+    textAlign: 'center',
+    marginTop: 24,
+    paddingHorizontal: 40,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  manualLinkText: {
+    color: '#60a5fa',
+    textDecorationLine: 'underline',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  manualEntryContainer: {
+    marginTop: 24,
+    width: '80%',
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  manualInput: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    color: 'white',
+    width: '100%',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  manualSubmitBtn: {
+    backgroundColor: '#10b981',
+    width: '100%',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  manualSubmitText: { color: 'white', fontWeight: 'bold' },
+  manualCancelBtn: { padding: 8 },
+  manualCancelText: { color: '#ef4444' }
 });

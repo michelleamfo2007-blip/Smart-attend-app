@@ -68,6 +68,15 @@ export default function StudentLayout() {
         }}
       />
       <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color }) => (
+            <SymbolView name="person.crop.circle.fill" size={24} tintColor={color} fallback={undefined} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="scan-qr"
         options={{
           title: 'Scan QR',
