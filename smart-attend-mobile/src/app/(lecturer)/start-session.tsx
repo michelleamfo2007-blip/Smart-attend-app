@@ -182,7 +182,7 @@ export default function StartSessionScreen() {
             <Animated.View entering={FadeInUp.duration(600).delay(300)} style={[styles.qrContainer, { backgroundColor: '#FFFFFF' }]}>
               <QRCode
                 value={qrData}
-                size={width * 0.7}
+                size={Math.min(width * 0.7, 300)}
                 color="#000000"
                 backgroundColor="#FFFFFF"
               />
