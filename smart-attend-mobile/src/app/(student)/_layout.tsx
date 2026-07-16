@@ -67,6 +67,13 @@ export default function StudentLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="scan-qr"
+        options={{
+          title: 'Scan QR',
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }

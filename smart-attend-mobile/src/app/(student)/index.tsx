@@ -14,6 +14,7 @@ import { Colors } from '@/constants/theme';
 export default function StudentOverviewScreen() {
   const { user, logout } = useAuth();
   const [stats, setStats] = useState<any>(null);
+  const [upcomingClass, setUpcomingClass] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const scheme = useColorScheme() ?? 'light';
@@ -57,6 +58,17 @@ export default function StudentOverviewScreen() {
             attended: attendedCount,
             attendanceRate: rate,
           });
+
+          // 3. Fetch Upcoming Class (mock logic: just get the next class the student is enrolled in)
+          if (matchedClasses && matchedClasses.length > 0) {
+             const { data: upcoming } = await supabase
+               .from('classes')
+               .select('name, schedule_time')
+               .in('id', matchedClasses.map(c => c.id))
+               .limit(1)
+               .maybeSingle();
+             setUpcomingClass(upcoming);
+          }
         } catch (err) {
           console.error("Failed to fetch stats", err);
         } finally {
@@ -86,14 +98,36 @@ export default function StudentOverviewScreen() {
             <ThemedText style={[styles.statValue, { color: theme.primary }]}>{stats?.attended}/{stats?.totalSessions}</ThemedText>
             <ThemedText themeColor="textSecondary" style={styles.statLabel}>Sessions Attended</ThemedText>
           </View>
-          <View style={[styles.statCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-            <View style={[styles.iconContainer, { backgroundColor: theme.primaryLight }]}>
-              <SymbolView name="chart.bar.fill" size={24} tintColor={theme.primary} />
+          <View style={[styles.statCard, { backgroundColor: theme.backgroundElement, borderColor: stats?.attendanceRate < 85 ? '#ef4444' : theme.border }]}>
+            <View style={[styles.iconContainer, { backgroundColor: stats?.attendanceRate < 85 ? 'rgba(239, 68, 68, 0.1)' : theme.primaryLight }]}>
+              <SymbolView name="chart.bar.fill" size={24} tintColor={stats?.attendanceRate < 85 ? '#ef4444' : theme.primary} />
             </View>
-            <ThemedText style={[styles.statValue, { color: theme.primary }]}>{stats?.attendanceRate}%</ThemedText>
+            <ThemedText style={[styles.statValue, { color: stats?.attendanceRate < 85 ? '#ef4444' : theme.primary }]}>{stats?.attendanceRate}%</ThemedText>
             <ThemedText themeColor="textSecondary" style={styles.statLabel}>Attendance Rate</ThemedText>
+            
+            {/* Progress Bar */}
+            <View style={[styles.progressContainer, { backgroundColor: theme.backgroundSelected }]}>
+               <View style={[styles.progressBar, { width: `${stats?.attendanceRate}%`, backgroundColor: stats?.attendanceRate < 85 ? '#ef4444' : theme.primary }]} />
+            </View>
+            
+            {stats?.attendanceRate < 85 && (
+              <View style={styles.warningBadge}>
+                 <Text style={styles.warningText}>Warning: Below target</Text>
+              </View>
+            )}
           </View>
         </Animated.View>
+
+        {upcomingClass && (
+          <Animated.View entering={FadeInDown.duration(600).delay(350)} style={[styles.upcomingCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <SymbolView name="calendar" size={20} tintColor={theme.text} />
+                <ThemedText style={{ fontWeight: 'bold' }}>Upcoming Class</ThemedText>
+             </View>
+             <ThemedText style={{ color: theme.primary, fontWeight: '800', fontSize: 16 }}>{upcomingClass.name}</ThemedText>
+             <ThemedText themeColor="textSecondary">{upcomingClass.schedule_time || 'Schedule not set'}</ThemedText>
+          </Animated.View>
+        )}
 
         <Animated.View entering={FadeInUp.duration(600).delay(400)} style={styles.actionContainer}>
           <TouchableOpacity 
@@ -227,5 +261,34 @@ const styles = StyleSheet.create({
     color: '#ef4444',
     fontWeight: '700',
     fontSize: 15,
+  },
+  progressContainer: {
+    height: 6,
+    borderRadius: 3,
+    marginTop: 12,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  warningBadge: {
+    marginTop: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+    alignSelf: 'flex-start'
+  },
+  warningText: {
+    color: '#ef4444',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  upcomingCard: {
+    padding: Spacing.four,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: Spacing.six,
   }
 });
