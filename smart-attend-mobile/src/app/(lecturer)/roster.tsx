@@ -29,7 +29,6 @@ export default function RosterScreen() {
             .select(`
               id,
               timestamp,
-              date,
               users ( name ),
               classes ( name )
             `)
@@ -41,7 +40,7 @@ export default function RosterScreen() {
             const groups: { [key: string]: any[] } = {};
             attendanceRecords.forEach(record => {
               const className = record.classes?.name || 'Unknown Class';
-              const dateStr = record.date || new Date(record.timestamp).toLocaleDateString();
+              const dateStr = new Date(record.timestamp).toLocaleDateString();
               const groupKey = `${className}  |  ${dateStr}`;
               
               if (!groups[groupKey]) groups[groupKey] = [];

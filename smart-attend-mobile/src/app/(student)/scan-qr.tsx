@@ -128,7 +128,6 @@ export default function ScanQRScreen() {
           student_id: user?.id,
           class_id: sessionData.class_id,
           session_id: sessionData.id,
-          date: new Date().toISOString().split('T')[0],
           status: 'Present',
           marked_by: 'Student'
         });
