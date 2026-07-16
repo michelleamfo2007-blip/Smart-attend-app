@@ -96,11 +96,11 @@ export default function StudentOverviewScreen() {
         <Animated.View entering={FadeInUp.duration(600).delay(400)} style={styles.actionContainer}>
           <TouchableOpacity 
             style={[styles.actionButton, styles.primaryButton, { backgroundColor: theme.primary }]} 
-            onPress={() => router.push('/(student)/mark-attendance')}
+            onPress={() => router.push('/(student)/scan-qr')}
             activeOpacity={0.8}
           >
             <SymbolView name="qrcode.viewfinder" size={24} tintColor="white" />
-            <Text style={styles.primaryButtonText}>Mark Attendance</Text>
+            <Text style={styles.primaryButtonText}>Scan QR Code</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 

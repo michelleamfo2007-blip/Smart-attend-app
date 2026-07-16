@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Alert, ScrollView, useColorScheme, Platform } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Alert, ScrollView, useColorScheme, Platform, Dimensions } from 'react-native';
 import * as Location from 'expo-location';
 import { useAuth } from '../../context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
@@ -9,6 +9,9 @@ import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SymbolView } from 'expo-symbols';
+import QRCode from 'react-native-qrcode-svg';
+
+const { width } = Dimensions.get('window');
 
 export default function StartSessionScreen() {
   const { user } = useAuth();
@@ -22,9 +25,35 @@ export default function StartSessionScreen() {
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const router = useRouter();
 
+  // Active Session State
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [checkedInCount, setCheckedInCount] = useState(0);
+
   useEffect(() => {
     fetchLecturerClasses();
   }, []);
+
+  // Listen to realtime attendance updates for the active session
+  useEffect(() => {
+    if (!activeSessionId) return;
+
+    const channel = supabase
+      .channel('attendance_changes')
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'attendance_records',
+        filter: `session_id=eq.${activeSessionId}`
+      }, (payload) => {
+        console.log('New check-in!', payload);
+        setCheckedInCount((prev) => prev + 1);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeSessionId]);
 
   const fetchLecturerClasses = async () => {
     setFetchingClasses(true);
@@ -72,35 +101,34 @@ export default function StartSessionScreen() {
 
       let location: any = await Promise.race([locationPromise, timeoutPromise]);
 
-      // Invalidate old active sessions for this class
+      // Close old active sessions for this class
       await supabase
-        .from('active_sessions')
-        .update({ active: false })
-        .eq('class_id', selectedClassId);
+        .from('attendance_sessions')
+        .update({ status: 'closed' })
+        .eq('class_id', selectedClassId)
+        .eq('status', 'active');
 
-      // Create new active session
-      const { error } = await supabase
-        .from('active_sessions')
+      // Create new active session (Expires in 2 hours)
+      const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+      
+      const { data, error } = await supabase
+        .from('attendance_sessions')
         .insert({
           class_id: selectedClassId,
           lecturer_id: user?.id,
           latitude: location.coords.latitude,
           longitude: location.coords.longitude,
-          active: true
-        });
+          expires_at: expiresAt,
+          status: 'active'
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
-      if (Platform.OS === 'web') {
-        window.alert(`Session Started! Location saved securely.\nLat: ${location.coords.latitude.toFixed(4)}\nLon: ${location.coords.longitude.toFixed(4)}`);
-        router.back();
-      } else {
-        Alert.alert(
-          "Session Started",
-          `Location saved securely!\nLat: ${location.coords.latitude.toFixed(4)}\nLon: ${location.coords.longitude.toFixed(4)}`,
-          [{ text: "OK", onPress: () => router.back() }]
-        );
-      }
+      setActiveSessionId(data.id);
+      setCheckedInCount(0);
+      
     } catch (err: any) {
       console.error("Start Session Error:", err);
       setErrorMsg(err.message || 'Failed to get location or save session');
@@ -111,6 +139,86 @@ export default function StartSessionScreen() {
       setLoading(false);
     }
   };
+
+  const handleEndSession = async () => {
+    if (!activeSessionId) return;
+    
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('attendance_sessions')
+        .update({ status: 'closed' })
+        .eq('id', activeSessionId);
+        
+      if (error) throw error;
+      
+      setActiveSessionId(null);
+      if (Platform.OS === 'web') {
+        window.alert('Session ended successfully.');
+      } else {
+        Alert.alert('Success', 'Session ended successfully.');
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (activeSessionId) {
+    // QR Code Display State
+    const qrData = JSON.stringify({ sessionId: activeSessionId });
+    
+    return (
+      <Animated.View entering={FadeIn.duration(800)} style={{ flex: 1, backgroundColor: theme.background }}>
+        <ThemedView style={styles.container}>
+          <ScrollView contentContainerStyle={{ alignItems: 'center', paddingBottom: 100 }}>
+            <Animated.View entering={FadeInDown.duration(600).delay(200)} style={styles.header}>
+              <SymbolView name="qrcode.viewfinder" size={32} tintColor={theme.primary} style={{ marginBottom: 12 }} />
+              <ThemedText type="title" style={[styles.titleText, { textAlign: 'center' }]}>Scan to Check In</ThemedText>
+              <ThemedText style={[styles.subtitle, { textAlign: 'center' }]} themeColor="textSecondary">Students can scan this QR code to mark attendance.</ThemedText>
+            </Animated.View>
+
+            <Animated.View entering={FadeInUp.duration(600).delay(300)} style={[styles.qrContainer, { backgroundColor: '#FFFFFF' }]}>
+              <QRCode
+                value={qrData}
+                size={width * 0.7}
+                color="#000000"
+                backgroundColor="#FFFFFF"
+              />
+            </Animated.View>
+
+            <Animated.View entering={FadeInUp.duration(600).delay(400)} style={[styles.statsContainer, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+              <ThemedText style={{ fontSize: 16, fontWeight: '600' }} themeColor="textSecondary">Students Checked In</ThemedText>
+              <ThemedText style={{ fontSize: 48, fontWeight: '800', color: theme.primary, marginTop: 8 }}>{checkedInCount}</ThemedText>
+            </Animated.View>
+          </ScrollView>
+
+          <Animated.View entering={FadeInUp.duration(600).delay(500)} style={styles.footer}>
+            <TouchableOpacity 
+              style={[
+                styles.startButton, 
+                { backgroundColor: '#ef4444' },
+                loading && styles.buttonDisabled
+              ]} 
+              onPress={handleEndSession}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              {loading ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <>
+                  <SymbolView name="xmark.circle.fill" size={24} tintColor="white" />
+                  <Text style={styles.startButtonText}>End Session</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </Animated.View>
+        </ThemedView>
+      </Animated.View>
+    );
+  }
 
   return (
     <Animated.View entering={FadeIn.duration(800)} style={{ flex: 1, backgroundColor: theme.background }}>
@@ -170,7 +278,7 @@ export default function StartSessionScreen() {
             <Animated.View entering={FadeInUp.duration(600).delay(400)} style={[styles.infoBox, { backgroundColor: theme.backgroundSelected }]}>
               <SymbolView name="info.circle.fill" size={20} tintColor={theme.textSecondary} />
               <ThemedText style={styles.instructions} themeColor="textSecondary">
-                Starting a session will record your current GPS location. Students will need to be physically within 50 meters of this exact location to mark themselves present.
+                Starting a session will generate a 2-hour QR code and record your current GPS location. Students must scan the QR code within 50 meters of this location.
               </ThemedText>
             </Animated.View>
             
@@ -199,8 +307,8 @@ export default function StartSessionScreen() {
               <ActivityIndicator color="white" />
             ) : (
               <>
-                <SymbolView name="location.circle.fill" size={24} tintColor="white" />
-                <Text style={styles.startButtonText}>Broadcast GPS Location</Text>
+                <SymbolView name="qrcode" size={24} tintColor="white" />
+                <Text style={styles.startButtonText}>Start Attendance (Generate QR)</Text>
               </>
             )}
           </TouchableOpacity>
@@ -216,7 +324,7 @@ const styles = StyleSheet.create({
   header: { marginBottom: Spacing.six, alignItems: 'center' },
   titleText: { fontSize: 32, fontWeight: '800', marginBottom: 4 },
   subtitle: { fontSize: 16, fontWeight: '500' },
-  content: { paddingBottom: 100 }, // spacing for floating button
+  content: { paddingBottom: 100 },
   sectionTitle: { marginBottom: 12, fontWeight: '700', fontSize: 16 },
   classList: { gap: Spacing.three },
   classItem: {
@@ -273,4 +381,21 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.6, shadowOpacity: 0, elevation: 0 },
   startButtonText: { color: 'white', fontWeight: 'bold', fontSize: 18, letterSpacing: 0.5 },
+  qrContainer: {
+    padding: 24,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 10,
+    marginBottom: Spacing.six,
+  },
+  statsContainer: {
+    width: '100%',
+    padding: Spacing.five,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+  }
 });
