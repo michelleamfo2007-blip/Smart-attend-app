@@ -61,7 +61,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = async () => {
     try {
-      router.replace('/'); // Route to login first before clearing state to avoid layout redirect loops
       await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
       setUser(null);
     } catch (err) {
