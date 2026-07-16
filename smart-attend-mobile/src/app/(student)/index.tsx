@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { StyleSheet, View, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -19,52 +19,54 @@ export default function StudentOverviewScreen() {
   const scheme = useColorScheme() ?? 'light';
   const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        // 1. Get how many sessions the student actually attended
-        const { data: myRecords } = await supabase
-          .from('attendance_records')
-          .select('id')
-          .eq('student_id', user?.id);
-
-        const attendedCount = myRecords ? myRecords.length : 0;
-
-        // 2. Get total possible sessions for this student's level/semester
-        const { data: matchedClasses } = await supabase
-          .from('classes')
-          .select('id')
-          .eq('level', user?.level)
-          .eq('semester', user?.semester);
-
-        let totalSessionsCount = 0;
-        if (matchedClasses && matchedClasses.length > 0) {
-          const classIds = matchedClasses.map(c => c.id);
-          const { data: allSessions } = await supabase
-            .from('attendance_sessions')
+  useFocusEffect(
+    useCallback(() => {
+      const fetchStats = async () => {
+        try {
+          // 1. Get how many sessions the student actually attended
+          const { data: myRecords } = await supabase
+            .from('attendance_records')
             .select('id')
-            .in('class_id', classIds);
-            
-          totalSessionsCount = allSessions ? allSessions.length : 0;
+            .eq('student_id', user?.id);
+
+          const attendedCount = myRecords ? myRecords.length : 0;
+
+          // 2. Get total possible sessions for this student's level/semester
+          const { data: matchedClasses } = await supabase
+            .from('classes')
+            .select('id')
+            .eq('level', user?.level)
+            .eq('semester', user?.semester);
+
+          let totalSessionsCount = 0;
+          if (matchedClasses && matchedClasses.length > 0) {
+            const classIds = matchedClasses.map(c => c.id);
+            const { data: allSessions } = await supabase
+              .from('attendance_sessions')
+              .select('id')
+              .in('class_id', classIds);
+              
+            totalSessionsCount = allSessions ? allSessions.length : 0;
+          }
+
+          const total = Math.max(totalSessionsCount, attendedCount);
+          const rate = total === 0 ? 100 : Math.round((attendedCount / total) * 100);
+
+          setStats({
+            totalSessions: totalSessionsCount,
+            attended: attendedCount,
+            attendanceRate: rate,
+          });
+        } catch (err) {
+          console.error("Failed to fetch stats", err);
+        } finally {
+          setLoading(false);
         }
+      };
 
-        const total = Math.max(totalSessionsCount, attendedCount);
-        const rate = total === 0 ? 100 : Math.round((attendedCount / total) * 100);
-
-        setStats({
-          totalSessions: totalSessionsCount,
-          attended: attendedCount,
-          attendanceRate: rate,
-        });
-      } catch (err) {
-        console.error("Failed to fetch stats", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchStats();
-  }, [user]);
+      fetchStats();
+    }, [user])
+  );
 
   if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
 

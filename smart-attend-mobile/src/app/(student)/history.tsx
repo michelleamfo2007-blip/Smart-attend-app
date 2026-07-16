@@ -6,8 +6,9 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, Colors } from '@/constants/theme';
 import { useColorScheme } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import { useCallback } from 'react';
 
 export default function HistoryScreen() {
   const { user } = useAuth();
@@ -16,27 +17,29 @@ export default function HistoryScreen() {
   const [records, setRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        const { data: myRecords, error } = await supabase
-          .from('attendance_records')
-          .select('*, classes (name)')
-          .eq('student_id', user?.id)
-          .order('timestamp', { ascending: false });
-        
-        if (myRecords && !error) {
-          setRecords(myRecords);
+  useFocusEffect(
+    useCallback(() => {
+      const fetchHistory = async () => {
+        try {
+          const { data: myRecords, error } = await supabase
+            .from('attendance_records')
+            .select('*, classes (name)')
+            .eq('student_id', user?.id)
+            .order('timestamp', { ascending: false });
+          
+          if (myRecords && !error) {
+            setRecords(myRecords);
+          }
+        } catch (err) {
+          console.error("Failed to fetch history", err);
+        } finally {
+          setLoading(false);
         }
-      } catch (err) {
-        console.error("Failed to fetch history", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+      };
 
-    fetchHistory();
-  }, [user]);
+      fetchHistory();
+    }, [user])
+  );
 
   const renderItem = ({ item }: { item: any }) => {
     const date = new Date(item.timestamp).toLocaleString();
