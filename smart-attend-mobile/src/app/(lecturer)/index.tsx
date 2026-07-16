@@ -31,7 +31,7 @@ export default function LecturerOverviewScreen() {
     setLoading(true);
     try {
       // Fetch Stats
-      const { count: coursesCount } = await supabase.from('classes').select('*', { count: 'exact', head: true });
+      const { count: coursesCount } = await supabase.from('classes').select('*', { count: 'exact', head: true }).eq('lecturer_id', user?.id);
       const { count: studentsCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'STUDENT');
       setStats({ courses: coursesCount || 0, students: studentsCount || 0 });
 
