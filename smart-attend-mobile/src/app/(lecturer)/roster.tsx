@@ -39,7 +39,7 @@ export default function RosterScreen() {
             // Group by "ClassName - Date"
             const groups: { [key: string]: any[] } = {};
             attendanceRecords.forEach(record => {
-              const className = record.classes?.name || 'Unknown Class';
+              const className = (record as any).classes?.name || 'Unknown Class';
               const dateStr = new Date(record.timestamp).toLocaleDateString();
               const groupKey = `${className}  |  ${dateStr}`;
               
