@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { StyleSheet, View, Text, ScrollView, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -8,12 +8,13 @@ import { useColorScheme } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { SymbolView } from 'expo-symbols';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 
 export default function AnalyticsScreen() {
   const { user } = useAuth();
   const scheme = useColorScheme() ?? 'light';
   const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [moduleStats, setModuleStats] = useState<any[]>([]);
 
@@ -89,8 +90,13 @@ export default function AnalyticsScreen() {
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
       <Animated.View entering={FadeInDown.duration(600)}>
         <View style={styles.header}>
-          <ThemedText type="title">Module Analytics</ThemedText>
-          <ThemedText themeColor="textSecondary">Detailed breakdown of your attendance</ThemedText>
+          <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 12, marginTop: 4 }}>
+            <SymbolView name="chevron.left" size={24} tintColor={theme.text} />
+          </TouchableOpacity>
+          <View>
+            <ThemedText type="title">Module Analytics</ThemedText>
+            <ThemedText themeColor="textSecondary">Detailed breakdown of your attendance</ThemedText>
+          </View>
         </View>
 
         <View style={[styles.infoCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
@@ -155,7 +161,7 @@ export default function AnalyticsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: Spacing.four },
-  header: { marginBottom: Spacing.six, marginTop: Spacing.two },
+  header: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: Spacing.six, marginTop: Spacing.two },
   infoCard: {
     flexDirection: 'row',
     padding: Spacing.four,

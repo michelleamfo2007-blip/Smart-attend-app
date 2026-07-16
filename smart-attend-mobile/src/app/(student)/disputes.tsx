@@ -8,11 +8,13 @@ import { useColorScheme } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { SymbolView } from 'expo-symbols';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useRouter } from 'expo-router';
 
 export default function DisputesScreen() {
   const { user } = useAuth();
   const scheme = useColorScheme() ?? 'light';
   const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const router = useRouter();
   
   const [loading, setLoading] = useState(true);
   const [disputes, setDisputes] = useState<any[]>([]);
@@ -119,8 +121,13 @@ export default function DisputesScreen() {
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.header}>
-        <ThemedText type="title">Disputes & Support</ThemedText>
-        <ThemedText themeColor="textSecondary">Request attendance corrections</ThemedText>
+        <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 12, marginTop: 4 }}>
+          <SymbolView name="chevron.left" size={24} tintColor={theme.text} />
+        </TouchableOpacity>
+        <View>
+          <ThemedText type="title">Disputes & Support</ThemedText>
+          <ThemedText themeColor="textSecondary">Request attendance corrections</ThemedText>
+        </View>
       </View>
 
       <TouchableOpacity 
@@ -203,7 +210,7 @@ export default function DisputesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: Spacing.four },
-  header: { marginBottom: Spacing.six, marginTop: Spacing.two },
+  header: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: Spacing.six, marginTop: Spacing.two },
   newRequestBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, borderRadius: 12, marginBottom: Spacing.six },
   newRequestText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
   formContainer: { padding: Spacing.four, borderRadius: 12, borderWidth: 1, marginBottom: Spacing.six },
