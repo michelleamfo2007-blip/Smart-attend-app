@@ -21,6 +21,7 @@ export default function ManageClassesScreen() {
   const [level, setLevel] = useState('Level 3');
   const [semester, setSemester] = useState('First');
   const [scheduleTime, setScheduleTime] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -31,7 +32,7 @@ export default function ManageClassesScreen() {
     try {
       const { data: existingClasses } = await supabase
         .from('classes')
-        .select(`id, name, lecturer_id, level, semester, schedule_time, users (name)`);
+        .select(`id, name, lecturer_id, level, semester, schedule_time, invite_code, users (name)`);
       
       const { data: existingUsers } = await supabase
         .from('users')
@@ -46,7 +47,8 @@ export default function ManageClassesScreen() {
           lecturerName: (c.users as any)?.name || 'Unknown',
           level: c.level,
           semester: c.semester,
-          scheduleTime: c.schedule_time
+          scheduleTime: c.schedule_time,
+          inviteCode: c.invite_code
         })));
       }
       if (existingUsers) {
@@ -66,6 +68,7 @@ export default function ManageClassesScreen() {
     setLevel('Level 3');
     setSemester('First');
     setScheduleTime('');
+    setInviteCode('');
     setIsFormVisible(true);
   };
 
@@ -76,6 +79,7 @@ export default function ManageClassesScreen() {
     setLevel(item.level || 'Level 3');
     setSemester(item.semester || 'First');
     setScheduleTime(item.scheduleTime || '');
+    setInviteCode(item.inviteCode || '');
     setIsFormVisible(true);
   };
 
@@ -112,7 +116,8 @@ export default function ManageClassesScreen() {
             lecturer_id: selectedLecturerId,
             level,
             semester,
-            schedule_time: scheduleTime
+            schedule_time: scheduleTime,
+            invite_code: inviteCode || null
           })
           .eq('id', editingClassId);
 
@@ -125,7 +130,8 @@ export default function ManageClassesScreen() {
           lecturerName: lecturer?.name || 'Unknown',
           level,
           semester,
-          scheduleTime
+          scheduleTime,
+          inviteCode
         } : c));
 
       } else {
@@ -137,9 +143,10 @@ export default function ManageClassesScreen() {
             lecturer_id: selectedLecturerId,
             level,
             semester,
-            schedule_time: scheduleTime
+            schedule_time: scheduleTime,
+            invite_code: inviteCode || Math.random().toString(36).substring(2, 8).toUpperCase()
           })
-          .select(`id, name, lecturer_id, level, semester, schedule_time, users (name)`)
+          .select(`id, name, lecturer_id, level, semester, schedule_time, invite_code, users (name)`)
           .single();
 
         if (error || !insertedClass) throw error;
@@ -151,7 +158,8 @@ export default function ManageClassesScreen() {
           lecturerName: (insertedClass.users as any)?.name || lecturer?.name || 'Unknown',
           level: insertedClass.level,
           semester: insertedClass.semester,
-          scheduleTime: insertedClass.schedule_time
+          scheduleTime: insertedClass.schedule_time,
+          inviteCode: insertedClass.invite_code
         };
 
         setClasses([...classes, formattedClass]);
@@ -170,6 +178,7 @@ export default function ManageClassesScreen() {
         <ThemedText themeColor="textSecondary">{item.level} | {item.semester} Semester</ThemedText>
         {item.scheduleTime ? <ThemedText style={{ color: '#8b5cf6', fontSize: 13, fontWeight: 'bold' }}>{item.scheduleTime}</ThemedText> : null}
         <ThemedText themeColor="textSecondary">Lecturer: {item.lecturerName}</ThemedText>
+        <ThemedText style={{ marginTop: 4, color: theme.primary, fontWeight: 'bold' }}>Invite Code: {item.inviteCode}</ThemedText>
       </View>
       <View style={styles.cardActions}>
         <TouchableOpacity style={styles.editButton} onPress={() => handleOpenEdit(item)}>
@@ -206,6 +215,15 @@ export default function ManageClassesScreen() {
             placeholderTextColor={theme.textSecondary}
             value={scheduleTime}
             onChangeText={setScheduleTime}
+          />
+
+          <TextInput
+            style={[styles.input, { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.backgroundSelected }]}
+            placeholder="Class Invite Code (e.g., FALL26)"
+            placeholderTextColor={theme.textSecondary}
+            value={inviteCode}
+            onChangeText={setInviteCode}
+            autoCapitalize="characters"
           />
 
           <ThemedText style={styles.label}>Level:</ThemedText>

@@ -21,8 +21,7 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<UserRole>('STUDENT');
-  const [level, setLevel] = useState('Level 3');
-  const [semester, setSemester] = useState('First');
+  const [inviteCode, setInviteCode] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
@@ -33,6 +32,33 @@ export default function RegisterScreen() {
 
     setLoading(true);
     try {
+      let finalLevel = null;
+      let finalSemester = null;
+
+      if (role === 'STUDENT') {
+        if (!inviteCode) {
+          Alert.alert('Error', 'Students must provide a Class Invite Code.');
+          setLoading(false);
+          return;
+        }
+
+        // Verify invite code
+        const { data: classData, error: classError } = await supabase
+          .from('classes')
+          .select('level, semester')
+          .eq('invite_code', inviteCode.trim())
+          .maybeSingle();
+
+        if (classError || !classData) {
+          Alert.alert('Invalid Code', 'The Class Invite Code is invalid or does not exist.');
+          setLoading(false);
+          return;
+        }
+
+        finalLevel = classData.level;
+        finalSemester = classData.semester;
+      }
+
       // Check if email already exists
       const { data: existingUser } = await supabase
         .from('users')
@@ -54,8 +80,8 @@ export default function RegisterScreen() {
           email: email.toLowerCase(),
           password,
           role,
-          level: role === 'STUDENT' ? level : null,
-          semester: role === 'STUDENT' ? semester : null
+          level: finalLevel,
+          semester: finalSemester
         })
         .select()
         .single();
@@ -173,39 +199,23 @@ export default function RegisterScreen() {
               </View>
 
               {role === 'STUDENT' && (
-                <>
-                  <View style={styles.inputGroup}>
-                    <ThemedText type="defaultSemiBold">Level</ThemedText>
-                    <View style={styles.roleContainer}>
-                      {['Level 3', 'Level 4', 'Level 5', 'Level 6'].map(lvl => (
-                        <TouchableOpacity 
-                          key={lvl}
-                          style={[styles.roleCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border, padding: 8 }, level === lvl && { borderColor: theme.primary, backgroundColor: theme.primaryLight }]}
-                          onPress={() => setLevel(lvl)}
-                          activeOpacity={0.7}
-                        >
-                          <ThemedText style={[{fontSize: 12, textAlign: 'center'}, styles.roleText, level === lvl && styles.roleTextActive]}>{lvl.replace('Level ', 'L')}</ThemedText>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-
-                  <View style={styles.inputGroup}>
-                    <ThemedText type="defaultSemiBold">Semester</ThemedText>
-                    <View style={styles.roleContainer}>
-                      {['First', 'Second'].map(sem => (
-                        <TouchableOpacity 
-                          key={sem}
-                          style={[styles.roleCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }, semester === sem && { borderColor: theme.primary, backgroundColor: theme.primaryLight }]}
-                          onPress={() => setSemester(sem)}
-                          activeOpacity={0.7}
-                        >
-                          <ThemedText style={[styles.roleText, semester === sem && styles.roleTextActive]}>{sem}</ThemedText>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                </>
+                <View style={styles.inputGroup}>
+                  <ThemedText type="defaultSemiBold">Class Invite Code</ThemedText>
+                  <TextInput
+                    style={[
+                      styles.input, 
+                      { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }
+                    ]}
+                    placeholder="Enter the code given by your lecturer"
+                    placeholderTextColor={theme.textSecondary}
+                    value={inviteCode}
+                    onChangeText={setInviteCode}
+                    autoCapitalize="characters"
+                  />
+                  <ThemedText themeColor="textSecondary" style={{ fontSize: 12, marginTop: -4 }}>
+                    Your invite code will automatically enroll you in the correct level and semester.
+                  </ThemedText>
+                </View>
               )}
 
               <TouchableOpacity 
