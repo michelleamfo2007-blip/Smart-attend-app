@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContainer: { paddingBottom: Spacing.eight, gap: Spacing.four },
   addButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#7C3AED',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: '#e5e7eb',
   },
-  lecturerChipActive: { backgroundColor: '#3b82f6' },
+  lecturerChipActive: { backgroundColor: '#7C3AED' },
   lecturerChipText: { color: '#374151' },
   lecturerChipTextActive: { color: 'white', fontWeight: 'bold' },
   formActions: { flexDirection: 'row', gap: Spacing.four, marginTop: Spacing.four },

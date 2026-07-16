@@ -37,7 +37,7 @@ export default function ScanQRScreen() {
   const MAX_DISTANCE_METERS = 50;
 
   if (!permission) {
-    return <View style={styles.container}><ActivityIndicator size="large" color="#2563EB" /></View>;
+    return <View style={styles.container}><ActivityIndicator size="large" color="#7C3AED" /></View>;
   }
 
   if (!permission.granted) {
@@ -163,7 +163,7 @@ export default function ScanQRScreen() {
   const getStatusColor = () => {
     if (statusType === 'error') return '#ef4444';
     if (statusType === 'success') return '#10b981';
-    return '#3b82f6';
+    return '#7C3AED';
   };
 
   return (
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   button: {
-    backgroundColor: '#2563EB',
+    backgroundColor: '#7C3AED',
     padding: 16,
     borderRadius: 12,
     marginHorizontal: 40,

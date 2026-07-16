@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', padding: 18, borderRadius: 16, alignItems: 'center', justifyContent: 'center', gap: 12,
   },
   primaryButton: {
-    shadowColor: '#2563EB', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5,
+    shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5,
   },
   primaryButtonText: { color: 'white', fontWeight: '700', fontSize: 16, letterSpacing: 0.5 },
   secondaryButton: { backgroundColor: 'transparent', borderWidth: 2 },
@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
   upcomingCard: {
     padding: Spacing.four,
     borderRadius: 16,
-    shadowColor: '#3b82f6',
+    shadowColor: '#7C3AED',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,

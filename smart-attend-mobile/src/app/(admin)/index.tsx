@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', padding: 18, borderRadius: 16, alignItems: 'center', justifyContent: 'center', gap: 12,
   },
   primaryButton: {
-    shadowColor: '#2563EB', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5,
+    shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5,
   },
   primaryButtonText: { color: 'white', fontWeight: '700', fontSize: 16, letterSpacing: 0.5 },
   divider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: Spacing.two },

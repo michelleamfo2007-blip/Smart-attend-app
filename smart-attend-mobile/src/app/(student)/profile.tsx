@@ -48,7 +48,7 @@ export default function ProfileScreen() {
       <View style={[styles.menuGroup, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
         <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(student)/analytics')}>
           <View style={[styles.menuIcon, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
-            <SymbolView name="chart.pie.fill" size={20} tintColor="#3b82f6" />
+            <SymbolView name="chart.pie.fill" size={20} tintColor="#7C3AED" />
           </View>
           <ThemedText style={styles.menuText}>Detailed Analytics</ThemedText>
           <SymbolView name="chevron.right" size={20} tintColor={theme.textSecondary} />
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: Spacing.four,
     marginBottom: Spacing.eight,
-    shadowColor: '#2563EB',
+    shadowColor: '#7C3AED',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 12,

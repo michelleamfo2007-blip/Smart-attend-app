@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   primaryButton: {
-    shadowColor: '#2563EB',
+    shadowColor: '#7C3AED',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

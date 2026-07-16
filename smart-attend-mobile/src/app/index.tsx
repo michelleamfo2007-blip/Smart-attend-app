@@ -178,7 +178,7 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  splashContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#2563EB' },
+  splashContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#7C3AED' },
   splashInner: { alignItems: 'center', gap: 20 },
   splashText: { color: 'white', fontSize: 32, fontWeight: 'bold', marginTop: 20 },
   container: { flex: 1 },
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     marginTop: Spacing.four,
-    shadowColor: '#2563EB',
+    shadowColor: '#7C3AED',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
