@@ -15,7 +15,7 @@ import { usePushNotifications } from '../hooks/usePushNotifications';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, logout } = useAuth();
   const scheme = useColorScheme() ?? 'light';
   const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
   
