@@ -19,23 +19,23 @@ export default function LecturerProfileScreen() {
         <ThemedText themeColor="textSecondary">Lecturer Settings</ThemedText>
       </View>
 
-      <View style={[styles.idBadge, { backgroundColor: theme.primary }]}>
+      <View style={[styles.idBadge, { backgroundColor: scheme === 'dark' ? 'rgba(124, 58, 237, 0.15)' : 'rgba(124, 58, 237, 0.08)', borderColor: 'rgba(124, 58, 237, 0.3)' }]}>
         <View style={styles.idBadgeHeader}>
-          <Text style={styles.universityName}>University Portal</Text>
-          <SymbolView name="graduationcap.fill" size={24} tintColor="white" />
+          <Text style={[styles.universityName, { color: theme.primary }]}>University Portal</Text>
+          <SymbolView name="graduationcap.fill" size={24} tintColor={theme.primary} />
         </View>
         <View style={styles.idBadgeBody}>
-          <View style={styles.avatarPlaceholder}>
+          <View style={[styles.avatarPlaceholder, { backgroundColor: theme.primaryLight }]}>
              <SymbolView name="person.fill" size={40} tintColor={theme.primary} />
           </View>
           <View style={styles.studentInfo}>
-            <Text style={styles.studentName}>{user?.name}</Text>
-            <Text style={styles.studentRole}>LECTURER</Text>
+            <Text style={[styles.studentName, { color: theme.text }]}>{user?.name}</Text>
+            <Text style={[styles.studentRole, { color: theme.primary }]}>LECTURER</Text>
           </View>
         </View>
-        <View style={styles.idBadgeFooter}>
-          <View style={styles.barcodePlaceholder} />
-          <Text style={styles.idNumber}>ID: {user?.id?.substring(0, 8).toUpperCase()}</Text>
+        <View style={[styles.idBadgeFooter, { borderTopColor: scheme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(124,58,237,0.2)' }]}>
+          <View style={[styles.barcodePlaceholder, { backgroundColor: scheme === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(124, 58, 237, 0.2)' }]} />
+          <Text style={[styles.idNumber, { color: theme.primary }]}>ID: {user?.id?.substring(0, 8).toUpperCase()}</Text>
         </View>
       </View>
 
@@ -103,25 +103,26 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: Spacing.four },
   header: { marginBottom: Spacing.six, marginTop: Spacing.two },
   idBadge: {
-    borderRadius: 16,
+    borderRadius: 24,
     padding: Spacing.four,
     marginBottom: Spacing.eight,
+    borderWidth: 1,
     shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 4,
   },
   idBadgeHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.four },
-  universityName: { color: 'white', fontWeight: 'bold', fontSize: 16, letterSpacing: 1 },
+  universityName: { fontWeight: '800', fontSize: 16, letterSpacing: 0.5 },
   idBadgeBody: { flexDirection: 'row', alignItems: 'center', gap: Spacing.four },
-  avatarPlaceholder: { width: 64, height: 64, borderRadius: 32, backgroundColor: 'white', justifyContent: 'center', alignItems: 'center' },
+  avatarPlaceholder: { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center' },
   studentInfo: { flex: 1 },
-  studentName: { color: 'white', fontSize: 20, fontWeight: 'bold', marginBottom: 4 },
-  studentRole: { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: 'bold', letterSpacing: 1, marginBottom: 4 },
-  idBadgeFooter: { marginTop: Spacing.four, paddingTop: Spacing.four, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.2)', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  barcodePlaceholder: { height: 24, width: 120, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 4 },
-  idNumber: { color: 'white', fontWeight: 'bold', letterSpacing: 2 },
+  studentName: { fontSize: 20, fontWeight: '800', marginBottom: 2 },
+  studentRole: { fontSize: 12, fontWeight: '700', letterSpacing: 1, marginBottom: 4 },
+  idBadgeFooter: { marginTop: Spacing.four, paddingTop: Spacing.four, borderTopWidth: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  barcodePlaceholder: { height: 24, width: 120, borderRadius: 4 },
+  idNumber: { fontWeight: '800', letterSpacing: 3 },
   sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: Spacing.three, marginLeft: Spacing.two, marginTop: Spacing.four },
   menuGroup: { borderRadius: 16, borderWidth: 1, overflow: 'hidden', marginBottom: Spacing.six },
   menuItem: { flexDirection: 'row', alignItems: 'center', padding: Spacing.four, gap: Spacing.three },

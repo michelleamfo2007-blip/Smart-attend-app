@@ -11,12 +11,12 @@ export default function StudentLayout() {
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== 'STUDENT')) {
+    if (!loading && (!user || user.role?.toUpperCase() !== 'STUDENT')) {
       router.replace('/');
     }
   }, [user, loading]);
 
-  if (!user || user.role !== 'STUDENT') {
+  if (!user || user.role?.toUpperCase() !== 'STUDENT') {
     return <View style={{ flex: 1, backgroundColor: colors.background }} />;
   }
 
@@ -103,6 +103,20 @@ export default function StudentLayout() {
         name="disputes"
         options={{
           title: 'Disputes & Support',
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="edit-profile"
+        options={{
+          title: 'Edit Profile',
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          title: 'Notifications',
           href: null,
         }}
       />

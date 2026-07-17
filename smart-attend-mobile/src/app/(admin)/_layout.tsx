@@ -11,12 +11,12 @@ export default function AdminLayout() {
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== 'ADMIN')) {
+    if (!loading && (!user || user.role?.toUpperCase() !== 'ADMIN')) {
       router.replace('/');
     }
   }, [user, loading]);
 
-  if (!user || user.role !== 'ADMIN') {
+  if (!user || user.role?.toUpperCase() !== 'ADMIN') {
     return <View style={{ flex: 1, backgroundColor: colors.background }} />;
   }
 

@@ -17,29 +17,27 @@ export default function ScheduleScreen() {
   const [loading, setLoading] = useState(true);
   const [schedule, setSchedule] = useState<any[]>([]);
 
-  useFocusEffect(
-    useCallback(() => {
-      const fetchSchedule = async () => {
-        try {
-          const { data: matchedClasses } = await supabase
-            .from('classes')
-            .select('id, name, schedule_time')
-            .eq('level', user?.level)
-            .eq('semester', user?.semester);
+  useEffect(() => {
+    const fetchSchedule = async () => {
+      try {
+        const { data: matchedClasses } = await supabase
+          .from('classes')
+          .select('id, name, schedule_time')
+          .eq('level', user?.level)
+          .eq('semester', user?.semester);
 
-          if (matchedClasses) {
-            setSchedule(matchedClasses);
-          }
-        } catch (err) {
-          console.error("Failed to fetch schedule", err);
-        } finally {
-          setLoading(false);
+        if (matchedClasses) {
+          setSchedule(matchedClasses);
         }
-      };
+      } catch (err) {
+        console.error("Failed to fetch schedule", err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      fetchSchedule();
-    }, [user])
-  );
+    fetchSchedule();
+  }, [user?.id, user?.level, user?.semester]);
 
   if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
 

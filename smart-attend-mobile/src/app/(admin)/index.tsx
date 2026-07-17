@@ -17,6 +17,7 @@ export default function AdminOverviewScreen() {
 
   const [stats, setStats] = useState({ users: 0, classes: 0, lecturers: 0, students: 0 });
   const [loadingStats, setLoadingStats] = useState(true);
+  const [atRiskStudents, setAtRiskStudents] = useState<any[]>([]);
 
   const fetchStats = async () => {
     try {
@@ -31,6 +32,23 @@ export default function AdminOverviewScreen() {
         lecturers: lecturersCount || 0,
         students: studentsCount || 0
       });
+
+      // Calculate At-Risk Students (Attendance < 75%)
+      const { data: allStudents } = await supabase.from('users').select('id, name').eq('role', 'STUDENT');
+      const { data: allRecords } = await supabase.from('attendance_records').select('student_id');
+      const { count: totalSessions } = await supabase.from('attendance_sessions').select('*', { count: 'exact', head: true });
+      
+      if (allStudents && allRecords && totalSessions && totalSessions > 0) {
+         const studentAttendance = allStudents.map(student => {
+            const attendedCount = allRecords.filter(r => r.student_id === student.id).length;
+            const rate = (attendedCount / totalSessions) * 100;
+            return { ...student, rate, attendedCount };
+         });
+         
+         const atRisk = studentAttendance.filter(s => s.rate < 75 && totalSessions >= 3); // Only flag if at least 3 sessions have occurred
+         setAtRiskStudents(atRisk);
+      }
+
     } catch (error) {
       console.error('Error fetching stats:', error);
     } finally {
@@ -81,6 +99,28 @@ export default function AdminOverviewScreen() {
               <ThemedText themeColor="textSecondary" style={styles.statLabel}>Total Classes</ThemedText>
             </View>
           </Animated.View>
+
+          {atRiskStudents.length > 0 && (
+            <Animated.View entering={FadeInDown.duration(600).delay(350)} style={styles.atRiskContainer}>
+              <View style={styles.atRiskHeaderRow}>
+                <SymbolView name="exclamationmark.triangle.fill" size={20} tintColor="#ef4444" />
+                <ThemedText style={styles.atRiskTitle}>At-Risk Students (&lt; 75% Attendance)</ThemedText>
+              </View>
+              {atRiskStudents.slice(0, 5).map((student, idx) => (
+                <View key={student.id} style={[styles.atRiskCard, { backgroundColor: theme.backgroundElement, borderColor: '#ef4444' }]}>
+                  <ThemedText style={{ fontWeight: 'bold' }}>{student.name}</ThemedText>
+                  <View style={styles.atRiskBadge}>
+                    <Text style={styles.atRiskBadgeText}>{Math.round(student.rate)}% Rate</Text>
+                  </View>
+                </View>
+              ))}
+              {atRiskStudents.length > 5 && (
+                <ThemedText themeColor="textSecondary" style={{ textAlign: 'center', marginTop: 8 }}>
+                  + {atRiskStudents.length - 5} more students at risk
+                </ThemedText>
+              )}
+            </Animated.View>
+          )}
 
           <Animated.View entering={FadeInUp.duration(600).delay(400)} style={styles.actionSection}>
             <ThemedText type="defaultSemiBold" style={{ marginBottom: Spacing.two }}>Quick Actions</ThemedText>
@@ -133,7 +173,44 @@ const styles = StyleSheet.create({
     shadowColor: '#7C3AED', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5,
   },
   primaryButtonText: { color: 'white', fontWeight: '700', fontSize: 16, letterSpacing: 0.5 },
-  divider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: Spacing.two },
-  secondaryButton: { backgroundColor: 'transparent', borderWidth: 2 },
-  secondaryButtonText: { fontWeight: '700', fontSize: 16, letterSpacing: 0.5 }
+  secondaryButtonText: { fontWeight: '700', fontSize: 16, letterSpacing: 0.5 },
+  atRiskContainer: {
+    marginBottom: Spacing.six,
+    padding: Spacing.four,
+    backgroundColor: 'rgba(239, 68, 68, 0.05)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.2)'
+  },
+  atRiskHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: Spacing.four
+  },
+  atRiskTitle: {
+    color: '#ef4444',
+    fontWeight: 'bold',
+    fontSize: 16
+  },
+  atRiskCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: Spacing.three,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: Spacing.two
+  },
+  atRiskBadge: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8
+  },
+  atRiskBadgeText: {
+    color: '#ef4444',
+    fontWeight: 'bold',
+    fontSize: 12
+  }
 });

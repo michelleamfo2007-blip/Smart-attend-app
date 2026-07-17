@@ -11,6 +11,7 @@ import { useColorScheme, KeyboardAvoidingView, Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 import Animated, { FadeInDown, FadeIn, FadeOut } from 'react-native-reanimated';
 import { AnimatedIcon } from '@/components/animated-icon';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -23,6 +24,8 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const { user, loading: authLoading } = useAuth();
   const [showSplash, setShowSplash] = useState(true);
+  
+  const { expoPushToken } = usePushNotifications();
 
   React.useEffect(() => {
     const timer = setTimeout(() => {
@@ -33,15 +36,18 @@ export default function LoginScreen() {
 
   React.useEffect(() => {
     if (!showSplash && !authLoading && user) {
-      if (user.role === 'ADMIN') {
+      const role = user.role?.toUpperCase();
+      if (role === 'ADMIN') {
         router.replace('/(admin)');
-      } else if (user.role === 'LECTURER') {
+      } else if (role === 'LECTURER') {
         router.replace('/(lecturer)');
-      } else {
+      } else if (role === 'STUDENT') {
         router.replace('/(student)');
+      } else {
+        console.error("Unknown user role:", user.role);
       }
     }
-  }, [showSplash, authLoading, user]);
+  }, [showSplash, authLoading, user?.id]);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -76,13 +82,22 @@ export default function LoginScreen() {
 
       await login(userSession);
       
+      // Save push token if available
+      if (expoPushToken) {
+         await supabase.from('users').update({ push_token: expoPushToken }).eq('id', foundUser.id);
+      }
+      
       // Route based on role
-      if (userSession.role === 'ADMIN') {
+      const role = userSession.role?.toUpperCase();
+      if (role === 'ADMIN') {
         router.replace('/(admin)');
-      } else if (userSession.role === 'LECTURER') {
+      } else if (role === 'LECTURER') {
         router.replace('/(lecturer)');
-      } else {
+      } else if (role === 'STUDENT') {
         router.replace('/(student)');
+      } else {
+        Alert.alert('Login Failed', 'Unknown user role.');
+        await logout();
       }
     } catch (err: any) {
       Alert.alert('Login Failed', err.message || 'An error occurred during login');

@@ -10,6 +10,7 @@ import { supabase } from '../../lib/supabase';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SymbolView } from 'expo-symbols';
 import QRCode from 'react-native-qrcode-svg';
+import { saveOfflineLecturerAction } from '../../hooks/useOfflineSync';
 
 const { width } = Dimensions.get('window');
 
@@ -60,7 +61,7 @@ export default function StartSessionScreen() {
     try {
       const { data, error } = await supabase
         .from('classes')
-        .select('id, name, level, semester')
+        .select('id, name, level, semester, start_time, end_time')
         .eq('lecturer_id', user?.id);
 
       if (error) throw error;
@@ -108,23 +109,49 @@ export default function StartSessionScreen() {
         .eq('class_id', selectedClassId)
         .eq('status', 'active');
 
-      // Create new active session (Expires in 2 hours)
-      const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
-      
-      const { data, error } = await supabase
-        .from('attendance_sessions')
-        .insert({
+      let expiresAtStr: string;
+      const selectedClassObj = classes.find(c => c.id === selectedClassId);
+      if (selectedClassObj && selectedClassObj.end_time) {
+        const [h, m] = selectedClassObj.end_time.split(':').map(Number);
+        const date = new Date();
+        date.setHours(h, m, 0, 0);
+        // If the end time has already passed today, assume it's for tomorrow (or keep it as is)
+        if (date.getTime() < Date.now()) {
+          date.setDate(date.getDate() + 1);
+        }
+        expiresAtStr = date.toISOString();
+      } else {
+        // Fallback to 2 hours if no dynamic time is set
+        expiresAtStr = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+      }
+
+      const sessionPayload = {
           class_id: selectedClassId,
           lecturer_id: user?.id,
           latitude: location.coords.latitude,
           longitude: location.coords.longitude,
-          expires_at: expiresAt,
+          expires_at: expiresAtStr,
           status: 'active'
-        })
+      };
+      
+      const { data, error } = await supabase
+        .from('attendance_sessions')
+        .insert(sessionPayload)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes('Failed to fetch') || error.message?.includes('Network request failed')) {
+           // Mock a session ID since we are offline
+           const mockSessionId = 'offline-' + Date.now();
+           await saveOfflineLecturerAction({ type: 'START_SESSION', payload: { ...sessionPayload, id: mockSessionId } });
+           setActiveSessionId(mockSessionId);
+           setCheckedInCount(0);
+           Alert.alert('Offline Mode', 'Session started offline. It will sync when connection is restored.');
+           return;
+        }
+        throw error;
+      }
 
       setActiveSessionId(data.id);
       setCheckedInCount(0);
@@ -145,12 +172,28 @@ export default function StartSessionScreen() {
     
     setLoading(true);
     try {
+      // If it's an offline session that hasn't synced yet, we can't reliably update the DB, just queue the end action
+      if (activeSessionId.startsWith('offline-')) {
+         await saveOfflineLecturerAction({ type: 'END_SESSION', payload: { sessionId: activeSessionId } });
+         setActiveSessionId(null);
+         Alert.alert('Offline Mode', 'Session ended offline.');
+         return;
+      }
+
       const { error } = await supabase
         .from('attendance_sessions')
         .update({ status: 'closed' })
         .eq('id', activeSessionId);
         
-      if (error) throw error;
+      if (error) {
+         if (error.message?.includes('Failed to fetch') || error.message?.includes('Network request failed')) {
+           await saveOfflineLecturerAction({ type: 'END_SESSION', payload: { sessionId: activeSessionId } });
+           setActiveSessionId(null);
+           Alert.alert('Offline Mode', 'Session ended offline. It will sync later.');
+           return;
+         }
+         throw error;
+      }
       
       setActiveSessionId(null);
       if (Platform.OS === 'web') {

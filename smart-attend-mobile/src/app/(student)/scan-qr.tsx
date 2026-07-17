@@ -5,11 +5,13 @@ import * as Location from 'expo-location';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'expo-router';
+import { saveOfflineScan } from '../../hooks/useOfflineSync';
 import { SymbolView } from 'expo-symbols';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors, Spacing } from '@/constants/theme';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
+import * as LocalAuthentication from 'expo-local-authentication';
 
 const { width } = Dimensions.get('window');
 
@@ -33,8 +35,44 @@ export default function ScanQRScreen() {
   const [processing, setProcessing] = useState(false);
   const [statusMsg, setStatusMsg] = useState('Scan the QR code displayed by your lecturer');
   const [statusType, setStatusType] = useState<'info' | 'error' | 'success'>('info');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const MAX_DISTANCE_METERS = 50;
+
+  useEffect(() => {
+    const authenticate = async () => {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      
+      if (hasHardware && isEnrolled) {
+        const result = await LocalAuthentication.authenticateAsync({
+          promptMessage: 'Verify identity to mark attendance',
+          fallbackLabel: 'Use Passcode',
+        });
+        
+        if (result.success) {
+          setIsAuthenticated(true);
+        } else {
+          Alert.alert('Authentication Failed', 'You must verify your identity to check in.');
+          router.back();
+        }
+      } else {
+        // If device doesn't support biometrics, just allow them through
+        setIsAuthenticated(true);
+      }
+    };
+    
+    authenticate();
+  }, []);
+
+  if (!isAuthenticated) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#7C3AED" />
+        <ThemedText style={{ color: 'white', marginTop: 16, textAlign: 'center' }}>Verifying identity...</ThemedText>
+      </View>
+    );
+  }
 
   if (!permission) {
     return <View style={styles.container}><ActivityIndicator size="large" color="#7C3AED" /></View>;
@@ -121,20 +159,34 @@ export default function ScanQRScreen() {
       }
 
       // 5. Mark Attendance
-      // Due to unique_student_session constraint, if they already scanned, this will throw an error
+      const scanData = {
+        student_id: user?.id,
+        student_name: user?.name,
+        class_id: sessionData.class_id,
+        session_id: sessionData.id,
+        location: `Lat: ${studentLocation.coords.latitude}, Lng: ${studentLocation.coords.longitude}`,
+        timestamp: new Date().toISOString()
+      };
+
       const { error: insertError } = await supabase
         .from('attendance_records')
-        .insert({
-          student_id: user?.id,
-          student_name: user?.name,
-          class_id: sessionData.class_id,
-          session_id: sessionData.id
-        });
+        .insert(scanData);
 
       if (insertError) {
-        if (insertError.code === '23505') { // Unique violation
+        // If it's a unique constraint, they already checked in
+        if (insertError.code === '23505') {
           throw new Error('You have already marked attendance for this session.');
         }
+        
+        // If it's a network error (TypeError: Failed to fetch), queue offline
+        if (insertError.message?.includes('Failed to fetch') || insertError.message?.includes('Network request failed')) {
+           await saveOfflineScan(scanData);
+           setStatusType('info');
+           setStatusMsg('Offline: Scan saved and will sync later.');
+           setTimeout(() => router.replace('/(student)'), 3000);
+           return;
+        }
+
         throw insertError;
       }
 

@@ -2,151 +2,248 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { StyleSheet, View, Text, ActivityIndicator, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { supabase } from '../../lib/supabase';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SymbolView } from 'expo-symbols';
+import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
 import { Colors } from '@/constants/theme';
 
 export default function StudentOverviewScreen() {
   const { user } = useAuth();
-  const [stats, setStats] = useState<any>(null);
-  const [upcomingClass, setUpcomingClass] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const router = useRouter();
   const scheme = useColorScheme() ?? 'light';
   const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
 
-  useFocusEffect(
-    useCallback(() => {
-      const fetchStats = async () => {
-        try {
-          // 1. Get how many sessions the student actually attended
-          const { data: myRecords } = await supabase
-            .from('attendance_records')
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    attended: 0,
+    totalSessions: 0,
+    attendanceRate: 100,
+    coursesCount: 0,
+    lateCount: 0, // Mocked
+  });
+  const [nextClass, setNextClass] = useState<any>(null);
+  const [todaysClasses, setTodaysClasses] = useState<any[]>([]);
+  const [recentAttendance, setRecentAttendance] = useState<any[]>([]);
+
+  // Greeting logic
+  const currentHour = new Date().getHours();
+  let greeting = 'Good Evening';
+  if (currentHour < 12) greeting = 'Good Morning';
+  else if (currentHour < 17) greeting = 'Good Afternoon';
+
+  const todayStr = new Date().toLocaleDateString(undefined, { 
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' 
+  });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // 1. Fetch attendance records for stats and recent list
+        const { data: myRecords } = await supabase
+          .from('attendance_records')
+          .select('id, timestamp, class_id')
+          .eq('student_id', user?.id)
+          .order('timestamp', { ascending: false });
+
+        const attendedCount = myRecords ? myRecords.length : 0;
+        setRecentAttendance((myRecords || []).slice(0, 3)); // Grab last 3
+
+        // 2. Fetch matched classes (for schedule and stats)
+        const { data: matchedClasses } = await supabase
+          .from('classes')
+          .select('id, name, schedule_time, start_time, end_time')
+          .eq('level', user?.level)
+          .eq('semester', user?.semester);
+
+        let totalSessionsCount = 0;
+        let todays: any[] = [];
+        let upcoming: any = null;
+
+        if (matchedClasses && matchedClasses.length > 0) {
+          const classIds = matchedClasses.map(c => c.id);
+          const { data: allSessions } = await supabase
+            .from('attendance_sessions')
             .select('id')
-            .eq('student_id', user?.id);
-
-          const attendedCount = myRecords ? myRecords.length : 0;
-
-          // 2. Get total possible sessions for this student's level/semester
-          const { data: matchedClasses } = await supabase
-            .from('classes')
-            .select('id')
-            .eq('level', user?.level)
-            .eq('semester', user?.semester);
-
-          let totalSessionsCount = 0;
-          if (matchedClasses && matchedClasses.length > 0) {
-            const classIds = matchedClasses.map(c => c.id);
-            const { data: allSessions } = await supabase
-              .from('attendance_sessions')
-              .select('id')
-              .in('class_id', classIds);
-              
-            totalSessionsCount = allSessions ? allSessions.length : 0;
-          }
-
-          const total = Math.max(totalSessionsCount, attendedCount);
-          const rate = total === 0 ? 100 : Math.round((attendedCount / total) * 100);
-
-          setStats({
-            totalSessions: totalSessionsCount,
-            attended: attendedCount,
-            attendanceRate: rate,
-          });
-
-          // 3. Fetch Upcoming Class (mock logic: just get the next class the student is enrolled in)
-          if (matchedClasses && matchedClasses.length > 0) {
-             const { data: upcoming } = await supabase
-               .from('classes')
-               .select('name, schedule_time')
-               .in('id', matchedClasses.map(c => c.id))
-               .limit(1)
-               .maybeSingle();
-             setUpcomingClass(upcoming);
-          }
-        } catch (err) {
-          console.error("Failed to fetch stats", err);
-        } finally {
-          setLoading(false);
+            .in('class_id', classIds);
+            
+          totalSessionsCount = allSessions ? allSessions.length : 0;
+          
+          // Just use matched classes for "Today" mock since we don't have day of week in schema yet
+          todays = matchedClasses.slice(0, 1);
+          upcoming = matchedClasses[0];
         }
-      };
 
-      fetchStats();
-    }, [user])
-  );
+        const total = Math.max(totalSessionsCount, attendedCount);
+        const rate = total === 0 ? 100 : Math.round((attendedCount / total) * 100);
 
-  if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
+        setStats({
+          attended: attendedCount,
+          totalSessions: totalSessionsCount,
+          attendanceRate: rate,
+          coursesCount: matchedClasses ? matchedClasses.length : 0,
+          lateCount: 0,
+        });
+
+        setTodaysClasses(todays);
+        setNextClass(upcoming);
+        
+      } catch (err) {
+        console.error("Failed to fetch overview data", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user?.id]);
+
+  if (loading) {
+    return <ActivityIndicator style={{ flex: 1, backgroundColor: theme.background }} color={theme.primary} />;
+  }
 
   return (
-    <Animated.View entering={FadeIn.duration(800)} style={{ flex: 1, backgroundColor: theme.background }}>
-      <ScrollView contentContainerStyle={styles.container} style={{ flex: 1 }}>
-        <Animated.View entering={FadeInDown.duration(600).delay(200)} style={styles.header}>
-          <ThemedText type="title" style={styles.welcomeText}>Welcome, {user?.name?.split(' ')[0]}</ThemedText>
-          <ThemedText style={styles.subtitle} themeColor="textSecondary">Student Portal</ThemedText>
+    <Animated.View entering={FadeIn.duration(600)} style={{ flex: 1, backgroundColor: theme.background }}>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        
+        {/* HEADER SECTION */}
+        <Animated.View entering={FadeInDown.duration(500)} style={styles.header}>
+          <View style={styles.headerTextContainer}>
+             <View style={styles.greetingRow}>
+               <Ionicons name="hand-left" size={20} color={theme.text} />
+               <Text style={[styles.greetingText, { color: theme.text }]}>{greeting}, {user?.name?.split(' ')[0]}</Text>
+             </View>
+             <Text style={[styles.dateText, { color: theme.textSecondary }]}>{todayStr}</Text>
+          </View>
+          <View style={styles.headerActions}>
+             <TouchableOpacity style={[styles.iconButton, { backgroundColor: theme.backgroundElement }]} onPress={() => router.push('/(student)/notifications')}>
+               <Ionicons name="notifications" size={20} color={theme.text} />
+             </TouchableOpacity>
+             <TouchableOpacity style={[styles.iconButton, { backgroundColor: theme.primaryLight }]} onPress={() => router.push('/(student)/profile')}>
+               <Ionicons name="person-circle" size={20} color={theme.primary} />
+             </TouchableOpacity>
+          </View>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.duration(600).delay(300)} style={styles.statsContainer}>
-          <View style={[styles.statCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-            <View style={[styles.iconContainer, { backgroundColor: theme.primaryLight }]}>
-              <SymbolView name="calendar.badge.clock" size={24} tintColor={theme.primary} />
+        {/* STATISTICS GRID */}
+        <Animated.View entering={FadeInDown.duration(500).delay(100)} style={styles.statsGrid}>
+           <View style={[styles.statBox, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Sessions</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>{stats.attended}/{Math.max(stats.attended, stats.totalSessions)}</Text>
+           </View>
+           <View style={[styles.statBox, { backgroundColor: theme.backgroundElement, borderColor: stats.attendanceRate < 75 ? '#ef4444' : theme.border }]}>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Attendance</Text>
+              <Text style={[styles.statValue, { color: stats.attendanceRate < 75 ? '#ef4444' : theme.text }]}>{stats.attendanceRate}%</Text>
+           </View>
+           <View style={[styles.statBox, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Courses</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>{stats.coursesCount}</Text>
+           </View>
+           <View style={[styles.statBox, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Late</Text>
+              <Text style={[styles.statValue, { color: theme.text }]}>{stats.lateCount}</Text>
+           </View>
+        </Animated.View>
+
+        {/* NEXT CLASS HERO CARD */}
+        {nextClass && (
+          <Animated.View entering={FadeInDown.duration(500).delay(200)} style={[styles.nextClassCard, { backgroundColor: theme.primary }]}>
+            <View style={styles.nextClassHeader}>
+               <SymbolView name="book.fill" size={16} tintColor="#FFF" />
+               <Text style={styles.nextClassTitleLabel}>NEXT CLASS</Text>
             </View>
-            <ThemedText style={[styles.statValue, { color: theme.primary }]}>{stats?.attended}/{stats?.totalSessions}</ThemedText>
-            <ThemedText themeColor="textSecondary" style={styles.statLabel}>Sessions Attended</ThemedText>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: theme.backgroundElement, borderColor: stats?.attendanceRate < 85 ? '#ef4444' : theme.border }]}>
-            <View style={[styles.iconContainer, { backgroundColor: stats?.attendanceRate < 85 ? 'rgba(239, 68, 68, 0.1)' : theme.primaryLight }]}>
-              <SymbolView name="chart.bar.fill" size={24} tintColor={stats?.attendanceRate < 85 ? '#ef4444' : theme.primary} />
+            <Text style={styles.nextClassName}>{nextClass.name}</Text>
+            <Text style={styles.nextClassTime}>
+              {nextClass.start_time ? `${nextClass.start_time.substring(0,5)} - ${nextClass.end_time?.substring(0,5)}` : (nextClass.schedule_time || '09:00 - 12:00')}
+            </Text>
+            <View style={styles.nextClassDetails}>
+               <View style={styles.nextClassDetailItem}>
+                 <SymbolView name="location.fill" size={14} tintColor="rgba(255,255,255,0.8)" />
+                 <Text style={styles.nextClassDetailText}>Main Campus</Text>
+               </View>
+               <View style={styles.nextClassDetailItem}>
+                 <SymbolView name="person.fill" size={14} tintColor="rgba(255,255,255,0.8)" />
+                 <Text style={styles.nextClassDetailText}>Professor</Text>
+               </View>
             </View>
-            <ThemedText style={[styles.statValue, { color: stats?.attendanceRate < 85 ? '#ef4444' : theme.primary }]}>{stats?.attendanceRate}%</ThemedText>
-            <ThemedText themeColor="textSecondary" style={styles.statLabel}>Attendance Rate</ThemedText>
-            
-            {/* Progress Bar */}
-            <View style={[styles.progressContainer, { backgroundColor: theme.backgroundSelected }]}>
-               <View style={[styles.progressBar, { width: `${stats?.attendanceRate}%`, backgroundColor: stats?.attendanceRate < 85 ? '#ef4444' : theme.primary }]} />
+            <View style={styles.countdownBadge}>
+               <SymbolView name="clock.fill" size={14} tintColor={theme.primary} />
+               <Text style={[styles.countdownText, { color: theme.primary }]}>Starts in 45 mins</Text>
             </View>
-            
-            {stats?.attendanceRate < 85 && (
-              <View style={styles.warningBadge}>
-                 <Text style={styles.warningText}>Warning: Below target</Text>
+          </Animated.View>
+        )}
+
+        {/* TODAY'S SCHEDULE */}
+        <Animated.View entering={FadeInDown.duration(500).delay(300)}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Today's Schedule</Text>
+          <View style={[styles.scheduleContainer, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+            {todaysClasses.map((cls, index) => (
+              <View key={cls.id || index} style={styles.scheduleItem}>
+                <Text style={[styles.scheduleTime, { color: theme.textSecondary }]}>
+                  {cls.start_time ? cls.start_time.substring(0,5) : '09:00'}
+                </Text>
+                <View style={[styles.scheduleDivider, { backgroundColor: index === 0 ? theme.primary : theme.border }]} />
+                <Text style={[styles.scheduleName, { color: index === 0 ? theme.primary : theme.text, fontWeight: index === 0 ? '700' : '500' }]}>
+                  {cls.name}
+                </Text>
               </View>
+            ))}
+            {todaysClasses.length === 0 && (
+              <Text style={{ color: theme.textSecondary, padding: 16 }}>No classes scheduled for today.</Text>
             )}
           </View>
         </Animated.View>
 
-        {upcomingClass && (
-          <Animated.View entering={FadeInDown.duration(600).delay(350)} style={[styles.upcomingCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <SymbolView name="calendar" size={20} tintColor={theme.text} />
-                <ThemedText style={{ fontWeight: 'bold' }}>Upcoming Class</ThemedText>
+        {/* LARGE SCAN BUTTON */}
+        <Animated.View entering={FadeInUp.duration(500).delay(400)} style={{ marginVertical: Spacing.six }}>
+           <TouchableOpacity 
+             style={[styles.largeScanButton, { backgroundColor: theme.primary }]}
+             onPress={() => router.push('/(student)/scan-qr')}
+             activeOpacity={0.8}
+           >
+             <SymbolView name="qrcode.viewfinder" size={40} tintColor="#FFF" />
+             <View style={styles.scanButtonTextContainer}>
+                <Text style={styles.scanButtonTitle}>Scan QR Code</Text>
+                <Text style={styles.scanButtonSubtitle}>Tap to mark attendance</Text>
              </View>
-             <ThemedText style={{ color: theme.primary, fontWeight: '800', fontSize: 16 }}>{upcomingClass.name}</ThemedText>
-             <ThemedText themeColor="textSecondary">{upcomingClass.schedule_time || 'Schedule not set'}</ThemedText>
-          </Animated.View>
-        )}
+           </TouchableOpacity>
+        </Animated.View>
 
-        <Animated.View entering={FadeInUp.duration(600).delay(400)} style={styles.actionContainer}>
-          <TouchableOpacity 
-            style={[styles.actionButton, styles.primaryButton, { backgroundColor: theme.primary }]} 
-            onPress={() => router.push('/(student)/scan-qr')}
-            activeOpacity={0.8}
-          >
-            <SymbolView name="qrcode.viewfinder" size={24} tintColor="white" />
-            <Text style={styles.primaryButtonText}>Scan QR Code</Text>
-          </TouchableOpacity>
+        {/* RECENT ATTENDANCE */}
+        <Animated.View entering={FadeInUp.duration(500).delay(500)}>
+           <Text style={[styles.sectionTitle, { color: theme.text }]}>Recent Attendance</Text>
+           <View style={[styles.listContainer, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+              {recentAttendance.length > 0 ? recentAttendance.map((record, index) => (
+                 <View key={record.id || index} style={[styles.listItem, { borderBottomColor: theme.border, borderBottomWidth: index === recentAttendance.length - 1 ? 0 : 1 }]}>
+                    <View style={styles.listItemLeft}>
+                       <SymbolView name="checkmark.circle.fill" size={20} tintColor="#22C55E" />
+                       <Text style={[styles.listItemText, { color: theme.text }]}>Present</Text>
+                    </View>
+                    <Text style={[styles.listItemTime, { color: theme.textSecondary }]}>
+                       {new Date(record.timestamp).toLocaleDateString()}
+                    </Text>
+                 </View>
+              )) : (
+                <Text style={{ color: theme.textSecondary, padding: 16 }}>No recent attendance records.</Text>
+              )}
+           </View>
+        </Animated.View>
 
-          <TouchableOpacity 
-            style={[styles.actionButton, styles.secondaryButton, { borderColor: theme.primary }]} 
-            onPress={() => router.push('/(student)/history')}
-            activeOpacity={0.8}
-          >
-            <SymbolView name="clock.arrow.circlepath" size={24} tintColor={theme.primary} />
-            <Text style={[styles.secondaryButtonText, { color: theme.primary }]}>View My History</Text>
-          </TouchableOpacity>
+        {/* NOTIFICATIONS */}
+        <Animated.View entering={FadeInUp.duration(500).delay(600)} style={{ marginBottom: 40 }}>
+           <Text style={[styles.sectionTitle, { color: theme.text }]}>Notifications</Text>
+           <View style={[styles.listContainer, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+               <View style={[styles.listItem, { borderBottomColor: theme.border, borderBottomWidth: 1 }]}>
+                  <SymbolView name="bell.fill" size={20} tintColor={theme.primary} />
+                  <Text style={[styles.listItemText, { color: theme.text }]}>Attendance marked successfully</Text>
+               </View>
+               <View style={[styles.listItem, { borderBottomColor: theme.border, borderBottomWidth: 0 }]}>
+                  <SymbolView name="exclamationmark.circle.fill" size={20} tintColor="#F59E0B" />
+                  <Text style={[styles.listItemText, { color: theme.text }]}>Keep up the good work! You are on track.</Text>
+               </View>
+           </View>
         </Animated.View>
 
       </ScrollView>
@@ -161,110 +258,202 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: Spacing.six,
   },
-  welcomeText: {
-    fontSize: 32,
-    fontWeight: '800',
+  headerTextContainer: {
+    flex: 1,
+  },
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginBottom: 4,
   },
-  subtitle: {
-    fontSize: 16,
+  greetingText: {
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  dateText: {
+    fontSize: 14,
     fontWeight: '500',
   },
-  statsContainer: {
+  headerActions: {
     flexDirection: 'row',
-    gap: Spacing.four,
-    marginBottom: Spacing.six,
+    gap: 12,
   },
-  statCard: {
-    flex: 1,
-    padding: Spacing.four,
-    borderRadius: 16,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
   },
-  statValue: {
-    fontSize: 28,
-    fontWeight: '800',
-    marginBottom: 4,
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: Spacing.six,
+  },
+  statBox: {
+    width: '48%',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
   },
   statLabel: {
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '600',
+    marginBottom: 8,
   },
-  actionContainer: {
-    gap: Spacing.four,
+  statValue: {
+    fontSize: 24,
+    fontWeight: '800',
   },
-  actionButton: {
-    flexDirection: 'row',
-    padding: 18,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  primaryButton: {
-    shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 4 },
+  nextClassCard: {
+    padding: 20,
+    borderRadius: 24,
+    marginBottom: Spacing.six,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowRadius: 16,
+    elevation: 8,
   },
-  primaryButtonText: {
-    color: 'white',
-    fontWeight: '700',
-    fontSize: 16,
-    letterSpacing: 0.5,
+  nextClassHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
   },
-  secondaryButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
+  nextClassTitleLabel: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+    letterSpacing: 1,
   },
-  secondaryButtonText: {
-    fontWeight: '700',
-    fontSize: 16,
-    letterSpacing: 0.5,
+  nextClassName: {
+    color: '#FFF',
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: 4,
   },
-  progressContainer: {
-    height: 6,
-    borderRadius: 3,
-    marginTop: 12,
-    overflow: 'hidden',
+  nextClassTime: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 15,
+    fontWeight: '500',
+    marginBottom: 16,
   },
-  progressBar: {
-    height: '100%',
-    borderRadius: 3,
+  nextClassDetails: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 20,
   },
-  warningBadge: {
-    marginTop: 8,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 4,
-    alignSelf: 'flex-start'
+  nextClassDetailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
-  warningText: {
-    color: '#ef4444',
-    fontSize: 10,
+  nextClassDetailText: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 13,
+  },
+  countdownBadge: {
+    backgroundColor: '#FFF',
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  countdownText: {
+    fontSize: 13,
     fontWeight: 'bold',
   },
-  upcomingCard: {
-    padding: Spacing.four,
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  scheduleContainer: {
     borderRadius: 16,
     borderWidth: 1,
-    marginBottom: Spacing.six,
-  }
+    padding: 16,
+    paddingBottom: 8,
+  },
+  scheduleItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  scheduleTime: {
+    width: 50,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  scheduleDivider: {
+    width: 3,
+    height: 24,
+    borderRadius: 2,
+    marginHorizontal: 16,
+  },
+  scheduleName: {
+    fontSize: 15,
+    flex: 1,
+  },
+  largeScanButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    borderRadius: 24,
+    gap: 16,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  scanButtonTextContainer: {
+    alignItems: 'flex-start',
+  },
+  scanButtonTitle: {
+    color: '#FFF',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  scanButtonSubtitle: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+  },
+  listContainer: {
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  listItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
+  },
+  listItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  listItemText: {
+    fontSize: 15,
+    fontWeight: '500',
+    flex: 1,
+  },
+  listItemTime: {
+    fontSize: 13,
+  },
 });

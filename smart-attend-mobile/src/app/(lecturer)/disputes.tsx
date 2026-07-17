@@ -20,7 +20,7 @@ export default function LecturerDisputesScreen() {
 
   useEffect(() => {
     fetchDisputes();
-  }, [user]);
+  }, [user?.id]);
 
   const fetchDisputes = async () => {
     try {

@@ -4,7 +4,7 @@ import { Fonts, ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type ThemedTextProps = TextProps & {
-  type?: 'default' | 'defaultSemiBold' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
+  type?: 'default' | 'defaultSemiBold' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code' | 'logo';
   themeColor?: ThemeColor;
 };
 
@@ -18,6 +18,7 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
         type === 'default' && styles.default,
         type === 'defaultSemiBold' && styles.defaultSemiBold,
         type === 'title' && styles.title,
+        type === 'logo' && styles.logo,
         type === 'small' && styles.small,
         type === 'smallBold' && styles.smallBold,
         type === 'subtitle' && styles.subtitle,
@@ -32,48 +33,46 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
 }
 
 const styles = StyleSheet.create({
-  small: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 500,
-  },
-  smallBold: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 700,
-  },
-  default: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: 500,
-  },
-  defaultSemiBold: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: 600,
+  logo: {
+    fontFamily: 'Poppins_700Bold',
+    fontSize: 28,
   },
   title: {
-    fontSize: 48,
-    fontWeight: 600,
-    lineHeight: 52,
+    fontFamily: 'Poppins_700Bold',
+    fontSize: 24,
   },
   subtitle: {
-    fontSize: 32,
-    lineHeight: 44,
-    fontWeight: 600,
+    fontFamily: 'Poppins_600SemiBold',
+    fontSize: 20,
+  },
+  default: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 16,
+  },
+  defaultSemiBold: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 16,
+  },
+  small: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+  },
+  smallBold: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 14,
   },
   link: {
-    lineHeight: 30,
+    fontFamily: 'Inter_400Regular',
     fontSize: 14,
   },
   linkPrimary: {
-    lineHeight: 30,
+    fontFamily: 'Inter_500Medium',
     fontSize: 14,
     color: '#3c87f7',
   },
   code: {
     fontFamily: Fonts.mono,
-    fontWeight: Platform.select({ android: 700 }) ?? 500,
+    fontWeight: Platform.select({ android: '700' as const }) ?? '500',
     fontSize: 12,
   },
 });

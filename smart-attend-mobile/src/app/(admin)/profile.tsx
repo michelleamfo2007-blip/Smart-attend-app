@@ -19,18 +19,18 @@ export default function AdminProfileScreen() {
         <ThemedText themeColor="textSecondary">Admin Settings</ThemedText>
       </View>
 
-      <View style={[styles.idBadge, { backgroundColor: theme.primary }]}>
+      <View style={[styles.idBadge, { backgroundColor: scheme === 'dark' ? 'rgba(124, 58, 237, 0.15)' : 'rgba(124, 58, 237, 0.08)', borderColor: 'rgba(124, 58, 237, 0.3)' }]}>
         <View style={styles.idBadgeHeader}>
-          <Text style={styles.universityName}>University Portal</Text>
-          <SymbolView name="graduationcap.fill" size={24} tintColor="white" />
+          <Text style={[styles.universityName, { color: theme.primary }]}>University Portal</Text>
+          <SymbolView name="graduationcap.fill" size={24} tintColor={theme.primary} />
         </View>
         <View style={styles.idBadgeBody}>
-          <View style={styles.avatarPlaceholder}>
+          <View style={[styles.avatarPlaceholder, { backgroundColor: theme.primaryLight }]}>
              <SymbolView name="person.fill" size={40} tintColor={theme.primary} />
           </View>
           <View style={styles.studentInfo}>
-            <Text style={styles.studentName}>{user?.name}</Text>
-            <Text style={styles.studentRole}>ADMINISTRATOR</Text>
+            <Text style={[styles.studentName, { color: theme.text }]}>{user?.name}</Text>
+            <Text style={[styles.studentRole, { color: theme.primary }]}>ADMINISTRATOR</Text>
           </View>
         </View>
       </View>
@@ -49,22 +49,23 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: Spacing.four },
   header: { marginBottom: Spacing.six, marginTop: Spacing.two },
   idBadge: {
-    borderRadius: 16,
+    borderRadius: 24,
     padding: Spacing.four,
     marginBottom: Spacing.eight,
+    borderWidth: 1,
     shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 4,
   },
   idBadgeHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.four },
-  universityName: { color: 'white', fontWeight: 'bold', fontSize: 16, letterSpacing: 1 },
+  universityName: { fontWeight: '800', fontSize: 16, letterSpacing: 0.5 },
   idBadgeBody: { flexDirection: 'row', alignItems: 'center', gap: Spacing.four },
-  avatarPlaceholder: { width: 64, height: 64, borderRadius: 32, backgroundColor: 'white', justifyContent: 'center', alignItems: 'center' },
+  avatarPlaceholder: { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center' },
   studentInfo: { flex: 1 },
-  studentName: { color: 'white', fontSize: 20, fontWeight: 'bold', marginBottom: 4 },
-  studentRole: { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: 'bold', letterSpacing: 1, marginBottom: 4 },
+  studentName: { fontSize: 20, fontWeight: '800', marginBottom: 2 },
+  studentRole: { fontSize: 12, fontWeight: '700', letterSpacing: 1, marginBottom: 4 },
   logoutButton: {
     flexDirection: 'row',
     padding: 16,

@@ -8,6 +8,7 @@ import { Spacing, Colors } from '@/constants/theme';
 import { supabase } from '../../lib/supabase';
 import Animated, { FadeIn, FadeInDown, FadeInUp, Layout } from 'react-native-reanimated';
 import { SymbolView } from 'expo-symbols';
+import { scheduleClassReminder } from '../../hooks/usePushNotifications';
 
 export default function LecturerOverviewScreen() {
   const { user } = useAuth();
@@ -52,14 +53,20 @@ export default function LecturerOverviewScreen() {
       if (error) throw error;
       setActiveSessions(sessions || []);
 
-      // Fetch My Classes for Invite Codes
+      // Fetch My Classes for Invite Codes & Schedule
       const { data: classesData, error: classesError } = await supabase
         .from('classes')
-        .select('id, name, invite_code')
+        .select('id, name, invite_code, start_time, end_time')
         .eq('lecturer_id', user?.id);
       
       if (!classesError && classesData) {
         setMyClasses(classesData);
+        // Schedule push notifications for any class that has a start_time
+        classesData.forEach(c => {
+          if (c.start_time) {
+            scheduleClassReminder(c.name, c.start_time);
+          }
+        });
       }
     } catch (err) {
       console.error("Failed to fetch dashboard data", err);
@@ -144,6 +151,14 @@ export default function LecturerOverviewScreen() {
     }
   };
 
+  const formatTime = (timeStr?: string) => {
+    if (!timeStr) return '';
+    const [h, m] = timeStr.split(':');
+    const date = new Date();
+    date.setHours(parseInt(h, 10), parseInt(m, 10));
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
   return (
     <Animated.View entering={FadeIn.duration(800)} style={{ flex: 1, backgroundColor: theme.background }}>
       <ThemedView style={styles.container}>
@@ -154,20 +169,24 @@ export default function LecturerOverviewScreen() {
             <ThemedText style={styles.subtitle} themeColor="textSecondary">Lecturer Portal</ThemedText>
           </Animated.View>
 
-          {/* Upcoming Class (Mock) */}
-          <Animated.View entering={FadeInDown.duration(600).delay(200)} style={{ marginBottom: Spacing.six }}>
-            <ThemedText type="defaultSemiBold" style={{ marginBottom: Spacing.two }}>Upcoming Class</ThemedText>
-            <View style={[styles.upcomingCard, { backgroundColor: theme.primary, borderColor: theme.primary }]}>
-              <View style={styles.upcomingHeader}>
-                <View style={styles.upcomingBadge}>
-                  <Text style={styles.upcomingBadgeText}>TODAY</Text>
+          {/* Upcoming Class (Dynamic) */}
+          {myClasses.length > 0 && myClasses[0].start_time && (
+            <Animated.View entering={FadeInDown.duration(600).delay(200)} style={{ marginBottom: Spacing.six }}>
+              <ThemedText type="defaultSemiBold" style={{ marginBottom: Spacing.two }}>Upcoming Class</ThemedText>
+              <View style={[styles.upcomingCard, { backgroundColor: theme.primary, borderColor: theme.primary }]}>
+                <View style={styles.upcomingHeader}>
+                  <View style={styles.upcomingBadge}>
+                    <Text style={styles.upcomingBadgeText}>TODAY</Text>
+                  </View>
+                  <SymbolView name="calendar.badge.clock" size={20} tintColor="white" />
                 </View>
-                <SymbolView name="calendar.badge.clock" size={20} tintColor="white" />
+                <ThemedText style={styles.upcomingTitle}>{myClasses[0].name}</ThemedText>
+                <ThemedText style={styles.upcomingTime}>
+                  {formatTime(myClasses[0].start_time)} - {formatTime(myClasses[0].end_time)}
+                </ThemedText>
               </View>
-              <ThemedText style={styles.upcomingTitle}>L5DC/BM - Introduction to Business</ThemedText>
-              <ThemedText style={styles.upcomingTime}>9:00 AM - 11:00 AM • Room 402</ThemedText>
-            </View>
-          </Animated.View>
+            </Animated.View>
+          )}
 
           {/* Active Sessions Section */}
           <Animated.View entering={FadeInDown.duration(600).delay(250)} style={styles.activeSessionsContainer}>

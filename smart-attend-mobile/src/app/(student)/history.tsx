@@ -6,7 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, Colors } from '@/constants/theme';
 import { useColorScheme } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { useCallback } from 'react';
 
@@ -18,65 +18,63 @@ export default function HistoryScreen() {
   const [filter, setFilter] = useState<'All' | 'Present' | 'Missed'>('All');
   const [loading, setLoading] = useState(true);
 
-  useFocusEffect(
-    useCallback(() => {
-      const fetchHistory = async () => {
-        try {
-          // 1. Fetch the student's classes
-          const { data: matchedClasses } = await supabase
-            .from('classes')
-            .select('id, name')
-            .eq('level', user?.level)
-            .eq('semester', user?.semester);
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        // 1. Fetch the student's classes
+        const { data: matchedClasses } = await supabase
+          .from('classes')
+          .select('id, name')
+          .eq('level', user?.level)
+          .eq('semester', user?.semester);
 
-          if (!matchedClasses || matchedClasses.length === 0) {
-            setRecords([]);
-            setLoading(false);
-            return;
-          }
-
-          const classIds = matchedClasses.map(c => c.id);
-          const classMap = new Map(matchedClasses.map(c => [c.id, c.name]));
-
-          // 2. Fetch all sessions for these classes
-          const { data: allSessions } = await supabase
-            .from('attendance_sessions')
-            .select('id, class_id, created_at')
-            .in('class_id', classIds)
-            .order('created_at', { ascending: false });
-
-          // 3. Fetch the student's attendance records
-          const { data: myRecords, error } = await supabase
-            .from('attendance_records')
-            .select('session_id')
-            .eq('student_id', user?.id);
-
-          if (error) throw error;
-
-          const attendedSessionIds = new Set(myRecords?.map(r => r.session_id) || []);
-
-          // 4. Combine and determine status
-          const combinedHistory = (allSessions || []).map(session => {
-            const isPresent = attendedSessionIds.has(session.id);
-            return {
-              id: session.id,
-              className: classMap.get(session.class_id) || 'Unknown Class',
-              timestamp: session.created_at,
-              status: isPresent ? 'Present' : 'Missed'
-            };
-          });
-          
-          setRecords(combinedHistory);
-        } catch (err) {
-          console.error("Failed to fetch history", err);
-        } finally {
+        if (!matchedClasses || matchedClasses.length === 0) {
+          setRecords([]);
           setLoading(false);
+          return;
         }
-      };
 
-      fetchHistory();
-    }, [user])
-  );
+        const classIds = matchedClasses.map(c => c.id);
+        const classMap = new Map(matchedClasses.map(c => [c.id, c.name]));
+
+        // 2. Fetch all sessions for these classes
+        const { data: allSessions } = await supabase
+          .from('attendance_sessions')
+          .select('id, class_id, created_at')
+          .in('class_id', classIds)
+          .order('created_at', { ascending: false });
+
+        // 3. Fetch the student's attendance records
+        const { data: myRecords, error } = await supabase
+          .from('attendance_records')
+          .select('session_id')
+          .eq('student_id', user?.id);
+
+        if (error) throw error;
+
+        const attendedSessionIds = new Set(myRecords?.map(r => r.session_id) || []);
+
+        // 4. Combine and determine status
+        const combinedHistory = (allSessions || []).map(session => {
+          const isPresent = attendedSessionIds.has(session.id);
+          return {
+            id: session.id,
+            className: classMap.get(session.class_id) || 'Unknown Class',
+            timestamp: session.created_at,
+            status: isPresent ? 'Present' : 'Missed'
+          };
+        });
+        
+        setRecords(combinedHistory);
+      } catch (err) {
+        console.error("Failed to fetch history", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHistory();
+  }, [user?.id, user?.level, user?.semester]);
 
   // Helper to format class name
   const formatClassName = (name: string) => {

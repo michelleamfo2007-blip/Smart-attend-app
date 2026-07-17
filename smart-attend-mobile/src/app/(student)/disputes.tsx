@@ -28,7 +28,7 @@ export default function DisputesScreen() {
 
   useEffect(() => {
     fetchData();
-  }, [user]);
+  }, [user?.id, user?.level, user?.semester]);
 
   const fetchData = async () => {
     try {

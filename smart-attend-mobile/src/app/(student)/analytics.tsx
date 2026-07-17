@@ -8,7 +8,7 @@ import { useColorScheme } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { SymbolView } from 'expo-symbols';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 
 export default function AnalyticsScreen() {
   const { user } = useAuth();
@@ -18,71 +18,69 @@ export default function AnalyticsScreen() {
   const [loading, setLoading] = useState(true);
   const [moduleStats, setModuleStats] = useState<any[]>([]);
 
-  useFocusEffect(
-    useCallback(() => {
-      const fetchAnalytics = async () => {
-        try {
-          // 1. Get student's enrolled classes
-          const { data: matchedClasses } = await supabase
-            .from('classes')
-            .select('id, name')
-            .eq('level', user?.level)
-            .eq('semester', user?.semester);
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        // 1. Get student's enrolled classes
+        const { data: matchedClasses } = await supabase
+          .from('classes')
+          .select('id, name')
+          .eq('level', user?.level)
+          .eq('semester', user?.semester);
 
-          if (!matchedClasses || matchedClasses.length === 0) {
-            setModuleStats([]);
-            setLoading(false);
-            return;
-          }
-
-          const classIds = matchedClasses.map(c => c.id);
-
-          // 2. Get all sessions for these classes
-          const { data: allSessions } = await supabase
-            .from('attendance_sessions')
-            .select('id, class_id')
-            .in('class_id', classIds);
-
-          // 3. Get student's attendance records
-          const { data: myRecords } = await supabase
-            .from('attendance_records')
-            .select('session_id')
-            .eq('student_id', user?.id);
-
-          const attendedSessionIds = new Set(myRecords?.map(r => r.session_id) || []);
-
-          // 4. Calculate stats per module
-          const stats = matchedClasses.map(cls => {
-            const classSessions = allSessions?.filter(s => s.class_id === cls.id) || [];
-            const totalSessions = classSessions.length;
-            const attendedCount = classSessions.filter(s => attendedSessionIds.has(s.id)).length;
-            
-            const rate = totalSessions === 0 ? 100 : Math.round((attendedCount / totalSessions) * 100);
-
-            // Clean name
-            let friendlyName = cls.name;
-            if (cls.name.includes('_')) friendlyName = cls.name.split('_')[0];
-
-            return {
-              id: cls.id,
-              name: friendlyName,
-              total: totalSessions,
-              attended: attendedCount,
-              rate: rate,
-            };
-          });
-
-          setModuleStats(stats);
-        } catch (err) {
-          console.error("Failed to fetch analytics", err);
-        } finally {
+        if (!matchedClasses || matchedClasses.length === 0) {
+          setModuleStats([]);
           setLoading(false);
+          return;
         }
-      };
 
-      fetchAnalytics();
-    }, [user])
-  );
+        const classIds = matchedClasses.map(c => c.id);
+
+        // 2. Get all sessions for these classes
+        const { data: allSessions } = await supabase
+          .from('attendance_sessions')
+          .select('id, class_id')
+          .in('class_id', classIds);
+
+        // 3. Get student's attendance records
+        const { data: myRecords } = await supabase
+          .from('attendance_records')
+          .select('session_id')
+          .eq('student_id', user?.id);
+
+        const attendedSessionIds = new Set(myRecords?.map(r => r.session_id) || []);
+
+        // 4. Calculate stats per module
+        const stats = matchedClasses.map(cls => {
+          const classSessions = allSessions?.filter(s => s.class_id === cls.id) || [];
+          const totalSessions = classSessions.length;
+          const attendedCount = classSessions.filter(s => attendedSessionIds.has(s.id)).length;
+          
+          const rate = totalSessions === 0 ? 100 : Math.round((attendedCount / totalSessions) * 100);
+
+          // Clean name
+          let friendlyName = cls.name;
+          if (cls.name.includes('_')) friendlyName = cls.name.split('_')[0];
+
+          return {
+            id: cls.id,
+            name: friendlyName,
+            total: totalSessions,
+            attended: attendedCount,
+            rate: rate,
+          };
+        });
+
+        setModuleStats(stats);
+      } catch (err) {
+        console.error("Failed to fetch analytics", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAnalytics();
+  }, [user?.id, user?.level, user?.semester]);
 
   if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
 

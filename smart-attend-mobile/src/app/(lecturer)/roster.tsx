@@ -4,8 +4,10 @@ import { useAuth } from '../../context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, Colors } from '@/constants/theme';
-import { useColorScheme } from 'react-native';
+import { useColorScheme, TouchableOpacity } from 'react-native';
 import { supabase } from '../../lib/supabase';
+import { exportAttendanceToPDF } from '../../lib/export';
+import { SymbolView } from 'expo-symbols';
 
 export default function RosterScreen() {
   const { user } = useAuth();
@@ -65,7 +67,7 @@ export default function RosterScreen() {
 
   useEffect(() => {
     fetchRoster();
-  }, [user]);
+  }, [user?.id]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -96,9 +98,19 @@ export default function RosterScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <View style={styles.header}>
-        <ThemedText type="title">Class Roster</ThemedText>
-        <ThemedText themeColor="textSecondary">Attendance grouped by class and day</ThemedText>
+      <View style={[styles.header, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+        <View>
+          <ThemedText type="title">Class Roster</ThemedText>
+          <ThemedText themeColor="textSecondary">Attendance grouped by class and day</ThemedText>
+        </View>
+        <TouchableOpacity 
+          style={styles.exportButton}
+          onPress={() => exportAttendanceToPDF(groupedRecords, "Full Class Attendance Roster")}
+          disabled={groupedRecords.length === 0}
+        >
+          <SymbolView name="square.and.arrow.up" size={20} tintColor="white" />
+          <Text style={styles.exportButtonText}>Export</Text>
+        </TouchableOpacity>
       </View>
 
       {loading ? (
@@ -132,6 +144,16 @@ export default function RosterScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: Spacing.four, paddingTop: Spacing.six },
   header: { marginBottom: Spacing.six },
+  exportButton: {
+    flexDirection: 'row',
+    backgroundColor: '#3B82F6',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    gap: 6
+  },
+  exportButtonText: { color: 'white', fontWeight: 'bold' },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContainer: { paddingBottom: Spacing.eight },
   sectionHeader: {

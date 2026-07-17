@@ -11,12 +11,12 @@ export default function LecturerLayout() {
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== 'LECTURER')) {
+    if (!loading && (!user || user.role?.toUpperCase() !== 'LECTURER')) {
       router.replace('/');
     }
   }, [user, loading]);
 
-  if (!user || user.role !== 'LECTURER') {
+  if (!user || user.role?.toUpperCase() !== 'LECTURER') {
     return <View style={{ flex: 1, backgroundColor: colors.background }} />;
   }
 
