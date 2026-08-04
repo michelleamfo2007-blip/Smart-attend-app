@@ -98,8 +98,6 @@ export default function ScanQRScreen() {
     setStatusType('info');
     setStatusMsg('QR detected! Verifying...');
 
-    Alert.alert("Debug", "QR Scanned: " + data);
-
     try {
       let qrData;
       try {
@@ -164,7 +162,6 @@ export default function ScanQRScreen() {
         student_name: user?.name,
         class_id: sessionData.class_id,
         session_id: sessionData.id,
-        location: `Lat: ${studentLocation.coords.latitude}, Lng: ${studentLocation.coords.longitude}`,
         timestamp: new Date().toISOString()
       };
 

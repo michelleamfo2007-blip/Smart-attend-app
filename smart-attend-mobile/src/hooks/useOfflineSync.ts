@@ -50,7 +50,6 @@ export function useOfflineSync() {
                     student_id: scan.student_id,
                     class_id: scan.class_id,
                     session_id: scan.session_id,
-                    location: scan.location,
                     timestamp: scan.timestamp,
                   }
                 ]);
