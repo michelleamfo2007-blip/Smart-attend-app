@@ -6,3 +6,4 @@ ALTER TABLE public.classes ADD COLUMN IF NOT EXISTS end_time TIME;
 UPDATE public.classes 
 SET start_time = '09:00:00', end_time = '12:10:00' 
 WHERE level = '5' AND semester ILIKE '%Second%';
+

@@ -154,7 +154,7 @@ export default function RegisterScreen() {
                     styles.input, 
                     { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }
                   ]}
-                  placeholder="you@university.edu"
+                  placeholder="you@name@gmail.com"
                   placeholderTextColor={theme.textSecondary}
                   value={email}
                   onChangeText={setEmail}
@@ -281,13 +281,13 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   roleText: { color: '#64748B', fontWeight: '500' },
-  roleTextActive: { color: '#7C3AED', fontWeight: 'bold' },
+  roleTextActive: { color: '#2563EB', fontWeight: 'bold' },
   button: {
     padding: 18,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: Spacing.four,
-    shadowColor: '#7C3AED',
+    shadowColor: '#2563EB',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

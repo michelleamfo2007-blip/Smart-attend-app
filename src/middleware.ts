@@ -49,14 +49,15 @@ export async function middleware(request: NextRequest) {
     }
 
     // Route according to role if trying to access wrong dashboard
+    const roleStr = String(payload.role || '').toLowerCase();
     if (pathname.startsWith('/dashboard/admin') && payload.role !== 'ADMIN') {
-      return NextResponse.redirect(new URL(`/dashboard/${payload.role.toString().toLowerCase()}`, request.url));
+      return NextResponse.redirect(new URL(`/dashboard/${roleStr}`, request.url));
     }
     if (pathname.startsWith('/dashboard/lecturer') && payload.role !== 'LECTURER') {
-      return NextResponse.redirect(new URL(`/dashboard/${payload.role.toString().toLowerCase()}`, request.url));
+      return NextResponse.redirect(new URL(`/dashboard/${roleStr}`, request.url));
     }
     if (pathname.startsWith('/dashboard/student') && payload.role !== 'STUDENT') {
-      return NextResponse.redirect(new URL(`/dashboard/${payload.role.toString().toLowerCase()}`, request.url));
+      return NextResponse.redirect(new URL(`/dashboard/${roleStr}`, request.url));
     }
   }
 

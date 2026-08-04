@@ -8,16 +8,16 @@ import { supabase } from '../../lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 import QRCode from 'react-native-qrcode-svg';
 
-// Custom Profile Colors (overriding default theme)
+// Custom Profile Colors (matching standard clean light theme)
 const PColors = {
-  background: '#0F172A',
-  card: '#1E293B',
-  primary: '#6366F1',
-  accent: '#8B5CF6',
-  success: '#22C55E',
-  text: '#FFFFFF',
-  textSecondary: '#94A3B8',
-  danger: '#EF4444',
+  background: '#F8FAFC',
+  card: '#FFFFFF',
+  primary: '#4F46E5',
+  accent: '#7C3AED',
+  success: '#16A34A',
+  text: '#0F172A',
+  textSecondary: '#64748B',
+  danger: '#DC2626',
 };
 
 export default function ProfileScreen() {
@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
   },
   infoDivider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(0,0,0,0.06)',
     marginLeft: 32,
   },
   settingsRow: {

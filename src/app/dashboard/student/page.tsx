@@ -10,7 +10,7 @@ interface Enrollment {
     id: string;
     code: string;
     name: string;
-    sessions: { id: string; isActive: boolean; latitude: number; longitude: number }[];
+    sessions: { id: string; isActive: boolean; latitude: number; longitude: number; startTime?: string }[];
   };
 }
 
@@ -24,23 +24,35 @@ interface AttendanceRecord {
   };
 }
 
+interface NotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+  createdAt: string;
+}
+
 export default function StudentDashboard() {
   const { user } = useUser();
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [marking, setMarking] = useState<string | null>(null);
   const [markMsg, setMarkMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const fetchData = useCallback(async () => {
-    const [coursesRes, attendanceRes] = await Promise.all([
+    const [coursesRes, attendanceRes, notifRes] = await Promise.all([
       fetch('/api/student/courses'),
       fetch('/api/student/attendance'),
+      fetch('/api/student/notifications'),
     ]);
     const coursesData = await coursesRes.json();
     const attendanceData = await attendanceRes.json();
+    const notifData = await notifRes.json();
     setEnrollments(coursesData.enrollments || []);
     setRecords(attendanceData.records || []);
+    setNotifications(notifData.notifications || []);
     setLoading(false);
   }, []);
 
@@ -99,6 +111,30 @@ export default function StudentDashboard() {
       </div>
 
       {/* Notification */}
+      {/* Consecutive Absence Warnings */}
+      {notifications.length > 0 && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          {notifications.map((notif) => (
+            <div key={notif.id} style={{
+              background: '#fef2f2',
+              borderLeft: '4px solid #ef4444',
+              borderRadius: '8px',
+              padding: '1rem 1.25rem',
+              marginBottom: '0.75rem',
+              color: '#991b1b',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, fontSize: '1rem' }}>
+                <span>🚨</span> {notif.title}
+              </div>
+              <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.9rem', color: '#b91c1c' }}>
+                {notif.message}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
       {markMsg && (
         <div className={`${styles.notification} ${markMsg.type === 'success' ? styles.notifSuccess : styles.notifError}`}>
           {markMsg.text}
@@ -147,7 +183,7 @@ export default function StudentDashboard() {
             {activeSessions.map((e) => {
               const session = e.course.sessions[0];
               const alreadyMarked = records.some(r =>
-                r.session.course.code === e.course.code && r.session.startTime === session.startTime
+                r.session.course.code === e.course.code && (session.startTime ? r.session.startTime === session.startTime : true)
               );
               return (
                 <div key={e.id} className={styles.sessionCard}>
