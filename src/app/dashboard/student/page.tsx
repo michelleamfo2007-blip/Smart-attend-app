@@ -5,22 +5,21 @@ import { useUser } from '@/hooks/useUser';
 import styles from './student.module.css';
 
 interface Enrollment {
-  id: string;
   course: {
     id: string;
-    code: string;
     name: string;
-    sessions: { id: string; isActive: boolean; latitude: number; longitude: number; startTime?: string }[];
+    level: string;
+    sessions: { id: string; status: string; created_at?: string }[];
   };
 }
 
 interface AttendanceRecord {
   id: string;
   timestamp: string;
-  distance: number;
+  location: string;
   session: {
-    course: { code: string; name: string };
-    startTime: string;
+    class: { name: string; level: string };
+    created_at: string;
   };
 }
 
@@ -78,7 +77,7 @@ export default function StudentDashboard() {
         });
         const data = await res.json();
         if (res.ok) {
-          setMarkMsg({ type: 'success', text: `✓ Attendance marked! You were ${data.distance}m from the class.` });
+          setMarkMsg({ type: 'success', text: `✓ Attendance marked! You were ${data.distance || 0}m from the class.` });
           fetchData();
         } else {
           setMarkMsg({ type: 'error', text: data.error || 'Failed to mark attendance.' });
@@ -150,7 +149,7 @@ export default function StudentDashboard() {
           </div>
           <div>
             <div className={styles.statValue}>{enrollments.length}</div>
-            <div className={styles.statLabel}>Enrolled Courses</div>
+            <div className={styles.statLabel}>Enrolled Classes</div>
           </div>
         </div>
         <div className={styles.statCard}>
@@ -183,12 +182,12 @@ export default function StudentDashboard() {
             {activeSessions.map((e) => {
               const session = e.course.sessions[0];
               const alreadyMarked = records.some(r =>
-                r.session.course.code === e.course.code && (session.startTime ? r.session.startTime === session.startTime : true)
+                r.session.class.name === e.course.name && (session.created_at ? r.session.created_at === session.created_at : true)
               );
               return (
-                <div key={e.id} className={styles.sessionCard}>
+                <div key={e.course.id} className={styles.sessionCard}>
                   <div className={styles.sessionCardHeader}>
-                    <div className={styles.courseCodeBadge}>{e.course.code}</div>
+                    <div className={styles.courseCodeBadge}>{e.course.level}</div>
                     <span className={styles.liveTag}>● LIVE</span>
                   </div>
                   <h3 className={styles.courseName}>{e.course.name}</h3>
@@ -216,22 +215,22 @@ export default function StudentDashboard() {
 
       {/* Courses */}
       <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>My Courses</h2>
+        <h2 className={styles.sectionTitle}>My Classes</h2>
         {enrollments.length === 0 ? (
           <div className={styles.emptyState}>
             <div className={styles.emptyIcon}>📚</div>
-            <p>You&apos;re not enrolled in any courses yet.</p>
-            <span>Contact your administrator to get enrolled.</span>
+            <p>You haven&apos;t attended any classes yet.</p>
+            <span>Your attended classes will show up here.</span>
           </div>
         ) : (
           <div className={styles.courseGrid}>
             {enrollments.map((e) => {
-              const attended = records.filter(r => r.session.course.code === e.course.code).length;
+              const attended = records.filter(r => r.session.class.name === e.course.name).length;
               const hasActive = e.course.sessions.length > 0;
               return (
-                <div key={e.id} className={styles.courseCard}>
+                <div key={e.course.id} className={styles.courseCard}>
                   <div className={styles.courseCardTop}>
-                    <div className={styles.courseCodeBadge}>{e.course.code}</div>
+                    <div className={styles.courseCodeBadge}>{e.course.level}</div>
                     {hasActive && <span className={styles.activeIndicator}>● Active</span>}
                   </div>
                   <h3 className={styles.courseName}>{e.course.name}</h3>
@@ -256,19 +255,19 @@ export default function StudentDashboard() {
         ) : (
           <div className={styles.table}>
             <div className={styles.tableHeader}>
-              <span>Course</span>
+              <span>Class</span>
               <span>Date & Time</span>
-              <span>Distance</span>
+              <span>Location</span>
               <span>Status</span>
             </div>
             {records.slice(0, 10).map((r) => (
               <div key={r.id} className={styles.tableRow}>
                 <div>
-                  <strong>{r.session.course.code}</strong>
-                  <span>{r.session.course.name}</span>
+                  <strong>{r.session.class.level}</strong>
+                  <span>{r.session.class.name}</span>
                 </div>
                 <span>{new Date(r.timestamp).toLocaleString()}</span>
-                <span>{Math.round(r.distance)}m away</span>
+                <span>{r.location || 'Unknown'}</span>
                 <span className={styles.statusPresent}>Present</span>
               </div>
             ))}

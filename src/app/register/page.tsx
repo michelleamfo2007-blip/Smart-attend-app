@@ -29,6 +29,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState('STUDENT');
+  const [inviteCode, setInviteCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -53,6 +54,10 @@ export default function RegisterPage() {
     setError('');
     if (!name.trim()) { setError('Please enter your full name.'); return; }
     if (!email.trim()) { setError('Please enter your email.'); return; }
+    if (role === 'LECTURER' && !inviteCode.trim()) {
+      setError('Please enter the Institution/Lecturer Invite Code.');
+      return;
+    }
     setStep(2);
   };
 
@@ -74,7 +79,7 @@ export default function RegisterPage() {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, role }),
+        body: JSON.stringify({ name, email, password, role, inviteCode }),
       });
 
       const data = await res.json();
@@ -247,6 +252,26 @@ export default function RegisterPage() {
                   ))}
                 </div>
               </div>
+
+              {role === 'LECTURER' && (
+                <div className="input-group">
+                  <label htmlFor="reg-invite-code" className="input-label">Institution Invite Code</label>
+                  <div className={styles.inputWrapper}>
+                    <svg className={styles.inputIcon} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                    </svg>
+                    <input
+                      id="reg-invite-code"
+                      type="text"
+                      className={`input-field ${styles.inputWithIcon}`}
+                      placeholder="Enter lecturer invite code"
+                      value={inviteCode}
+                      onChange={(e) => setInviteCode(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+              )}
 
               <button type="submit" id="reg-next-btn" className={`btn btn-primary ${styles.submitBtn}`}>
                 Continue

@@ -4,27 +4,27 @@ import { useEffect, useState, useCallback } from 'react';
 import { useUser } from '@/hooks/useUser';
 import styles from './lecturer.module.css';
 
-interface Course {
+interface Class {
   id: string;
-  code: string;
   name: string;
-  description?: string;
-  enrollments: { id: string }[];
-  sessions: { id: string; isActive: boolean }[];
+  level: string;
+  semester: string;
+  records: { id: string }[];
+  sessions: { id: string; status: string }[];
 }
 
 interface Session {
   id: string;
-  isActive: boolean;
-  startTime: string;
-  endTime?: string;
-  course: { code: string; name: string };
-  attendanceRecords: { id: string; student: { id: string; name: string; email: string } }[];
+  status: string;
+  created_at: string;
+  expires_at?: string;
+  class: { name: string; level: string };
+  records: { id: string; student_id: string }[];
 }
 
 export default function LecturerDashboard() {
   const { user } = useUser();
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState<string | null>(null);
@@ -32,13 +32,13 @@ export default function LecturerDashboard() {
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const fetchData = useCallback(async () => {
-    const [coursesRes, sessionsRes] = await Promise.all([
-      fetch('/api/lecturer/courses'),
+    const [classesRes, sessionsRes] = await Promise.all([
+      fetch('/api/lecturer/courses'), // The API is still /courses, but returns classes
       fetch('/api/lecturer/sessions'),
     ]);
-    const coursesData = await coursesRes.json();
+    const classesData = await classesRes.json();
     const sessionsData = await sessionsRes.json();
-    setCourses(coursesData.courses || []);
+    setClasses(classesData.courses || []);
     setSessions(sessionsData.sessions || []);
     setLoading(false);
   }, []);
@@ -65,7 +65,7 @@ export default function LecturerDashboard() {
         });
         const data = await res.json();
         if (res.ok) {
-          setMsg({ type: 'success', text: `✓ Session started for ${data.session.course.name}. Students can now mark attendance.` });
+          setMsg({ type: 'success', text: `✓ Session started for ${data.session.class.name}. Students can now mark attendance.` });
           fetchData();
         } else {
           setMsg({ type: 'error', text: data.error || 'Failed to start session.' });
@@ -92,10 +92,10 @@ export default function LecturerDashboard() {
     setEnding(null);
   };
 
-  const activeSession = sessions.find(s => s.isActive);
-  const totalStudents = courses.reduce((acc, c) => acc + c.enrollments.length, 0);
+  const activeSession = sessions.find(s => s.status === 'active');
+  const totalStudents = classes.reduce((acc, c) => acc + (c.records?.length || 0), 0);
   const totalSessions = sessions.length;
-  const totalAttendance = sessions.reduce((acc, s) => acc + s.attendanceRecords.length, 0);
+  const totalAttendance = sessions.reduce((acc, s) => acc + (s.records?.length || 0), 0);
 
   if (loading) return <div className={styles.loading}><div className={styles.spinner} /></div>;
 
@@ -121,13 +121,13 @@ export default function LecturerDashboard() {
           <div className={styles.statIcon} style={{ background: '#fff0f2', color: '#e01e37' }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
           </div>
-          <div><div className={styles.statValue}>{courses.length}</div><div className={styles.statLabel}>My Courses</div></div>
+          <div><div className={styles.statValue}>{classes.length}</div><div className={styles.statLabel}>My Classes</div></div>
         </div>
         <div className={styles.statCard}>
           <div className={styles.statIcon} style={{ background: '#eff6ff', color: '#3b82f6' }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
           </div>
-          <div><div className={styles.statValue}>{totalStudents}</div><div className={styles.statLabel}>Enrolled Students</div></div>
+          <div><div className={styles.statValue}>{totalStudents}</div><div className={styles.statLabel}>Total Attendees</div></div>
         </div>
         <div className={styles.statCard}>
           <div className={styles.statIcon} style={{ background: '#fdf4ff', color: '#a855f7' }}>
@@ -150,12 +150,12 @@ export default function LecturerDashboard() {
             <span className={styles.liveDot} />
             <div>
               <strong>Session in Progress</strong>
-              <p>{activeSession.course.name} ({activeSession.course.code}) · Started {new Date(activeSession.startTime).toLocaleTimeString()}</p>
+              <p>{activeSession.class.name} ({activeSession.class.level}) · Started {new Date(activeSession.created_at).toLocaleTimeString()}</p>
             </div>
           </div>
           <div className={styles.activeSessionRight}>
             <div className={styles.attendeeCount}>
-              <strong>{activeSession.attendanceRecords.length}</strong>
+              <strong>{activeSession.records?.length || 0}</strong>
               <span>attended</span>
             </div>
             <button
@@ -171,29 +171,29 @@ export default function LecturerDashboard() {
         </div>
       )}
 
-      {/* Courses with start session */}
+      {/* Classes with start session */}
       <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>My Courses</h2>
-        {courses.length === 0 ? (
+        <h2 className={styles.sectionTitle}>My Classes</h2>
+        {classes.length === 0 ? (
           <div className={styles.emptyState}>
             <div className={styles.emptyIcon}>📋</div>
-            <p>No courses assigned to you yet.</p>
-            <span>Contact an admin to assign courses to your account.</span>
+            <p>No classes assigned to you yet.</p>
+            <span>Contact an admin to assign classes to your account.</span>
           </div>
         ) : (
           <div className={styles.courseGrid}>
-            {courses.map((c) => {
+            {classes.map((c) => {
               const hasActive = c.sessions.length > 0;
               return (
                 <div key={c.id} className={styles.courseCard}>
                   <div className={styles.courseCardTop}>
-                    <div className={styles.courseCodeBadge}>{c.code}</div>
+                    <div className={styles.courseCodeBadge}>{c.level}</div>
                     {hasActive && <span className={styles.activeTag}>● LIVE</span>}
                   </div>
                   <h3 className={styles.courseName}>{c.name}</h3>
-                  {c.description && <p className={styles.courseDesc}>{c.description}</p>}
+                  <p className={styles.courseDesc}>{c.semester}</p>
                   <div className={styles.courseFooter}>
-                    <span className={styles.enrollCount}>👥 {c.enrollments.length} students</span>
+                    <span className={styles.enrollCount}>👥 {c.records?.length || 0} students</span>
                     {!hasActive ? (
                       <button
                         id={`start-session-${c.id}`}
@@ -225,24 +225,24 @@ export default function LecturerDashboard() {
         ) : (
           <div className={styles.table}>
             <div className={styles.tableHeader}>
-              <span>Course</span>
+              <span>Class</span>
               <span>Date</span>
               <span>Duration</span>
               <span>Attended</span>
               <span>Status</span>
             </div>
             {sessions.slice(0, 10).map((s) => {
-              const duration = s.endTime
-                ? Math.round((new Date(s.endTime).getTime() - new Date(s.startTime).getTime()) / 60000)
+              const duration = s.expires_at && s.status === 'closed'
+                ? Math.round((new Date(s.expires_at).getTime() - new Date(s.created_at).getTime()) / 60000)
                 : null;
               return (
                 <div key={s.id} className={styles.tableRow}>
-                  <div><strong>{s.course.code}</strong><span>{s.course.name}</span></div>
-                  <span>{new Date(s.startTime).toLocaleDateString()}</span>
+                  <div><strong>{s.class.name}</strong></div>
+                  <span>{new Date(s.created_at).toLocaleDateString()}</span>
                   <span>{duration != null ? `${duration} min` : '—'}</span>
-                  <span>{s.attendanceRecords.length} students</span>
-                  <span className={s.isActive ? styles.statusActive : styles.statusEnded}>
-                    {s.isActive ? 'Live' : 'Ended'}
+                  <span>{s.records?.length || 0} students</span>
+                  <span className={s.status === 'active' ? styles.statusActive : styles.statusEnded}>
+                    {s.status === 'active' ? 'Live' : 'Ended'}
                   </span>
                 </div>
               );

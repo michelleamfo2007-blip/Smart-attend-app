@@ -10,6 +10,7 @@ import { Spacing, Colors } from '@/constants/theme';
 import { useColorScheme, KeyboardAvoidingView, Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import { getDeviceId } from '../lib/deviceId';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -57,6 +58,18 @@ export default function RegisterScreen() {
 
         finalLevel = classData.level;
         finalSemester = classData.semester;
+      } else if (role === 'LECTURER') {
+        if (!inviteCode) {
+          Alert.alert('Error', 'Lecturers must provide an Institution Invite Code.');
+          setLoading(false);
+          return;
+        }
+        const validCode = process.env.EXPO_PUBLIC_LECTURER_CODE || 'LECTURER-2026';
+        if (inviteCode.trim() !== validCode) {
+          Alert.alert('Invalid Code', 'The Institution Invite Code is incorrect.');
+          setLoading(false);
+          return;
+        }
       }
 
       // Check if email already exists
@@ -72,6 +85,9 @@ export default function RegisterScreen() {
         return;
       }
 
+      // Get the device ID for binding
+      const currentDeviceId = await getDeviceId();
+
       // Create new user object in Supabase
       const { data: newUser, error } = await supabase
         .from('users')
@@ -81,7 +97,8 @@ export default function RegisterScreen() {
           password,
           role,
           level: finalLevel,
-          semester: finalSemester
+          semester: finalSemester,
+          device_id: currentDeviceId
         })
         .select()
         .single();
@@ -214,6 +231,26 @@ export default function RegisterScreen() {
                   />
                   <ThemedText themeColor="textSecondary" style={{ fontSize: 12, marginTop: -4 }}>
                     Your invite code will automatically enroll you in the correct level and semester.
+                  </ThemedText>
+                </View>
+              )}
+
+              {role === 'LECTURER' && (
+                <View style={styles.inputGroup}>
+                  <ThemedText type="defaultSemiBold">Institution Invite Code</ThemedText>
+                  <TextInput
+                    style={[
+                      styles.input, 
+                      { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }
+                    ]}
+                    placeholder="Enter lecturer invite code"
+                    placeholderTextColor={theme.textSecondary}
+                    value={inviteCode}
+                    onChangeText={setInviteCode}
+                    autoCapitalize="characters"
+                  />
+                  <ThemedText themeColor="textSecondary" style={{ fontSize: 12, marginTop: -4 }}>
+                    Required to register as a verified lecturer.
                   </ThemedText>
                 </View>
               )}

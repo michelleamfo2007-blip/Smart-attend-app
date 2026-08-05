@@ -9,11 +9,11 @@ export async function GET() {
     const userId = headersList.get('x-user-id');
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const records = await prisma.attendanceRecord.findMany({
-      where: { studentId: userId },
+    const records = await prisma.attendance_records.findMany({
+      where: { student_id: userId },
       include: {
         session: {
-          include: { course: true },
+          include: { class: true },
         },
       },
       orderBy: { timestamp: 'desc' },
@@ -40,46 +40,47 @@ export async function POST(req: Request) {
     }
 
     // Verify session is active
-    const session = await prisma.session.findUnique({ where: { id: sessionId } });
-    if (!session || !session.isActive) {
+    const session = await prisma.attendance_sessions.findUnique({ where: { id: sessionId } });
+    if (!session || session.status !== 'active') {
       return NextResponse.json({ error: 'Session is not active' }, { status: 400 });
     }
 
-    // Check student is enrolled
-    const enrollment = await prisma.enrollment.findUnique({
-      where: { userId_courseId: { userId, courseId: session.courseId } },
-    });
-    if (!enrollment) {
-      return NextResponse.json({ error: 'You are not enrolled in this course' }, { status: 403 });
-    }
-
     // Check already marked
-    const existing = await prisma.attendanceRecord.findUnique({
-      where: { sessionId_studentId: { sessionId, studentId: userId } },
+    const existing = await prisma.attendance_records.findUnique({
+      where: { student_id_session_id: { session_id: sessionId, student_id: userId } },
     });
     if (existing) {
       return NextResponse.json({ error: 'Attendance already marked' }, { status: 400 });
     }
 
     // Calculate distance (Haversine formula)
-    const R = 6371000; // metres
-    const φ1 = (session.latitude * Math.PI) / 180;
-    const φ2 = (latitude * Math.PI) / 180;
-    const Δφ = ((latitude - session.latitude) * Math.PI) / 180;
-    const Δλ = ((longitude - session.longitude) * Math.PI) / 180;
-    const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
-    const distance = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    let distance = 0;
+    if (session.latitude != null && session.longitude != null) {
+      const R = 6371000; // metres
+      const φ1 = (session.latitude * Math.PI) / 180;
+      const φ2 = (latitude * Math.PI) / 180;
+      const Δφ = ((latitude - session.latitude) * Math.PI) / 180;
+      const Δλ = ((longitude - session.longitude) * Math.PI) / 180;
+      const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+      distance = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-    // Must be within 100 metres
-    if (distance > 100) {
-      return NextResponse.json(
-        { error: `You are too far from the class (${Math.round(distance)}m away). Must be within 100m.` },
-        { status: 400 }
-      );
+      // Must be within 100 metres
+      if (distance > 100) {
+        return NextResponse.json(
+          { error: `You are too far from the class (${Math.round(distance)}m away). Must be within 100m.` },
+          { status: 400 }
+        );
+      }
     }
 
-    const record = await prisma.attendanceRecord.create({
-      data: { sessionId, studentId: userId, latitude, longitude, distance },
+    const record = await prisma.attendance_records.create({
+      data: { 
+        session_id: sessionId, 
+        student_id: userId, 
+        class_id: session.class_id,
+        location: `Lat: ${latitude}, Lng: ${longitude}`,
+        timestamp: new Date()
+      },
     });
 
     return NextResponse.json({ record, distance: Math.round(distance) }, { status: 201 });

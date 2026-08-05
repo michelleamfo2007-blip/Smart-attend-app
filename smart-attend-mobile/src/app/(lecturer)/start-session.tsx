@@ -29,6 +29,7 @@ export default function StartSessionScreen() {
   // Active Session State
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [checkedInCount, setCheckedInCount] = useState(0);
+  const [qrTimestamp, setQrTimestamp] = useState<number>(Date.now());
 
   useEffect(() => {
     fetchLecturerClasses();
@@ -51,8 +52,14 @@ export default function StartSessionScreen() {
       })
       .subscribe();
 
+    // Rotate QR code timestamp every 15 seconds
+    const interval = setInterval(() => {
+      setQrTimestamp(Date.now());
+    }, 15000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, [activeSessionId]);
 
@@ -209,8 +216,8 @@ export default function StartSessionScreen() {
   };
 
   if (activeSessionId) {
-    // QR Code Display State
-    const qrData = JSON.stringify({ sessionId: activeSessionId });
+    // QR Code Display State (Dynamic with timestamp)
+    const qrData = JSON.stringify({ sessionId: activeSessionId, t: qrTimestamp });
     
     return (
       <Animated.View entering={FadeIn.duration(800)} style={{ flex: 1, backgroundColor: theme.background }}>

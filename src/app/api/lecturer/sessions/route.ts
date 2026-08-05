@@ -9,13 +9,13 @@ export async function GET() {
     const userId = headersList.get('x-user-id');
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const sessions = await prisma.session.findMany({
-      where: { lecturerId: userId },
+    const sessions = await prisma.attendance_sessions.findMany({
+      where: { lecturer_id: userId },
       include: {
-        course: true,
-        attendanceRecords: { include: { student: { select: { id: true, name: true, email: true } } } },
+        class: true,
+        records: true,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { created_at: 'desc' },
     });
 
     return NextResponse.json({ sessions });
@@ -38,21 +38,24 @@ export async function POST(req: Request) {
     }
 
     // End any other active sessions for this course by this lecturer
-    await prisma.session.updateMany({
-      where: { courseId, lecturerId: userId, isActive: true },
-      data: { isActive: false, endTime: new Date() },
+    await prisma.attendance_sessions.updateMany({
+      where: { class_id: courseId, lecturer_id: userId, status: 'active' },
+      data: { status: 'closed', expires_at: new Date() },
     });
 
-    const session = await prisma.session.create({
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 2); // default 2 hours
+
+    const session = await prisma.attendance_sessions.create({
       data: {
-        courseId,
-        lecturerId: userId,
+        class_id: courseId,
+        lecturer_id: userId,
         latitude,
         longitude,
-        startTime: new Date(),
-        isActive: true,
+        status: 'active',
+        expires_at: expiresAt,
       },
-      include: { course: true },
+      include: { class: true },
     });
 
     return NextResponse.json({ session }, { status: 201 });

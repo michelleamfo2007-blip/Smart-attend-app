@@ -12,6 +12,7 @@ import { supabase } from '../lib/supabase';
 import Animated, { FadeInDown, FadeIn, FadeOut } from 'react-native-reanimated';
 import { AnimatedIcon } from '@/components/animated-icon';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { getDeviceId } from '../lib/deviceId';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -67,6 +68,20 @@ export default function LoginScreen() {
 
       if (error || !foundUser) {
         Alert.alert('Login Failed', 'Invalid email or password.');
+        setLoading(false);
+        return;
+      }
+      
+      // DEVICE BINDING LOGIC
+      const currentDeviceId = await getDeviceId();
+      if (!foundUser.device_id) {
+        // First time login since feature added: bind device
+        await supabase.from('users').update({ device_id: currentDeviceId }).eq('id', foundUser.id);
+      } else if (foundUser.device_id !== currentDeviceId) {
+        Alert.alert(
+          'Device Binding Error',
+          'This account is registered on another device. Please contact an administrator if you got a new phone.'
+        );
         setLoading(false);
         return;
       }

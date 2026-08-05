@@ -110,6 +110,18 @@ export default function ScanQRScreen() {
         throw new Error('Invalid QR Code payload.');
       }
 
+      // Check for QR expiration (Dynamic QR Code)
+      if (qrData.t) {
+        const qrAgeMs = Date.now() - qrData.t;
+        // 30 seconds expiration window
+        if (qrAgeMs > 30000 || qrAgeMs < -10000) {
+          throw new Error('This QR code has expired. Please scan the current code on the screen.');
+        }
+      } else {
+        // Optional: Reject codes without timestamp (enforce dynamic QR)
+        throw new Error('Invalid QR Code format. Dynamic QR required.');
+      }
+
       const sessionId = qrData.sessionId;
 
       // 1. Fetch Session from Supabase
@@ -144,6 +156,10 @@ export default function ScanQRScreen() {
         setTimeout(() => reject(new Error("Location fetch timed out.")), 10000)
       );
       const studentLocation: any = await Promise.race([locationPromise, timeoutPromise]);
+
+      if (studentLocation.mocked) {
+        throw new Error('Mock Location (Fake GPS) detected. Please disable it to mark attendance.');
+      }
 
       const distance = getDistanceFromLatLonInM(
         studentLocation.coords.latitude,

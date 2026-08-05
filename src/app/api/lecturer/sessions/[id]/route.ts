@@ -14,13 +14,13 @@ export async function PATCH(
 
     const { id } = await params;
 
-    const session = await prisma.session.findUnique({ where: { id } });
+    const session = await prisma.attendance_sessions.findUnique({ where: { id } });
     if (!session) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
-    if (session.lecturerId !== userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (session.lecturer_id !== userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-    const updated = await prisma.session.update({
+    const updated = await prisma.attendance_sessions.update({
       where: { id },
-      data: { isActive: false, endTime: new Date() },
+      data: { status: 'closed', expires_at: new Date() },
     });
 
     return NextResponse.json({ session: updated });

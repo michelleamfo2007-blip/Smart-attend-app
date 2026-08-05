@@ -4,12 +4,12 @@ import prisma from '@/lib/prisma';
 // GET all courses
 export async function GET() {
   try {
-    const courses = await prisma.course.findMany({
+    const courses = await prisma.classes.findMany({
       include: {
-        enrollments: true,
-        sessions: { orderBy: { createdAt: 'desc' }, take: 1 },
-      },
-      orderBy: { createdAt: 'desc' },
+        lecturer: true,
+        records: true, // Used as proxy for enrollments
+        sessions: { orderBy: { created_at: 'desc' }, take: 1 },
+      }
     });
     return NextResponse.json({ courses });
   } catch (error) {
@@ -21,19 +21,19 @@ export async function GET() {
 // POST: create a course
 export async function POST(req: Request) {
   try {
-    const { code, name, description } = await req.json();
-    if (!code || !name) {
-      return NextResponse.json({ error: 'Code and name are required' }, { status: 400 });
+    const { name, lecturer_id, level, semester, schedule_time } = await req.json();
+    if (!name || !lecturer_id) {
+      return NextResponse.json({ error: 'Name and lecturer are required' }, { status: 400 });
     }
 
-    const course = await prisma.course.create({
-      data: { code: code.toUpperCase(), name, description },
+    const course = await prisma.classes.create({
+      data: { name, lecturer_id, level, semester, schedule_time },
     });
 
     return NextResponse.json({ course }, { status: 201 });
   } catch (error: any) {
     if (error.code === 'P2002') {
-      return NextResponse.json({ error: 'Course code already exists' }, { status: 400 });
+      return NextResponse.json({ error: 'Class constraint failed' }, { status: 400 });
     }
     console.error(error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

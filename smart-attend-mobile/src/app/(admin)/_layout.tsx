@@ -4,11 +4,13 @@ import { useColorScheme, View, Platform } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { SymbolView } from 'expo-symbols';
 import { useEffect } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function AdminLayout() {
   const { user, loading } = useAuth();
   const scheme = useColorScheme() ?? 'light';
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (!loading && (!user || user.role?.toUpperCase() !== 'ADMIN')) {
@@ -31,8 +33,8 @@ export default function AdminLayout() {
           backgroundColor: colors.backgroundElement, 
           borderTopWidth: 1, 
           borderTopColor: colors.border,
-          height: Platform.OS === 'web' ? 76 : 64,
-          paddingBottom: Platform.OS === 'web' ? 20 : 8,
+          height: Platform.OS === 'web' ? 76 : 64 + insets.bottom,
+          paddingBottom: Platform.OS === 'web' ? 20 : 8 + insets.bottom,
           paddingTop: 8,
         },
         tabBarLabelStyle: {

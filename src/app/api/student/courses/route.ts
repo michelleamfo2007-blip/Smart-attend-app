@@ -8,20 +8,23 @@ export async function GET() {
     const userId = headersList.get('x-user-id');
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const enrollments = await prisma.enrollment.findMany({
-      where: { userId },
-      include: {
-        course: {
+    // A student is considered "enrolled" if they have at least one attendance record for the class.
+    const records = await prisma.attendance_records.findMany({
+      where: { student_id: userId },
+      select: {
+        class: {
           include: {
             sessions: {
-              where: { isActive: true },
+              where: { status: 'active' },
               take: 1,
             },
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      distinct: ['class_id'],
     });
+
+    const enrollments = records.map(r => ({ course: r.class }));
 
     return NextResponse.json({ enrollments });
   } catch (error) {

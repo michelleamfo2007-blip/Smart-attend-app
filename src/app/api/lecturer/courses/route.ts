@@ -8,18 +8,17 @@ export async function GET() {
     const userId = headersList.get('x-user-id');
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const courses = await prisma.course.findMany({
+    const courses = await prisma.classes.findMany({
       where: {
-        sessions: { some: { lecturerId: userId } },
+        lecturer_id: userId,
       },
       include: {
         sessions: {
-          where: { lecturerId: userId, isActive: true },
+          where: { lecturer_id: userId, status: 'active' },
           take: 1,
         },
-        enrollments: true,
+        records: true, // Use records as a proxy for enrollments
       },
-      orderBy: { createdAt: 'desc' },
     });
 
     return NextResponse.json({ courses });
