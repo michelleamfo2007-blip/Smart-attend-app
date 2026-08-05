@@ -64,12 +64,14 @@ export async function POST(req: Request) {
       const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
       distance = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-      // Must be within 100 metres
-      if (distance > 100) {
+      // Must be within 100 metres (bypassed in development)
+      if (distance > 100 && process.env.NODE_ENV === 'production') {
         return NextResponse.json(
           { error: `You are too far from the class (${Math.round(distance)}m away). Must be within 100m.` },
           { status: 400 }
         );
+      } else if (distance > 100) {
+        console.warn(`[DEV] Bypassing distance check. Distance was ${Math.round(distance)}m.`);
       }
     }
 
