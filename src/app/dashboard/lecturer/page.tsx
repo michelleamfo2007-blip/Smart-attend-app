@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useUser } from '@/hooks/useUser';
 import styles from './lecturer.module.css';
+import QRCode from 'react-qr-code';
 
 interface Class {
   id: string;
@@ -24,6 +25,7 @@ interface Session {
 
 export default function LecturerDashboard() {
   const { user } = useUser();
+  const [qrTimestamp, setQrTimestamp] = useState(Date.now());
   const [classes, setClasses] = useState<Class[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +53,11 @@ export default function LecturerDashboard() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    const interval = setInterval(() => setQrTimestamp(Date.now()), 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleCreateClass = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,11 +200,12 @@ export default function LecturerDashboard() {
             </div>
             
             <div className={styles.qrCodeWrapper}>
-              <img 
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${activeSession.id}`} 
-                alt="Scan to mark attendance" 
-                className={styles.qrCode}
-              />
+              <div style={{ background: 'white', padding: '16px', borderRadius: '12px' }}>
+                <QRCode 
+                  value={JSON.stringify({ sessionId: activeSession.id, t: qrTimestamp })}
+                  size={200}
+                />
+              </div>
               <p className={styles.qrHelper}>Students can scan this code with the Mobile App</p>
             </div>
 
