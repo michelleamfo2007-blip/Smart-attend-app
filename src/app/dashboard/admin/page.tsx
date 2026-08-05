@@ -101,11 +101,21 @@ export default function AdminDashboard() {
             </div>
             <div className="input-group">
               <label htmlFor="class-level" className="input-label">Level</label>
-              <input id="class-level" type="text" className="input-field" placeholder="e.g. 100" value={level} onChange={e => setLevel(e.target.value)} />
+              <select id="class-level" className="input-field" value={level} onChange={e => setLevel(e.target.value)} required>
+                <option value="" disabled>Select Level</option>
+                <option value="Level 3">Level 3</option>
+                <option value="Level 4">Level 4</option>
+                <option value="Level 5">Level 5</option>
+                <option value="Level 6">Level 6</option>
+              </select>
             </div>
             <div className="input-group">
               <label htmlFor="class-semester" className="input-label">Semester</label>
-              <input id="class-semester" type="text" className="input-field" placeholder="e.g. Fall 2026" value={semester} onChange={e => setSemester(e.target.value)} />
+              <select id="class-semester" className="input-field" value={semester} onChange={e => setSemester(e.target.value)} required>
+                <option value="" disabled>Select Semester</option>
+                <option value="First Semester">First Semester</option>
+                <option value="Second Semester">Second Semester</option>
+              </select>
             </div>
             <div className="input-group">
               <label htmlFor="schedule-time" className="input-label">Schedule Time</label>

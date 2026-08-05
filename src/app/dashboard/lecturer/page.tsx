@@ -321,23 +321,33 @@ export default function LecturerDashboard() {
               </div>
               <div className={styles.formGroup}>
                 <label>Level/Code</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. CS101" 
+                <select 
+                  className={styles.inputField} 
                   value={newClassLevel} 
                   onChange={e => setNewClassLevel(e.target.value)} 
-                  required 
-                />
+                  required
+                  style={{ padding: '12px 14px', border: '1.5px solid #e5e7eb', borderRadius: '10px', fontSize: '0.95rem' }}
+                >
+                  <option value="" disabled>Select Level</option>
+                  <option value="Level 3">Level 3</option>
+                  <option value="Level 4">Level 4</option>
+                  <option value="Level 5">Level 5</option>
+                  <option value="Level 6">Level 6</option>
+                </select>
               </div>
               <div className={styles.formGroup}>
                 <label>Semester</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. Fall 2026" 
+                <select 
+                  className={styles.inputField} 
                   value={newClassSemester} 
                   onChange={e => setNewClassSemester(e.target.value)} 
-                  required 
-                />
+                  required
+                  style={{ padding: '12px 14px', border: '1.5px solid #e5e7eb', borderRadius: '10px', fontSize: '0.95rem' }}
+                >
+                  <option value="" disabled>Select Semester</option>
+                  <option value="First Semester">First Semester</option>
+                  <option value="Second Semester">Second Semester</option>
+                </select>
               </div>
               <div className={styles.modalFooter}>
                 <button type="button" className={styles.cancelBtn} onClick={() => setShowCreateModal(false)}>Cancel</button>
