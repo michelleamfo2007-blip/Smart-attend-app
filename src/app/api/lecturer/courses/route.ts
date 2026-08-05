@@ -18,8 +18,7 @@ export async function GET() {
           take: 1,
         },
         records: true, // Use records as a proxy for enrollments
-      },
-      orderBy: { created_at: 'desc' },
+      }
     });
 
     return NextResponse.json({ courses });
