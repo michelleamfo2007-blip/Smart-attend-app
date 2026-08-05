@@ -30,6 +30,13 @@ export default function LecturerDashboard() {
   const [starting, setStarting] = useState<string | null>(null);
   const [ending, setEnding] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  
+  // Create Class State
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newClassName, setNewClassName] = useState('');
+  const [newClassLevel, setNewClassLevel] = useState('');
+  const [newClassSemester, setNewClassSemester] = useState('');
+  const [creating, setCreating] = useState(false);
 
   const fetchData = useCallback(async () => {
     const [classesRes, sessionsRes] = await Promise.all([
@@ -44,6 +51,34 @@ export default function LecturerDashboard() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleCreateClass = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreating(true);
+    setMsg(null);
+    try {
+      const res = await fetch('/api/lecturer/courses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newClassName, level: newClassLevel, semester: newClassSemester }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMsg({ type: 'success', text: `✓ Class "${data.course.name}" created successfully!` });
+        setShowCreateModal(false);
+        setNewClassName('');
+        setNewClassLevel('');
+        setNewClassSemester('');
+        fetchData();
+      } else {
+        setMsg({ type: 'error', text: data.error || 'Failed to create class' });
+      }
+    } catch (err) {
+      setMsg({ type: 'error', text: 'Network error occurred' });
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const handleStartSession = async (courseId: string) => {
     setStarting(courseId);
@@ -106,6 +141,10 @@ export default function LecturerDashboard() {
           <h1 className={styles.pageTitle}>Welcome, {user?.name?.split(' ')[0]} 👋</h1>
           <p className={styles.pageSubtitle}>Manage your sessions and track attendance</p>
         </div>
+        <button className={styles.createBtn} onClick={() => setShowCreateModal(true)}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Create Class
+        </button>
       </div>
 
       {msg && (
@@ -152,6 +191,16 @@ export default function LecturerDashboard() {
               <strong>Session in Progress</strong>
               <p>{activeSession.class.name} ({activeSession.class.level}) · Started {new Date(activeSession.created_at).toLocaleTimeString()}</p>
             </div>
+            
+            <div className={styles.qrCodeWrapper}>
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${activeSession.id}`} 
+                alt="Scan to mark attendance" 
+                className={styles.qrCode}
+              />
+              <p className={styles.qrHelper}>Students can scan this code with the Mobile App</p>
+            </div>
+
           </div>
           <div className={styles.activeSessionRight}>
             <div className={styles.attendeeCount}>
@@ -177,8 +226,8 @@ export default function LecturerDashboard() {
         {classes.length === 0 ? (
           <div className={styles.emptyState}>
             <div className={styles.emptyIcon}>📋</div>
-            <p>No classes assigned to you yet.</p>
-            <span>Contact an admin to assign classes to your account.</span>
+            <p>No classes created yet.</p>
+            <span>Click the button in the top right to create your first class.</span>
           </div>
         ) : (
           <div className={styles.courseGrid}>
@@ -250,6 +299,56 @@ export default function LecturerDashboard() {
           </div>
         )}
       </section>
+
+      {/* Create Class Modal */}
+      {showCreateModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowCreateModal(false)}>
+          <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2>Create New Class</h2>
+              <button className={styles.closeModalBtn} onClick={() => setShowCreateModal(false)}>✕</button>
+            </div>
+            <form className={styles.modalForm} onSubmit={handleCreateClass}>
+              <div className={styles.formGroup}>
+                <label>Class Name</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. Intro to Computer Science" 
+                  value={newClassName} 
+                  onChange={e => setNewClassName(e.target.value)} 
+                  required 
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label>Level/Code</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. CS101" 
+                  value={newClassLevel} 
+                  onChange={e => setNewClassLevel(e.target.value)} 
+                  required 
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label>Semester</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. Fall 2026" 
+                  value={newClassSemester} 
+                  onChange={e => setNewClassSemester(e.target.value)} 
+                  required 
+                />
+              </div>
+              <div className={styles.modalFooter}>
+                <button type="button" className={styles.cancelBtn} onClick={() => setShowCreateModal(false)}>Cancel</button>
+                <button type="submit" className={styles.submitBtn} disabled={creating}>
+                  {creating ? 'Creating...' : 'Create Class'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
