@@ -7,8 +7,11 @@ export async function GET() {
     const courses = await prisma.classes.findMany({
       include: {
         lecturer: true,
-        records: true, // Used as proxy for enrollments
-        sessions: { orderBy: { created_at: 'desc' }, take: 1 },
+        records: true, 
+        sessions: { orderBy: { created_at: 'desc' } }, // Get all sessions
+        _count: {
+          select: { sessions: true }
+        }
       }
     });
     return NextResponse.json({ courses });

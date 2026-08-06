@@ -17,8 +17,8 @@ const NAV_LINKS = {
   ],
   ADMIN: [
     { href: '/dashboard/admin', label: 'Overview', icon: HomeIcon },
-    { href: '/dashboard/admin#users', label: 'Users', icon: UsersIcon },
-    { href: '/dashboard/admin#courses', label: 'Courses', icon: BookIcon },
+    { href: '/dashboard/admin/users', label: 'Users', icon: UsersIcon },
+    { href: '/dashboard/admin/classes', label: 'Classes', icon: BookIcon },
   ],
 };
 

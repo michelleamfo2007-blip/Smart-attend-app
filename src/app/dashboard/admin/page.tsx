@@ -118,64 +118,7 @@ export default function AdminDashboard() {
         </div>
       </section>
 
-      {/* Users table */}
-      <section id="users" className={styles.section}>
-        <h2 className={styles.sectionTitle}>All Users</h2>
-        <div className={styles.table}>
-          <div className={styles.tableHeader}>
-            <span>Name</span>
-            <span>Email</span>
-            <span>Role</span>
-          </div>
-          {users.length === 0 ? (
-            <div className={styles.tableEmpty}>No users found.</div>
-          ) : (
-            users.map(u => (
-              <div key={u.id} className={styles.tableRow} style={{gridTemplateColumns: '1fr 1fr 1fr'}}>
-                <div className={styles.userCell}>
-                  <div className={styles.userAvatar}>{(u.name || '?').charAt(0).toUpperCase()}</div>
-                  <strong>{u.name}</strong>
-                </div>
-                <span>{u.email}</span>
-                <span>
-                  <span className={`${styles.roleBadge} ${styles['role' + u.role]}`}>{u.role}</span>
-                </span>
-              </div>
-            ))
-          )}
-        </div>
-      </section>
 
-      {/* Classes table */}
-      <section id="classes" className={styles.section}>
-        <h2 className={styles.sectionTitle}>All Classes</h2>
-        <div className={styles.table}>
-          <div className={styles.tableHeader}>
-            <span>Class Name</span>
-            <span>Lecturer</span>
-            <span>Info</span>
-            <span>Attended</span>
-            <span>Status</span>
-          </div>
-          {classes.length === 0 ? (
-            <div className={styles.tableEmpty}>No classes yet. Create one above!</div>
-          ) : (
-            classes.map(c => (
-              <div key={c.id} className={styles.tableRow} style={{gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr'}}>
-                <span><strong>{c.name}</strong></span>
-                <span>{c.lecturer?.name || 'Unknown'}</span>
-                <span>{c.level} - {c.semester}</span>
-                <span>{c.records?.length || 0} attendees</span>
-                <span>
-                  {c.sessions.some(s => s.status === 'active')
-                    ? <span className={styles.statusActive}>● Live</span>
-                    : <span className={styles.statusInactive}>No session</span>}
-                </span>
-              </div>
-            ))
-          )}
-        </div>
-      </section>
     </div>
   );
 }
