@@ -21,6 +21,8 @@ model users {
   
   classes_lectured      classes[]              @relation("lecturer")
   attendance_sessions   attendance_sessions[]  @relation("session_lecturer")
+  enrollments           enrollments[]
+  records               attendance_records[]
 }
 
 model classes {
@@ -37,6 +39,7 @@ model classes {
   lecturer      users    @relation("lecturer", fields: [lecturer_id], references: [id], onDelete: Cascade)
   sessions      attendance_sessions[]
   records       attendance_records[]
+  enrollments   enrollments[]
 }
 
 model attendance_sessions {
@@ -58,15 +61,28 @@ model attendance_records {
   id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   class_id     String   @db.Uuid
   student_id   String   @db.Uuid
+  session_id   String   @db.Uuid
   student_name String?
   timestamp    DateTime @db.Timestamptz
-  session_id   String   @db.Uuid
   location     String?
 
-  class        classes  @relation(fields: [class_id], references: [id], onDelete: Cascade)
+  class        classes             @relation(fields: [class_id], references: [id], onDelete: Cascade)
+  student      users               @relation(fields: [student_id], references: [id], onDelete: Cascade)
   session      attendance_sessions @relation(fields: [session_id], references: [id], onDelete: Cascade)
 
   @@unique([student_id, session_id])
+}
+
+model enrollments {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  student_id String   @db.Uuid
+  class_id   String   @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz
+
+  student    users    @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  class      classes  @relation(fields: [class_id], references: [id], onDelete: Cascade)
+  
+  @@unique([student_id, class_id])
 }
 
 model active_sessions {

@@ -53,6 +53,21 @@ export async function POST(req: Request) {
       }
     });
 
+    // Auto-enroll existing students matching level and semester
+    const matchingStudents = await prisma.users.findMany({
+      where: { role: 'STUDENT', level, semester }
+    });
+
+    if (matchingStudents.length > 0) {
+      await prisma.enrollments.createMany({
+        data: matchingStudents.map(student => ({
+          student_id: student.id,
+          class_id: newClass.id
+        })),
+        skipDuplicates: true
+      });
+    }
+
     return NextResponse.json({ course: newClass }, { status: 201 });
   } catch (error) {
     console.error('Create course error:', error);

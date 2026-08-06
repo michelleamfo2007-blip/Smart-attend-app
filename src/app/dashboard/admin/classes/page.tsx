@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import styles from '../admin.module.css';
 
 interface Class {
@@ -16,6 +17,7 @@ interface Class {
 }
 
 export default function AdminClassesPage() {
+  const router = useRouter();
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -35,7 +37,7 @@ export default function AdminClassesPage() {
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>All Classes</h1>
-          <p className={styles.pageSubtitle}>Historical session data and attendance tracking.</p>
+          <p className={styles.pageSubtitle}>Select a class to view enrolled students and attendance analytics.</p>
         </div>
       </div>
 
@@ -52,7 +54,12 @@ export default function AdminClassesPage() {
             <div className={styles.tableEmpty}>No classes found.</div>
           ) : (
             classes.map(c => (
-              <div key={c.id} className={styles.tableRow} style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr' }}>
+              <div 
+                key={c.id} 
+                className={styles.tableRow} 
+                style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', cursor: 'pointer' }}
+                onClick={() => router.push(`/dashboard/admin/classes/${c.id}`)}
+              >
                 <span><strong>{c.name}</strong></span>
                 <span>{c.lecturer?.name || 'Unknown'}</span>
                 <span>

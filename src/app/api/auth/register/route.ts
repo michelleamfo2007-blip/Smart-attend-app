@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 
 export async function POST(req: Request) {
   try {
-    const { email, password, name, role, inviteCode } = await req.json();
+    const { email, password, name, role, inviteCode, level, semester } = await req.json();
 
     if (!email || !password || !name) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -37,14 +37,34 @@ export async function POST(req: Request) {
         name,
         password: hashedPassword,
         role: role || 'STUDENT',
+        level: level || undefined,
+        semester: semester || undefined,
       },
       select: {
         id: true,
         email: true,
         name: true,
         role: true,
+        level: true,
+        semester: true,
       }
     });
+
+    // Auto-enroll new student into existing matching classes
+    if (user.role === 'STUDENT' && user.level && user.semester) {
+      const matchingClasses = await prisma.classes.findMany({
+        where: { level: user.level, semester: user.semester }
+      });
+      if (matchingClasses.length > 0) {
+        await prisma.enrollments.createMany({
+          data: matchingClasses.map(c => ({
+            student_id: user.id,
+            class_id: c.id
+          })),
+          skipDuplicates: true
+        });
+      }
+    }
 
     return NextResponse.json({ user }, { status: 201 });
   } catch (error) {
