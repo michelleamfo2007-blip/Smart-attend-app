@@ -193,7 +193,6 @@ export default function AdminDashboard() {
           </div>
         </div>
       </section>
-      </div>
 
       {/* Users table */}
       <section id="users" className={styles.section}>
