@@ -219,8 +219,24 @@ export default function LecturerDashboard() {
               </div>
               <p className={styles.qrHelper}>Students can scan this code with the Mobile App</p>
             </div>
-
           </div>
+          
+          <div className={styles.attendeeListWrapper}>
+            <div className={styles.attendeeListHeader}>Live Attendance Log</div>
+            <div className={styles.attendeeList}>
+              {!activeSession.records || activeSession.records.length === 0 ? (
+                <div className={styles.noAttendees}>No students have checked in yet.</div>
+              ) : (
+                activeSession.records.map((record: any) => (
+                  <div key={record.id} className={styles.attendeeItem}>
+                    <span className={styles.attendeeName}>{record.student_name || 'Unknown Student'}</span>
+                    <span className={styles.attendeeTime}>{new Date(record.timestamp).toLocaleTimeString()}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
           <div className={styles.activeSessionRight}>
             <div className={styles.attendeeCount}>
               <strong>{activeSession.records?.length || 0}</strong>
