@@ -39,6 +39,5 @@
   "exclude": [
     "node_modules",
     "smart-attend-mobile"
-  ],
-  "extends": "expo/tsconfig.base"
+  ]
 }
