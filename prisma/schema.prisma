@@ -88,3 +88,8 @@ model attendance_disputes {
   status      String   @default("pending")
   created_at  DateTime @default(now()) @db.Timestamptz
 }
+
+model system_settings {
+  id                   String @id @default("global")
+  lecturer_invite_code String @default("LECTURER-2026")
+}

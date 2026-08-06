@@ -11,7 +11,8 @@ export async function POST(req: Request) {
     }
 
     if (role === 'LECTURER') {
-      const validCode = process.env.LECTURER_INVITE_CODE || 'LECTURER-2026';
+      const settings = await prisma.system_settings.findUnique({ where: { id: 'global' } });
+      const validCode = settings?.lecturer_invite_code || process.env.LECTURER_INVITE_CODE || 'LECTURER-2026';
       if (inviteCode !== validCode) {
         return NextResponse.json({ error: 'Invalid Institution/Lecturer Invite Code' }, { status: 403 });
       }
