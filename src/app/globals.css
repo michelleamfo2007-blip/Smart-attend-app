@@ -173,3 +173,4 @@ html, body {
 .text-muted { color: var(--gray-500); }
 .font-semibold { font-weight: 600; }
 .font-bold { font-weight: 700; }
+html { scroll-behavior: smooth; }
