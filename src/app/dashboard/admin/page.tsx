@@ -171,6 +171,7 @@ export default function AdminDashboard() {
           <div key={label} className={styles.statCard} style={{ borderLeft: `4px solid ${textColor}` }}>
             <div className={styles.statIcon} style={{ background: color, fontSize: '1.4rem' }}>{icon}</div>
             <div><div className={styles.statValue} style={{ color: textColor }}>{value}</div><div className={styles.statLabel}>{label}</div></div>
+          </div>
         ))}
       </div>
 
