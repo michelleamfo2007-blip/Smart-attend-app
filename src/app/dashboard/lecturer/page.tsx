@@ -10,6 +10,7 @@ interface Class {
   name: string;
   level: string;
   semester: string;
+  invite_code?: string;
   records: { id: string }[];
   sessions: { id: string; status: string }[];
 }
@@ -134,6 +135,16 @@ export default function LecturerDashboard() {
     setEnding(null);
   };
 
+  const handleRegenerateCode = async (courseId: string) => {
+    const res = await fetch(`/api/lecturer/courses/${courseId}`, { method: 'PATCH' });
+    if (res.ok) {
+      setMsg({ type: 'success', text: '✓ New Invite Code generated for the class!' });
+      fetchData();
+    } else {
+      setMsg({ type: 'error', text: 'Failed to generate new code.' });
+    }
+  };
+
   const activeSession = sessions.find(s => s.status === 'active');
   const totalStudents = classes.reduce((acc, c) => acc + (c.records?.length || 0), 0);
   const totalSessions = sessions.length;
@@ -145,7 +156,7 @@ export default function LecturerDashboard() {
     <div className={styles.page}>
       <div className={styles.pageHeader}>
         <div>
-          <h1 className={styles.pageTitle}>Welcome, {user?.name?.split(' ')[0]} 👋</h1>
+          <h1 className={styles.pageTitle}>Welcome, {user?.name?.split(' ')[0]}</h1>
           <p className={styles.pageSubtitle}>Manage your sessions and track attendance</p>
         </div>
         <button className={styles.createBtn} onClick={() => setShowCreateModal(true)}>
@@ -249,6 +260,20 @@ export default function LecturerDashboard() {
                   </div>
                   <h3 className={styles.courseName}>{c.name}</h3>
                   <p className={styles.courseDesc}>{c.semester}</p>
+                  
+                  <div style={{ margin: '12px 0', padding: '8px 12px', background: '#f3f4f6', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>
+                      Invite Code: <strong style={{ color: '#111827', letterSpacing: '1px', marginLeft: '4px' }}>{c.invite_code || '---'}</strong>
+                    </div>
+                    <button 
+                      onClick={() => handleRegenerateCode(c.id)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#e01e37', padding: '4px' }}
+                      title="Generate new invite code"
+                    >
+                      ↻
+                    </button>
+                  </div>
+
                   <div className={styles.courseFooter}>
                     <span className={styles.enrollCount}>👥 {c.records?.length || 0} students</span>
                     {!hasActive ? (
