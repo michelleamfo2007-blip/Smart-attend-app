@@ -13,14 +13,7 @@ export default function AdminDashboard() {
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Class form
-  const [showClassForm, setShowClassForm] = useState(false);
-  const [className, setClassName] = useState('');
-  const [lecturerId, setLecturerId] = useState('');
-  const [level, setLevel] = useState('');
-  const [semester, setSemester] = useState('');
-  const [scheduleTime, setScheduleTime] = useState('');
-  const [creatingClass, setCreatingClass] = useState(false);
+
 
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -62,25 +55,7 @@ export default function AdminDashboard() {
     setGeneratingCode(false);
   };
 
-  const handleCreateClass = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCreatingClass(true);
-    const res = await fetch('/api/admin/courses', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: className, lecturer_id: lecturerId, level, semester, schedule_time: scheduleTime }),
-    });
-    const data = await res.json();
-    if (res.ok) {
-      setMsg({ type: 'success', text: `✓ Class "${data.course.name}" created!` });
-      setClassName(''); setLecturerId(''); setLevel(''); setSemester(''); setScheduleTime('');
-      setShowClassForm(false);
-      fetchData();
-    } else {
-      setMsg({ type: 'error', text: data.error || 'Failed to create class.' });
-    }
-    setCreatingClass(false);
-  };
+
 
   const students = users.filter(u => u.role === 'STUDENT');
   const lecturers = users.filter(u => u.role === 'LECTURER');
@@ -96,11 +71,7 @@ export default function AdminDashboard() {
           <h1 className={styles.pageTitle}>Good Morning, {user?.name?.split(' ')[0]}</h1>
           <p className={styles.pageSubtitle}>Manage users and classes</p>
         </div>
-        <div className={styles.headerActions}>
-          <button id="create-course-btn" className={styles.actionBtn} onClick={() => { setShowClassForm(!showClassForm); }}>
-            + New Class
-          </button>
-        </div>
+
       </div>
 
       {msg && (
@@ -109,54 +80,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Create Class Form */}
-      {showClassForm && (
-        <div className={styles.formPanel}>
-          <h3 className={styles.formTitle}>Create New Class</h3>
-          <form onSubmit={handleCreateClass} className={styles.inlineForm} id="create-course-form">
-            <div className="input-group">
-              <label htmlFor="class-name" className="input-label">Class Name</label>
-              <input id="class-name" type="text" className="input-field" placeholder="e.g. Intro to Programming" value={className} onChange={e => setClassName(e.target.value)} required />
-            </div>
-            <div className="input-group">
-              <label htmlFor="lecturer-select" className="input-label">Assign Lecturer</label>
-              <select id="lecturer-select" className="input-field" value={lecturerId} onChange={e => setLecturerId(e.target.value)} required>
-                <option value="">Select a lecturer...</option>
-                {lecturers.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select>
-            </div>
-            <div className="input-group">
-              <label htmlFor="class-level" className="input-label">Level</label>
-              <select id="class-level" className="input-field" value={level} onChange={e => setLevel(e.target.value)} required>
-                <option value="" disabled>Select Level</option>
-                <option value="Level 3">Level 3</option>
-                <option value="Level 4">Level 4</option>
-                <option value="Level 5">Level 5</option>
-                <option value="Level 6">Level 6</option>
-              </select>
-            </div>
-            <div className="input-group">
-              <label htmlFor="class-semester" className="input-label">Semester</label>
-              <select id="class-semester" className="input-field" value={semester} onChange={e => setSemester(e.target.value)} required>
-                <option value="" disabled>Select Semester</option>
-                <option value="First Semester">First Semester</option>
-                <option value="Second Semester">Second Semester</option>
-              </select>
-            </div>
-            <div className="input-group">
-              <label htmlFor="schedule-time" className="input-label">Schedule Time</label>
-              <input id="schedule-time" type="text" className="input-field" placeholder="e.g. Mon/Wed 10:00 AM" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)} />
-            </div>
-            
-            <div className={styles.formActions}>
-              <button type="button" className={`btn btn-outline ${styles.cancelBtn}`} onClick={() => setShowClassForm(false)}>Cancel</button>
-              <button type="submit" id="submit-course-btn" className="btn btn-primary" disabled={creatingClass}>
-                {creatingClass ? 'Creating...' : 'Create Class'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+
 
       {/* Stats */}
       <div className={styles.statsGrid}>
