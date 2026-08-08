@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { headers } from 'next/headers';
+import { cookies } from 'next/headers';
+import { verifyToken } from '@/lib/auth';
 
 export async function GET() {
   try {
-    const headersList = await headers();
-    const userId = headersList.get('x-user-id');
-    const institutionId = headersList.get('x-institution-id');
+    const token = (await cookies()).get('token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const payload = await verifyToken(token);
+    const institutionId = payload?.institutionId as string;
+    const userId = payload?.userId as string;
+
     if (!userId || !institutionId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const courses = await prisma.classes.findMany({
@@ -32,9 +36,12 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const headersList = await headers();
-    const userId = headersList.get('x-user-id');
-    const institutionId = headersList.get('x-institution-id');
+    const token = (await cookies()).get('token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const payload = await verifyToken(token);
+    const institutionId = payload?.institutionId as string;
+    const userId = payload?.userId as string;
+
     if (!userId || !institutionId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { name, level, semester } = await req.json();

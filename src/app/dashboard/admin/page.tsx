@@ -103,16 +103,16 @@ export default function AdminDashboard() {
       {/* System Settings */}
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>System Settings</h2>
-        <div className={styles.formPanel} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
+        <div className={styles.formPanel} style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ minWidth: '250px' }}>
             <h3 className={styles.formTitle} style={{ margin: 0, marginBottom: '4px' }}>Lecturer Invite Code</h3>
             <p className={styles.pageSubtitle}>Current code required for new Lecturers to register.</p>
           </div>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
             <div style={{ background: '#f3f4f6', padding: '8px 16px', borderRadius: '8px', fontWeight: 'bold', letterSpacing: '1px' }}>
               {inviteCode || 'Loading...'}
             </div>
-            <button className="btn btn-primary" onClick={generateNewCode} disabled={generatingCode}>
+            <button className="btn btn-primary" onClick={generateNewCode} disabled={generatingCode} style={{ whiteSpace: 'nowrap' }}>
               {generatingCode ? 'Generating...' : 'Generate New Code'}
             </button>
           </div>

@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { headers } from 'next/headers';
+import { cookies } from 'next/headers';
+import { verifyToken } from '@/lib/auth';
 
 export async function GET(req: Request) {
   try {
-    const institutionId = headers().get('x-institution-id');
+    const token = cookies().get('token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const payload = await verifyToken(token);
+    const institutionId = payload?.institutionId as string;
     if (!institutionId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -23,7 +27,10 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const institutionId = headers().get('x-institution-id');
+    const token = cookies().get('token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const payload = await verifyToken(token);
+    const institutionId = payload?.institutionId as string;
     if (!institutionId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

@@ -16,7 +16,7 @@ export async function PUT(
     }
 
     const payload = await verifyToken(token);
-    if (!payload || payload.role !== 'ADMIN' || payload.institutionId) {
+    if (!payload || payload.userRole !== 'ADMIN' || payload.institutionId) {
       return NextResponse.json({ error: 'Forbidden: Super Admins only' }, { status: 403 });
     }
 
@@ -81,7 +81,7 @@ export async function DELETE(
     }
 
     const payload = await verifyToken(token);
-    if (!payload || payload.role !== 'ADMIN' || payload.institutionId) {
+    if (!payload || payload.userRole !== 'ADMIN' || payload.institutionId) {
       return NextResponse.json({ error: 'Forbidden: Super Admins only' }, { status: 403 });
     }
 

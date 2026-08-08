@@ -9,7 +9,7 @@ export async function GET() {
     const token = cookieStore.get('token')?.value;
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const payload = await verifyToken(token);
-    if (!payload || payload.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!payload || payload.userRole !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const whereClause = payload.institutionId ? { institution_id: payload.institutionId as string } : {};
 
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     const token = cookieStore.get('token')?.value;
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const payload = await verifyToken(token);
-    if (!payload || payload.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!payload || payload.userRole !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const { name, lecturer_id, level, semester, schedule_time } = await req.json();
     if (!name || !lecturer_id) {

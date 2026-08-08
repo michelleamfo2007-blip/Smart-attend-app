@@ -14,7 +14,7 @@ export async function GET() {
 
     const payload = await verifyToken(token);
     // Only Super Admins (ADMIN role + NO institutionId) can manage all institutions
-    if (!payload || payload.role !== 'ADMIN' || payload.institutionId) {
+    if (!payload || payload.userRole !== 'ADMIN' || payload.institutionId) {
       return NextResponse.json({ error: 'Forbidden: Super Admins only' }, { status: 403 });
     }
 
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
 
     const payload = await verifyToken(token);
     // Only Super Admins (ADMIN role + NO institutionId) can create institutions manually
-    if (!payload || payload.role !== 'ADMIN' || payload.institutionId) {
+    if (!payload || payload.userRole !== 'ADMIN' || payload.institutionId) {
       return NextResponse.json({ error: 'Forbidden: Super Admins only' }, { status: 403 });
     }
 

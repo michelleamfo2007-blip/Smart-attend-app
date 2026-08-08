@@ -18,7 +18,7 @@ export async function GET() {
     const token = cookieStore.get('token')?.value;
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const payload = await verifyToken(token);
-    if (!payload || payload.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (!payload || payload.userRole !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const whereClause = payload.institutionId ? { institution_id: payload.institutionId as string } : {};
 
