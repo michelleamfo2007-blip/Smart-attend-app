@@ -4,7 +4,7 @@ import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'dummy', {
   apiVersion: '2024-04-10',
 });
 

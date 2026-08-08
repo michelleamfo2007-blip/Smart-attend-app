@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import prisma from '@/lib/prisma';
 import { headers } from 'next/headers';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'dummy', {
   apiVersion: '2024-04-10',
 });
 
