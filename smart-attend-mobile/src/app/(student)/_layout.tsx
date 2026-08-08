@@ -25,10 +25,9 @@ export default function StudentLayout() {
   return (
     <Tabs
       screenOptions={{
+        headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
-        headerStyle: { backgroundColor: colors.background, shadowOpacity: 0, elevation: 0, borderBottomWidth: 1, borderBottomColor: colors.border },
-        headerTintColor: colors.text,
         tabBarStyle: { 
           backgroundColor: colors.backgroundElement, 
           borderTopWidth: 1, 
@@ -36,10 +35,21 @@ export default function StudentLayout() {
           height: Platform.OS === 'web' ? 76 : 64 + insets.bottom,
           paddingBottom: Platform.OS === 'web' ? 20 : 8 + insets.bottom,
           paddingTop: 8,
+          ...Platform.select({
+            ios: {
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: -4 },
+              shadowOpacity: 0.03,
+              shadowRadius: 8,
+            },
+            android: {
+              elevation: 4,
+            },
+          }),
         },
         tabBarLabelStyle: {
           fontSize: 12,
-          fontWeight: '500',
+          fontWeight: '600',
         },
       }}>
       <Tabs.Screen
@@ -104,8 +114,9 @@ export default function StudentLayout() {
       <Tabs.Screen
         name="disputes"
         options={{
-          title: 'Disputes & Support',
+          title: 'Disputes',
           href: null,
+          headerShown: true,
         }}
       />
       <Tabs.Screen
@@ -113,6 +124,7 @@ export default function StudentLayout() {
         options={{
           title: 'Edit Profile',
           href: null,
+          headerShown: true,
         }}
       />
       <Tabs.Screen
@@ -120,6 +132,7 @@ export default function StudentLayout() {
         options={{
           title: 'Notifications',
           href: null,
+          headerShown: true,
         }}
       />
     </Tabs>

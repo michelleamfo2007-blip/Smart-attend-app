@@ -1,37 +1,26 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Platform, ActivityIndicator, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Platform, Image } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { Spacing } from '@/constants/theme';
+import { Spacing, Colors } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
-import QRCode from 'react-native-qrcode-svg';
-
-// Custom Profile Colors (matching standard clean light theme)
-const PColors = {
-  background: '#F8FAFC',
-  card: '#FFFFFF',
-  primary: '#4F46E5',
-  accent: '#7C3AED',
-  success: '#16A34A',
-  text: '#0F172A',
-  textSecondary: '#64748B',
-  danger: '#DC2626',
-};
+import { useColorScheme } from 'react-native';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const scheme = useColorScheme() ?? 'light';
+  const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
   
   const [stats, setStats] = useState({
     present: 0,
     absent: 0,
-    late: 0, // Mocked for now
+    late: 0, 
     rate: 100,
     courses: 0,
-    classesToday: 3, // Mocked for now
-    gpa: 3.78, // Mocked for now
+    classesToday: 3, 
   });
   const [loading, setLoading] = useState(true);
   const [institutionName, setInstitutionName] = useState('');
@@ -39,7 +28,6 @@ export default function ProfileScreen() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        // Fetch Institution Name
         if (user?.institution_id) {
           const { data: instData } = await supabase.from('institutions').select('name').eq('id', user.institution_id).maybeSingle();
           if (instData?.name) {
@@ -47,7 +35,6 @@ export default function ProfileScreen() {
           }
         }
 
-        // 1. My Attendance Records
         const { data: myRecords } = await supabase
           .from('attendance_records')
           .select('id')
@@ -55,7 +42,6 @@ export default function ProfileScreen() {
 
         const attendedCount = myRecords ? myRecords.length : 0;
 
-        // 2. Total Sessions for my level/semester
         const { data: matchedClasses } = await supabase
           .from('classes')
           .select('id')
@@ -95,19 +81,18 @@ export default function ProfileScreen() {
   }, [user?.id]);
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.background }]} showsVerticalScrollIndicator={false}>
       
-      {/* HEADER SECTION */}
       <View style={styles.headerTop}>
-        <View style={{ width: 24 }} /> {/* Spacer */}
-        <Text style={styles.headerTitle}>Profile</Text>
+        <View style={{ width: 24 }} /> 
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Profile</Text>
         <TouchableOpacity>
-          <Ionicons name="settings" size={24} color={PColors.textSecondary} />
+          <Ionicons name="settings-outline" size={24} color={theme.textSecondary} />
         </TouchableOpacity>
       </View>
 
       <LinearGradient
-        colors={['#4F46E5', '#7C3AED']}
+        colors={['#e01e37', '#85101f']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.gradientHeader}
@@ -115,7 +100,7 @@ export default function ProfileScreen() {
         <View style={styles.avatarContainer}>
           <Image 
             source={{ uri: `https://api.dicebear.com/7.x/lorelei/png?seed=${encodeURIComponent(user?.name || 'student')}&backgroundColor=transparent` }}
-            style={{ width: 64, height: 64, borderRadius: 32 }}
+            style={{ width: 72, height: 72, borderRadius: 36 }}
           />
         </View>
         <Text style={styles.studentName}>{user?.name}</Text>
@@ -126,170 +111,78 @@ export default function ProfileScreen() {
         </Text>
         
         <View style={styles.verifiedBadge}>
-          <Ionicons name="checkmark-circle" size={16} color="#22C55E" />
-          <Text style={styles.verifiedText}>Verified Student</Text>
+          <Ionicons name="checkmark-circle" size={16} color="#FFF" />
+          <Text style={styles.verifiedText}>Verified</Text>
         </View>
       </LinearGradient>
 
-      {/* STUDENT DIGITAL ID CARD */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Student Digital ID</Text>
-        <View style={styles.divider} />
-        <View style={styles.idCardRow}>
-          <View style={styles.idInfo}>
-            <View style={styles.idInfoItem}>
-              <Ionicons name="person" size={16} color={PColors.textSecondary} />
-              <Text style={styles.idValue}>{user?.name}</Text>
-            </View>
-            <View style={styles.idInfoItem}>
-              <Ionicons name="barcode" size={16} color={PColors.textSecondary} />
-              <Text style={styles.idLabel}>ID:</Text>
-              <Text style={styles.idValue}>{user?.id?.substring(0, 8).toUpperCase()}</Text>
-            </View>
-            <View style={styles.idInfoItem}>
-              <Ionicons name="business" size={16} color={PColors.textSecondary} />
-              <Text style={styles.idLabel}>Inst:</Text>
-              <Text style={styles.idValue}>{institutionName || 'N/A'}</Text>
-            </View>
-            <View style={styles.idInfoItem}>
-              <Ionicons name="calendar" size={16} color={PColors.textSecondary} />
-              <Text style={styles.idLabel}>Valid:</Text>
-              <Text style={styles.idValue}>2026</Text>
-            </View>
-          </View>
-        </View>
-      </View>
-
-      {/* ATTENDANCE SUMMARY */}
-      <View style={styles.card}>
-        <View style={styles.attendanceHeaderRow}>
-          <Text style={styles.cardTitle}>Overall Attendance</Text>
-          <Text style={styles.attendanceRateLarge}>{loading ? '-' : stats.rate}%</Text>
-        </View>
-
-        <View style={styles.progressBarBg}>
-           <View style={[styles.progressBarFill, { width: `${loading ? 0 : stats.rate}%`, backgroundColor: stats.rate < 85 ? PColors.danger : PColors.success }]} />
-        </View>
-
-        <View style={styles.attendanceStatsRow}>
-          <View style={styles.attendanceStat}>
-            <Text style={styles.attendanceStatLabel}>Present</Text>
-            <Text style={[styles.attendanceStatValue, { color: PColors.success }]}>{stats.present}</Text>
-          </View>
-          <View style={styles.attendanceStat}>
-            <Text style={styles.attendanceStatLabel}>Absent</Text>
-            <Text style={[styles.attendanceStatValue, { color: PColors.danger }]}>{stats.absent}</Text>
-          </View>
-          <View style={styles.attendanceStat}>
-            <Text style={styles.attendanceStatLabel}>Late</Text>
-            <Text style={[styles.attendanceStatValue, { color: '#F59E0B' }]}>{stats.late}</Text>
-          </View>
-        </View>
-        
-        <TouchableOpacity style={styles.viewHistoryButton} onPress={() => router.push('/(student)/history')}>
-          <Text style={styles.viewHistoryText}>View Attendance History</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* STATISTICS GRID */}
-      <View style={styles.statsGrid}>
-        <View style={styles.statsGridBox}>
-          <Text style={styles.statsGridLabel}>Classes Today</Text>
-          <Text style={styles.statsGridValue}>{stats.classesToday}</Text>
-        </View>
-        <View style={styles.statsGridBox}>
-          <Text style={styles.statsGridLabel}>Courses</Text>
-          <Text style={styles.statsGridValue}>{loading ? '-' : stats.courses}</Text>
-        </View>
-        <View style={[styles.statsGridBox, { width: '100%' }]}>
-          <Text style={styles.statsGridLabel}>Overall Attendance</Text>
-          <Text style={[styles.statsGridValue, { color: stats.rate < 85 ? PColors.danger : PColors.success }]}>{loading ? '-' : stats.rate}%</Text>
-        </View>
-      </View>
-
       {/* QUICK ACTIONS */}
-      <Text style={styles.sectionTitle}>Quick Actions</Text>
       <View style={styles.quickActionsGrid}>
-        <TouchableOpacity style={styles.quickActionBox} onPress={() => router.push('/(student)/scan-qr')}>
-          <View style={styles.quickActionIcon}>
-             <Ionicons name="qr-code" size={24} color={PColors.primary} />
-          </View>
-          <Text style={styles.quickActionText}>Scan</Text>
-        </TouchableOpacity>
         <TouchableOpacity style={styles.quickActionBox} onPress={() => router.push('/(student)/mark-attendance')}>
-          <View style={styles.quickActionIcon}>
-             <Ionicons name="location" size={24} color={PColors.accent} />
+          <View style={[styles.quickActionIcon, { backgroundColor: theme.backgroundElement }]}>
+             <Ionicons name="qr-code-outline" size={24} color={theme.primary} />
           </View>
-          <Text style={styles.quickActionText}>Check In</Text>
+          <Text style={[styles.quickActionText, { color: theme.textSecondary }]}>Scan</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.quickActionBox} onPress={() => router.push('/(student)/analytics')}>
-          <View style={styles.quickActionIcon}>
-             <Ionicons name="stats-chart" size={24} color={PColors.success} />
+          <View style={[styles.quickActionIcon, { backgroundColor: theme.backgroundElement }]}>
+             <Ionicons name="stats-chart-outline" size={24} color={theme.textSecondary} />
           </View>
-          <Text style={styles.quickActionText}>Report</Text>
+          <Text style={[styles.quickActionText, { color: theme.textSecondary }]}>Report</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.quickActionBox} onPress={() => router.push('/(student)/edit-profile')}>
-          <View style={styles.quickActionIcon}>
-             <Ionicons name="pencil" size={24} color={PColors.textSecondary} />
+          <View style={[styles.quickActionIcon, { backgroundColor: theme.backgroundElement }]}>
+             <Ionicons name="person-outline" size={24} color={theme.textSecondary} />
           </View>
-          <Text style={styles.quickActionText}>Edit</Text>
+          <Text style={[styles.quickActionText, { color: theme.textSecondary }]}>Edit</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.quickActionBox} onPress={() => router.push('/(student)/history')}>
+          <View style={[styles.quickActionIcon, { backgroundColor: theme.backgroundElement }]}>
+             <Ionicons name="time-outline" size={24} color={theme.textSecondary} />
+          </View>
+          <Text style={[styles.quickActionText, { color: theme.textSecondary }]}>History</Text>
         </TouchableOpacity>
       </View>
 
-      {/* PERSONAL INFORMATION */}
-      <Text style={styles.sectionTitle}>Personal Information</Text>
-      <View style={styles.card}>
+      <Text style={[styles.sectionTitle, { color: theme.text }]}>Personal Information</Text>
+      <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
         <View style={styles.infoRow}>
-          <Ionicons name="id-card" size={20} color={PColors.textSecondary} />
-          <Text style={styles.infoLabel}>Student ID</Text>
-          <Text style={styles.infoValue}>{user?.id?.substring(0, 8).toUpperCase()}</Text>
+          <Ionicons name="id-card-outline" size={20} color={theme.textSecondary} />
+          <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Student ID</Text>
+          <Text style={[styles.infoValue, { color: theme.text }]}>{user?.id?.substring(0, 8).toUpperCase()}</Text>
         </View>
-        <View style={styles.infoDivider} />
+        <View style={[styles.infoDivider, { backgroundColor: theme.border }]} />
         <View style={styles.infoRow}>
-          <Ionicons name="school" size={20} color={PColors.textSecondary} />
-          <Text style={styles.infoLabel}>Department</Text>
-          <Text style={styles.infoValue}>Computer Science</Text>
+          <Ionicons name="business-outline" size={20} color={theme.textSecondary} />
+          <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Institution</Text>
+          <Text style={[styles.infoValue, { color: theme.text }]}>{institutionName || 'N/A'}</Text>
         </View>
-        <View style={styles.infoDivider} />
+        <View style={[styles.infoDivider, { backgroundColor: theme.border }]} />
         <View style={styles.infoRow}>
-          <Ionicons name="map" size={20} color={PColors.textSecondary} />
-          <Text style={styles.infoLabel}>Campus</Text>
-          <Text style={styles.infoValue}>Main Campus</Text>
-        </View>
-        <View style={styles.infoDivider} />
-        <View style={styles.infoRow}>
-          <Ionicons name="mail" size={20} color={PColors.textSecondary} />
-          <Text style={styles.infoLabel}>Email</Text>
-          <Text style={styles.infoValue}>{user?.name?.split(' ')[0].toLowerCase()}@gmail.com</Text>
-        </View>
-        <View style={styles.infoDivider} />
-        <View style={styles.infoRow}>
-          <Ionicons name="call" size={20} color={PColors.textSecondary} />
-          <Text style={styles.infoLabel}>Phone</Text>
-          <Text style={styles.infoValue}>+233 XX XXX XXXX</Text>
+          <Ionicons name="mail-outline" size={20} color={theme.textSecondary} />
+          <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Email</Text>
+          <Text style={[styles.infoValue, { color: theme.text }]}>{user?.name?.split(' ')[0].toLowerCase()}@gmail.com</Text>
         </View>
       </View>
 
-      {/* SETTINGS */}
-      <Text style={styles.sectionTitle}>Settings</Text>
-      <View style={styles.card}>
+      <Text style={[styles.sectionTitle, { color: theme.text }]}>Settings</Text>
+      <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
         <TouchableOpacity style={styles.settingsRow}>
-          <Ionicons name="notifications" size={20} color={PColors.primary} />
-          <Text style={styles.settingsText}>Notifications</Text>
-          <Ionicons name="chevron-forward" size={20} color={PColors.textSecondary} />
+          <Ionicons name="notifications-outline" size={20} color={theme.textSecondary} />
+          <Text style={[styles.settingsText, { color: theme.text }]}>Notifications</Text>
+          <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
         </TouchableOpacity>
-        <View style={styles.infoDivider} />
+        <View style={[styles.infoDivider, { backgroundColor: theme.border }]} />
         <TouchableOpacity style={styles.settingsRow}>
-          <Ionicons name="lock-closed" size={20} color={PColors.accent} />
-          <Text style={styles.settingsText}>Change Password</Text>
-          <Ionicons name="chevron-forward" size={20} color={PColors.textSecondary} />
+          <Ionicons name="lock-closed-outline" size={20} color={theme.textSecondary} />
+          <Text style={[styles.settingsText, { color: theme.text }]}>Security & Password</Text>
+          <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
         </TouchableOpacity>
       </View>
 
-      {/* LOGOUT */}
-      <TouchableOpacity style={styles.logoutButton} onPress={logout}>
-        <Ionicons name="log-out-outline" size={20} color={PColors.danger} />
-        <Text style={styles.logoutText}>Logout</Text>
+      <TouchableOpacity style={[styles.logoutButton, { backgroundColor: '#fbe8ea' }]} onPress={logout}>
+        <Ionicons name="log-out-outline" size={20} color={theme.primary} />
+        <Text style={[styles.logoutText, { color: theme.primary }]}>Sign Out</Text>
       </TouchableOpacity>
 
       <View style={{ height: 40 }} />
@@ -300,41 +193,52 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: PColors.background,
     padding: Spacing.four,
+    paddingTop: Spacing.six,
   },
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: Spacing.four,
-    marginTop: Spacing.two,
   },
   headerTitle: {
-    color: PColors.text,
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   gradientHeader: {
     borderRadius: 24,
     padding: Spacing.five,
     alignItems: 'center',
     marginBottom: Spacing.six,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#e01e37',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.2,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
   },
   avatarContainer: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.three,
+    padding: 4,
   },
   studentName: {
     color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 4,
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: 6,
+    letterSpacing: -0.5,
   },
   studentRoleBadge: {
     backgroundColor: 'rgba(255,255,255,0.2)',
@@ -349,145 +253,43 @@ const styles = StyleSheet.create({
   },
   studentDetails: {
     color: 'rgba(255,255,255,0.9)',
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: '500',
     marginBottom: 16,
   },
   verifiedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
     gap: 6,
   },
   verifiedText: {
-    color: PColors.success,
-    fontWeight: 'bold',
+    color: '#FFF',
+    fontWeight: '700',
     fontSize: 12,
   },
   card: {
-    backgroundColor: PColors.card,
     borderRadius: 20,
-    padding: Spacing.four,
     marginBottom: Spacing.six,
-  },
-  cardTitle: {
-    color: PColors.text,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    marginVertical: 12,
-  },
-  idCardRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  idInfo: {
-    flex: 1,
-    gap: 12,
-  },
-  idInfoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  idLabel: {
-    color: PColors.textSecondary,
-    fontSize: 13,
-    width: 40,
-  },
-  idValue: {
-    color: PColors.text,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  qrContainer: {
-    padding: 8,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-  },
-  attendanceHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginBottom: Spacing.four,
-  },
-  attendanceRateLarge: {
-    color: PColors.primary,
-    fontSize: 32,
-    fontWeight: 'bold',
-  },
-  progressBarBg: {
-    height: 8,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 4,
-    marginBottom: Spacing.five,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  attendanceStatsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.five,
-  },
-  attendanceStat: {
-    alignItems: 'center',
-  },
-  attendanceStatLabel: {
-    color: PColors.textSecondary,
-    fontSize: 12,
-    marginBottom: 4,
-  },
-  attendanceStatValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  viewHistoryButton: {
-    backgroundColor: 'rgba(99, 102, 241, 0.1)',
-    padding: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  viewHistoryText: {
-    color: PColors.primary,
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: Spacing.six,
-  },
-  statsGridBox: {
-    width: '48%',
-    backgroundColor: PColors.card,
-    borderRadius: 16,
-    padding: Spacing.four,
-    alignItems: 'center',
-  },
-  statsGridLabel: {
-    color: PColors.textSecondary,
-    fontSize: 12,
-    marginBottom: 8,
-  },
-  statsGridValue: {
-    color: PColors.text,
-    fontSize: 24,
-    fontWeight: 'bold',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.04,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   sectionTitle: {
-    color: PColors.text,
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.3,
     marginBottom: Spacing.four,
   },
   quickActionsGrid: {
@@ -500,64 +302,69 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   quickActionIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: PColors.card,
+    width: 64,
+    height: 64,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.04,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   quickActionText: {
-    color: PColors.textSecondary,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
   },
   infoLabel: {
-    color: PColors.textSecondary,
     fontSize: 14,
     marginLeft: 12,
     flex: 1,
   },
   infoValue: {
-    color: PColors.text,
     fontSize: 14,
     fontWeight: '600',
   },
   infoDivider: {
     height: 1,
-    backgroundColor: 'rgba(0,0,0,0.06)',
-    marginLeft: 32,
+    marginLeft: 52,
   },
   settingsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 16,
+    paddingHorizontal: 20,
   },
   settingsText: {
-    color: PColors.text,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     marginLeft: 12,
     flex: 1,
   },
   logoutButton: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
     padding: 16,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    gap: 8,
     marginBottom: Spacing.six,
   },
   logoutText: {
-    color: PColors.danger,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
 });
