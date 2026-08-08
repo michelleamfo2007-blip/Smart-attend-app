@@ -6,8 +6,17 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get('token')?.value;
   const { pathname } = request.nextUrl;
 
-  // Protect API routes except auth
-  if (pathname.startsWith('/api/') && !pathname.startsWith('/api/auth/')) {
+  const publicApiRoutes = [
+    '/api/auth/',
+    '/api/onboarding',
+    '/api/public/',
+    '/api/webhooks/'
+  ];
+  
+  const isPublicApi = publicApiRoutes.some(route => pathname.startsWith(route));
+
+  // Protect API routes except public ones
+  if (pathname.startsWith('/api/') && !isPublicApi) {
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
