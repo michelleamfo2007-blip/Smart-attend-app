@@ -179,3 +179,19 @@
 .formGroup label { font-size: 0.875rem; font-weight: 600; color: #374151; }
 .input { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #1f2937; }
 .input:focus { outline: none; border-color: #e01e37; box-shadow: 0 0 0 3px rgba(224,30,55,0.1); }
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+@media (max-width: 480px) {
+  .modalActions {
+    flex-direction: column-reverse;
+  }
+  .modalActions button {
+    width: 100%;
+  }
+}

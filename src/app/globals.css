@@ -92,6 +92,16 @@ html, body {
   transform: none;
 }
 
+.btn-secondary {
+  background: var(--gray-100);
+  color: var(--gray-700);
+  border: 1px solid var(--gray-200);
+}
+
+.btn-secondary:hover {
+  background: var(--gray-200);
+}
+
 .btn-outline {
   background: transparent;
   color: var(--red-primary);
