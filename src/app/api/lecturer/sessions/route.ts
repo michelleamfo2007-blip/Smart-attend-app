@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { headers } from 'next/headers';
+import { cookies } from 'next/headers';
+import { verifyToken } from '@/lib/auth';
 
 // GET: all sessions by this lecturer
 export async function GET() {
   try {
-    const headersList = await headers();
-    const userId = headersList.get('x-user-id');
+    const token = (await cookies()).get('token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const payload = await verifyToken(token);
+    const userId = payload?.userId as string;
+    
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const sessions = await prisma.attendance_sessions.findMany({
@@ -28,8 +32,11 @@ export async function GET() {
 // POST: start a new session
 export async function POST(req: Request) {
   try {
-    const headersList = await headers();
-    const userId = headersList.get('x-user-id');
+    const token = (await cookies()).get('token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const payload = await verifyToken(token);
+    const userId = payload?.userId as string;
+    
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { courseId, latitude, longitude } = await req.json();

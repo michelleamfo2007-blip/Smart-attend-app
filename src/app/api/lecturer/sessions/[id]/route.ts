@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { headers } from 'next/headers';
+import { cookies } from 'next/headers';
+import { verifyToken } from '@/lib/auth';
 
 // PATCH: end a session
 export async function PATCH(
@@ -8,8 +9,11 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const headersList = await headers();
-    const userId = headersList.get('x-user-id');
+    const token = (await cookies()).get('token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const payload = await verifyToken(token);
+    const userId = payload?.userId as string;
+    
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { id } = await params;

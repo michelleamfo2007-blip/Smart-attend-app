@@ -251,6 +251,62 @@ export default function LecturerDashboard() {
         </div>
       )}
 
+      {/* My Classes Grid */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '32px', marginBottom: '20px' }}>
+        <h2 style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#111827' }}>My Classes</h2>
+        <button onClick={() => setShowCreateModal(true)} className={styles.createBtn} style={{ background: '#e01e37', color: 'white', border: 'none', padding: '10px 16px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600' }}>
+          + New Class
+        </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
+        {classes.length === 0 ? (
+          <div style={{ gridColumn: '1 / -1', background: 'white', padding: '40px', borderRadius: '16px', textAlign: 'center', border: '1px solid #e5e7eb' }}>
+            <h3 style={{ fontSize: '1.1rem', color: '#374151', marginBottom: '8px' }}>No Classes Yet</h3>
+            <p style={{ color: '#6b7280', marginBottom: '20px' }}>Create your first class to start tracking attendance.</p>
+            <button onClick={() => setShowCreateModal(true)} style={{ background: '#e01e37', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}>Create Class</button>
+          </div>
+        ) : (
+          classes.map(cls => (
+            <div key={cls.id} style={{ background: 'white', borderRadius: '16px', padding: '24px', border: '1px solid #f3f4f6', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#111827', marginBottom: '4px' }}>{cls.name}</h3>
+                  <p style={{ color: '#6b7280', fontSize: '0.9rem' }}>{cls.level} · {cls.semester}</p>
+                </div>
+              </div>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f9fafb', padding: '12px 16px', borderRadius: '8px', marginBottom: '20px' }}>
+                <div>
+                  <span style={{ fontSize: '0.8rem', color: '#6b7280', textTransform: 'uppercase', fontWeight: 'bold' }}>Invite Code</span>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 'bold', letterSpacing: '2px', color: '#111827' }}>{cls.invite_code || '---'}</div>
+                </div>
+                <button onClick={() => handleRegenerateCode(cls.id)} style={{ background: 'none', border: 'none', color: '#3b82f6', fontSize: '0.9rem', cursor: 'pointer', textDecoration: 'underline' }}>
+                  Regenerate
+                </button>
+              </div>
+
+              <button 
+                onClick={() => handleStartSession(cls.id)} 
+                disabled={starting === cls.id || !!activeSession}
+                style={{ 
+                  width: '100%', 
+                  padding: '12px', 
+                  borderRadius: '10px', 
+                  border: 'none', 
+                  background: activeSession ? '#e5e7eb' : '#e01e37', 
+                  color: activeSession ? '#9ca3af' : 'white', 
+                  fontWeight: 'bold', 
+                  cursor: activeSession ? 'not-allowed' : 'pointer' 
+                }}
+              >
+                {starting === cls.id ? 'Starting...' : 'Start Session'}
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+
 
 
       {/* Create Class Modal */}
