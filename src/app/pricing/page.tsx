@@ -8,7 +8,7 @@ export default function PricingPage() {
   const [isYearly, setIsYearly] = useState(false);
   
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'var(--font-inter), sans-serif', overflowX: 'hidden', width: '100vw', maxWidth: '100%' }}>
+    <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'var(--font-inter), sans-serif', overflowX: 'hidden', width: '100%' }}>
       {/* Navbar */}
       <header className={styles.header}>
         <div className={styles.logo}>
