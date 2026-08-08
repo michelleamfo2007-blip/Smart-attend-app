@@ -1,12 +1,18 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { verifyToken } from '@/lib/auth';
+import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== 'ADMIN') {
+    const cookieStore = cookies();
+    const token = cookieStore.get('token')?.value;
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    const payload = await verifyToken(token);
+    if (!payload || payload.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -15,7 +21,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No data provided' }, { status: 400 });
     }
 
-    const institutionId = session.user.institutionId;
+    const institutionId = payload.institution_id;
 
     let successCount = 0;
     let failedCount = 0;
@@ -115,7 +121,7 @@ export async function POST(req: Request) {
     await prisma.import_history.create({
       data: {
         institution_id: institutionId,
-        uploaded_by: session.user.id,
+        uploaded_by: payload.userId,
         file_name: 'Catalogue_Bulk_Import.csv',
         import_type: 'CATALOGUE',
         success_count: successCount,

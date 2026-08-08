@@ -1,20 +1,21 @@
 import React from 'react';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { verifyToken } from '@/lib/auth';
+import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
-import styles from './catalogue.module.css';
+import styles from './page.module.css';
 import { BookOpen, School, Building2, GraduationCap } from 'lucide-react';
 import ImportCatalogueClient from './ImportCatalogueClient';
 
 export default async function CataloguePage() {
-  const session = await getServerSession(authOptions);
-
-  if (!session || session.user.role !== 'ADMIN') {
-    return <div>Unauthorized</div>;
-  }
+  const cookieStore = cookies();
+  const token = cookieStore.get('token')?.value;
+  if (!token) return <div>Unauthorized</div>;
+  
+  const payload = await verifyToken(token);
+  if (!payload || payload.role !== 'ADMIN') return <div>Unauthorized</div>;
 
   const colleges = await prisma.colleges.findMany({
-    where: { institution_id: session.user.institutionId },
+    where: { institution_id: payload.institution_id },
     include: {
       departments: {
         include: {
