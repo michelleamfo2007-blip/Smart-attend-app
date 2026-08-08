@@ -49,6 +49,7 @@ html, body {
   -webkit-font-smoothing: antialiased;
   background: var(--white);
   color: var(--gray-800);
+  overflow-x: hidden;
 }
 
 /* ─── Buttons ─── */
