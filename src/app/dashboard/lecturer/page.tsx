@@ -273,44 +273,7 @@ export default function LecturerDashboard() {
         </div>
       )}
 
-      {/* Weekly Schedule */}
-      <div style={{ marginTop: '40px', marginBottom: '20px' }}>
-        <h2 style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#111827' }}>Weekly Schedule</h2>
-        <p style={{ color: '#6b7280', fontSize: '0.95rem' }}>Your timetable for the semester</p>
-      </div>
 
-      <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #f3f4f6', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
-        {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map(day => {
-          // @ts-ignore
-          const dayClasses = classes.filter(c => c.schedule_time === day).sort((a, b) => a.start_time?.localeCompare(b.start_time || '') || 0);
-          return (
-            <div key={day} style={{ borderBottom: day !== 'Friday' ? '1px solid #f3f4f6' : 'none', display: 'flex' }}>
-              <div style={{ width: '120px', padding: '24px', background: '#f9fafb', fontWeight: 'bold', color: '#374151', borderRight: '1px solid #f3f4f6', display: 'flex', alignItems: 'center' }}>
-                {day}
-              </div>
-              <div style={{ padding: '16px 24px', flex: 1, display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                {dayClasses.length === 0 ? (
-                  <div style={{ color: '#9ca3af', fontStyle: 'italic', display: 'flex', alignItems: 'center' }}>No classes scheduled</div>
-                ) : (
-                  dayClasses.map(cls => (
-                    <div key={cls.id} style={{ background: '#e01e3710', border: '1px solid #e01e3730', borderRadius: '8px', padding: '12px 16px', minWidth: '200px' }}>
-                      <div style={{ fontWeight: 'bold', color: '#e01e37', marginBottom: '4px' }}>
-                        {/* @ts-ignore */}
-                        {cls.start_time} - {cls.end_time}
-                      </div>
-                      <div style={{ fontWeight: '600', color: '#111827' }}>{cls.name}</div>
-                      <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>
-                        {/* @ts-ignore */}
-                        {cls.course_code} · {cls.level}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
 
       {/* My Classes Grid */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '32px', marginBottom: '20px' }}>

@@ -14,6 +14,7 @@ const NAV_LINKS = {
   LECTURER: [
     { href: '/dashboard/lecturer', label: 'Overview', icon: HomeIcon },
     { href: '/dashboard/lecturer/classes', label: 'Modules', icon: BookIcon },
+    { href: '/dashboard/lecturer/schedule', label: 'Schedule', icon: CalendarIcon },
     { href: '/dashboard/lecturer/sessions', label: 'Sessions', icon: CalendarIcon },
   ],
   ADMIN: [
