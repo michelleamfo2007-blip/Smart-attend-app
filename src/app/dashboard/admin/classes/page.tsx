@@ -16,19 +16,83 @@ interface Class {
   lecturer: { name: string };
 }
 
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
 export default function AdminClassesPage() {
   const router = useRouter();
   const [classes, setClasses] = useState<Class[]>([]);
+  const [lecturers, setLecturers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Modal State
+  const [showModal, setShowModal] = useState(false);
+  const [newClassName, setNewClassName] = useState('');
+  const [newClassLevel, setNewClassLevel] = useState('');
+  const [newClassSemester, setNewClassSemester] = useState('');
+  const [newClassLecturer, setNewClassLecturer] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   const fetchData = useCallback(async () => {
-    const res = await fetch('/api/admin/courses');
-    const data = await res.json();
-    setClasses(data.courses || []);
+    const [classesRes, usersRes] = await Promise.all([
+      fetch('/api/admin/courses'),
+      fetch('/api/admin/users')
+    ]);
+    const classesData = await classesRes.json();
+    const usersData = await usersRes.json();
+    
+    setClasses(classesData.courses || []);
+    const allUsers: User[] = usersData.users || [];
+    setLecturers(allUsers.filter(u => u.role === 'LECTURER'));
+    
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleCreateClass = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newClassName || !newClassLecturer) {
+      setMsg({ type: 'error', text: 'Class name and lecturer are required' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    setMsg(null);
+    try {
+      const res = await fetch('/api/admin/courses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newClassName,
+          level: newClassLevel,
+          semester: newClassSemester,
+          lecturer_id: newClassLecturer
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setShowModal(false);
+        setNewClassName('');
+        setNewClassLevel('');
+        setNewClassSemester('');
+        setNewClassLecturer('');
+        fetchData();
+      } else {
+        setMsg({ type: 'error', text: data.error || 'Failed to create class' });
+      }
+    } catch (err) {
+      setMsg({ type: 'error', text: 'An error occurred' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   if (loading) return <div className={styles.loading}><div className={styles.spinner} /></div>;
 
@@ -39,7 +103,15 @@ export default function AdminClassesPage() {
           <h1 className={styles.pageTitle}>All Classes</h1>
           <p className={styles.pageSubtitle}>Select a class to view enrolled students and attendance analytics.</p>
         </div>
+        <button className="btn btn-primary" onClick={() => setShowModal(true)}>Add Class</button>
       </div>
+
+      {msg && (
+        <div className={`${styles.notification} ${msg.type === 'success' ? styles.notifSuccess : styles.notifError}`}>
+          {msg.text}
+          <button onClick={() => setMsg(null)} className={styles.notifClose}>✕</button>
+        </div>
+      )}
 
       <section className={styles.section}>
         <div className={styles.table}>
@@ -84,6 +156,46 @@ export default function AdminClassesPage() {
           )}
         </div>
       </section>
+
+      {/* Add Class Modal */}
+      {showModal && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent}>
+            <h2 className={styles.modalTitle}>Add New Class</h2>
+            <form onSubmit={handleCreateClass}>
+              <div className="form-group">
+                <label>Class Name</label>
+                <input type="text" className="input" placeholder="e.g. CS 101" value={newClassName} onChange={e => setNewClassName(e.target.value)} required />
+              </div>
+              <div className="form-group">
+                <label>Lecturer</label>
+                <select className="input" value={newClassLecturer} onChange={e => setNewClassLecturer(e.target.value)} required>
+                  <option value="">Select a lecturer...</option>
+                  {lecturers.map(l => (
+                    <option key={l.id} value={l.id}>{l.name} ({l.email})</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Level / Year (Optional)</label>
+                  <input type="text" className="input" placeholder="e.g. Level 100" value={newClassLevel} onChange={e => setNewClassLevel(e.target.value)} />
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Semester (Optional)</label>
+                  <input type="text" className="input" placeholder="e.g. Semester 1" value={newClassSemester} onChange={e => setNewClassSemester(e.target.value)} />
+                </div>
+              </div>
+              <div className={styles.modalActions}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+                  {isSubmitting ? 'Saving...' : 'Save Class'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

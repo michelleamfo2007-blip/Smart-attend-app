@@ -73,17 +73,8 @@ export async function POST(req: Request) {
 
     // Calculate distance
     let distance = 0;
-    // Determine the allowed radius
-    // If the class has a predefined classroom AND the session coordinates exactly match the classroom,
-    // we use the classroom's radius. Otherwise default to 50 meters.
-    let allowedRadius = 50; 
-    
-    if (session.class.classroom && session.class.classroom.radius_meters) {
-      // It's possible the lecturer used "My Current Location", so we only use the classroom's radius
-      // if the session coordinates came from the classroom. But honestly, if the class has a classroom,
-      // the predefined radius is a good default to use anyway.
-      allowedRadius = session.class.classroom.radius_meters;
-    }
+    const allowedRadius = 50; 
+
 
     if (session.latitude != null && session.longitude != null) {
       const R = 6371000; // metres
