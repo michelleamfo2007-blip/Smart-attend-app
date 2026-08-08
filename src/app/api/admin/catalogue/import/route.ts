@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     }
     
     const payload = await verifyToken(token);
-    if (!payload || payload.role !== 'ADMIN') {
+    if (!payload || payload.userRole !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No data provided' }, { status: 400 });
     }
 
-    const institutionId = payload.institution_id;
+    const institutionId = payload.institutionId as string;
 
     let successCount = 0;
     let failedCount = 0;

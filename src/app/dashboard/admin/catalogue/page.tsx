@@ -12,10 +12,10 @@ export default async function CataloguePage() {
   if (!token) return <div>Unauthorized</div>;
   
   const payload = await verifyToken(token);
-  if (!payload || payload.role !== 'ADMIN') return <div>Unauthorized</div>;
+  if (!payload || payload.userRole !== 'ADMIN') return <div>Unauthorized</div>;
 
   const colleges = await prisma.colleges.findMany({
-    where: { institution_id: payload.institution_id },
+    where: { institution_id: payload.institutionId as string },
     include: {
       departments: {
         include: {
