@@ -163,13 +163,13 @@ export default function AdminClassesPage() {
           <div className={styles.modalContent}>
             <h2 className={styles.modalTitle}>Add New Class</h2>
             <form onSubmit={handleCreateClass}>
-              <div className="form-group">
+              <div className={styles.formGroup}>
                 <label>Class Name</label>
-                <input type="text" className="input" placeholder="e.g. CS 101" value={newClassName} onChange={e => setNewClassName(e.target.value)} required />
+                <input type="text" className={styles.input} placeholder="e.g. CS 101" value={newClassName} onChange={e => setNewClassName(e.target.value)} required />
               </div>
-              <div className="form-group">
+              <div className={styles.formGroup}>
                 <label>Lecturer</label>
-                <select className="input" value={newClassLecturer} onChange={e => setNewClassLecturer(e.target.value)} required>
+                <select className={styles.input} value={newClassLecturer} onChange={e => setNewClassLecturer(e.target.value)} required>
                   <option value="">Select a lecturer...</option>
                   {lecturers.map(l => (
                     <option key={l.id} value={l.id}>{l.name} ({l.email})</option>
@@ -177,13 +177,13 @@ export default function AdminClassesPage() {
                 </select>
               </div>
               <div style={{ display: 'flex', gap: '16px' }}>
-                <div className="form-group" style={{ flex: 1 }}>
+                <div className={styles.formGroup} style={{ flex: 1 }}>
                   <label>Level / Year (Optional)</label>
-                  <input type="text" className="input" placeholder="e.g. Level 100" value={newClassLevel} onChange={e => setNewClassLevel(e.target.value)} />
+                  <input type="text" className={styles.input} placeholder="e.g. Level 100" value={newClassLevel} onChange={e => setNewClassLevel(e.target.value)} />
                 </div>
-                <div className="form-group" style={{ flex: 1 }}>
+                <div className={styles.formGroup} style={{ flex: 1 }}>
                   <label>Semester (Optional)</label>
-                  <input type="text" className="input" placeholder="e.g. Semester 1" value={newClassSemester} onChange={e => setNewClassSemester(e.target.value)} />
+                  <input type="text" className={styles.input} placeholder="e.g. Semester 1" value={newClassSemester} onChange={e => setNewClassSemester(e.target.value)} />
                 </div>
               </div>
               <div className={styles.modalActions}>

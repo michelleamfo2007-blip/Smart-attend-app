@@ -172,5 +172,10 @@
 
 /* Modal Overlay */
 .modalOverlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(2px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; }
-.modalContent { background: white; border-radius: 16px; width: 100%; max-width: 800px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.modalContent { padding: 32px; background: white; border-radius: 16px; width: 100%; max-width: 800px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
 @keyframes slideUp { from { opacity: 0; transform: translateY(20px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+.formGroup { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.formGroup label { font-size: 0.875rem; font-weight: 600; color: #374151; }
+.input { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #1f2937; }
+.input:focus { outline: none; border-color: #e01e37; box-shadow: 0 0 0 3px rgba(224,30,55,0.1); }
