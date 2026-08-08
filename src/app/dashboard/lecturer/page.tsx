@@ -411,24 +411,25 @@ export default function LecturerDashboard() {
                 </select>
               </div>
 
+              <div className={styles.formGroup}>
+                <label>Day of the Week</label>
+                <select 
+                  className={styles.inputField} 
+                  value={scheduleDay} 
+                  onChange={e => setScheduleDay(e.target.value)} 
+                  required
+                  style={{ padding: '12px 14px', border: '1.5px solid #e5e7eb', borderRadius: '10px', fontSize: '0.95rem', width: '100%', background: '#f9fafb' }}
+                >
+                  <option value="" disabled>Select Day</option>
+                  <option value="Monday">Monday</option>
+                  <option value="Tuesday">Tuesday</option>
+                  <option value="Wednesday">Wednesday</option>
+                  <option value="Thursday">Thursday</option>
+                  <option value="Friday">Friday</option>
+                </select>
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div className={styles.formGroup}>
-                  <label>Day of the Week</label>
-                  <select 
-                    className={styles.inputField} 
-                    value={scheduleDay} 
-                    onChange={e => setScheduleDay(e.target.value)} 
-                    required
-                    style={{ padding: '12px 14px', border: '1.5px solid #e5e7eb', borderRadius: '10px', fontSize: '0.95rem', width: '100%' }}
-                  >
-                    <option value="" disabled>Day</option>
-                    <option value="Monday">Monday</option>
-                    <option value="Tuesday">Tuesday</option>
-                    <option value="Wednesday">Wednesday</option>
-                    <option value="Thursday">Thursday</option>
-                    <option value="Friday">Friday</option>
-                  </select>
-                </div>
                 <div className={styles.formGroup}>
                   <label>Start Time</label>
                   <input 
@@ -436,7 +437,7 @@ export default function LecturerDashboard() {
                     value={startTime} 
                     onChange={e => setStartTime(e.target.value)} 
                     required 
-                    style={{ padding: '12px 14px', border: '1.5px solid #e5e7eb', borderRadius: '10px', fontSize: '0.95rem', width: '100%' }}
+                    style={{ padding: '12px 14px', border: '1.5px solid #e5e7eb', borderRadius: '10px', fontSize: '0.95rem', width: '100%', background: '#f9fafb' }}
                   />
                 </div>
                 <div className={styles.formGroup}>
@@ -446,7 +447,7 @@ export default function LecturerDashboard() {
                     value={endTime} 
                     onChange={e => setEndTime(e.target.value)} 
                     required 
-                    style={{ padding: '12px 14px', border: '1.5px solid #e5e7eb', borderRadius: '10px', fontSize: '0.95rem', width: '100%' }}
+                    style={{ padding: '12px 14px', border: '1.5px solid #e5e7eb', borderRadius: '10px', fontSize: '0.95rem', width: '100%', background: '#f9fafb' }}
                   />
                 </div>
               </div>
