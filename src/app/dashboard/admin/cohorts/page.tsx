@@ -26,12 +26,12 @@ export default function CohortsPage() {
     try {
       const [cohortsRes, classesRes] = await Promise.all([
         fetch('/api/admin/cohorts'),
-        fetch('/api/admin/classes')
+        fetch('/api/admin/courses')
       ]);
       const cohortsData = await cohortsRes.json();
       const classesData = await classesRes.json();
-      setCohorts(cohortsData);
-      setClasses(classesData);
+      setCohorts(cohortsData.cohorts || cohortsData || []);
+      setClasses(classesData.courses || classesData || []);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
