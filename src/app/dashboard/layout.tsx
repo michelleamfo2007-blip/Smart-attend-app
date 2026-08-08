@@ -20,6 +20,7 @@ const NAV_LINKS = {
     { href: '/dashboard/admin', label: 'Overview', icon: HomeIcon },
     { href: '/dashboard/admin/institutions', label: 'Institutions', icon: BuildingIcon },
     { href: '/dashboard/admin/users', label: 'Users', icon: UsersIcon },
+    { href: '/dashboard/admin/catalogue', label: 'Catalogue', icon: BookIcon },
     { href: '/dashboard/admin/classes', label: 'Modules', icon: BookIcon },
     { href: '/dashboard/admin/cohorts', label: 'Programs', icon: UsersIcon },
   ],

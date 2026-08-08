@@ -5,7 +5,7 @@ import bcrypt from 'bcryptjs';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { email, password, name, role, inviteCode, cohort_id, student_id, institution_id, device_id } = body;
+    const { email, password, name, role, inviteCode, cohort_id, student_id, institution_id, device_id, programme_id, level, semester, selected_courses } = body;
 
     // Basic Validation
     if (!password || !name) {
@@ -15,20 +15,31 @@ export async function POST(req: Request) {
     let assignedInstitutionId = institution_id;
 
     if (role === 'STUDENT') {
-      if (!student_id || !cohort_id) {
-        return NextResponse.json({ error: 'Index Number (Student ID) and Cohort are required for students' }, { status: 400 });
+      if (!student_id || (!cohort_id && !programme_id)) {
+        return NextResponse.json({ error: 'Index Number and Program are required for students' }, { status: 400 });
       }
 
-      const cohortData = await prisma.cohorts.findUnique({
-        where: { id: cohort_id }
-      });
+      if (programme_id) {
+        const programmeData = await prisma.programmes.findUnique({
+          where: { id: programme_id },
+          include: { department: { include: { college: true } } }
+        });
 
-      if (!cohortData) {
-        return NextResponse.json({ error: 'Invalid Cohort Selected' }, { status: 403 });
+        if (!programmeData) {
+          return NextResponse.json({ error: 'Invalid Program Selected' }, { status: 403 });
+        }
+        assignedInstitutionId = programmeData.department.college.institution_id;
+      } else if (cohort_id) {
+        const cohortData = await prisma.cohorts.findUnique({
+          where: { id: cohort_id }
+        });
+
+        if (!cohortData) {
+          return NextResponse.json({ error: 'Invalid Cohort Selected' }, { status: 403 });
+        }
+        assignedInstitutionId = cohortData.institution_id;
       }
 
-      assignedInstitutionId = cohortData.institution_id;
-      
       // Check if student_id is already taken at this institution
       const existingStudentId = await prisma.users.findFirst({
         where: { student_id, institution_id: assignedInstitutionId }
@@ -86,6 +97,9 @@ export async function POST(req: Request) {
         role: role || 'STUDENT',
         student_id: student_id || undefined,
         cohort_id: cohort_id || undefined,
+        programme_id: programme_id || undefined,
+        level: level || undefined,
+        semester: semester || undefined,
         institution_id: role === 'ADMIN' ? null : assignedInstitutionId,
         device_id: device_id || undefined,
       },
@@ -96,26 +110,39 @@ export async function POST(req: Request) {
         role: true,
         student_id: true,
         cohort_id: true,
+        programme_id: true,
+        level: true,
+        semester: true,
         institution_id: true,
       }
     });
 
     // Magic Auto-Enrollment
-    if (user.role === 'STUDENT' && user.cohort_id) {
-      // Find all classes assigned to this cohort
-      const cohortClasses = await prisma.cohort_classes.findMany({
-        where: { cohort_id: user.cohort_id }
-      });
-
-      if (cohortClasses.length > 0) {
-        // Create enrollments for all classes in the cohort
+    if (user.role === 'STUDENT') {
+      if (selected_courses && Array.isArray(selected_courses) && selected_courses.length > 0) {
+        // Enroll in selected catalogue courses
         await prisma.enrollments.createMany({
-          data: cohortClasses.map(c => ({
+          data: selected_courses.map((courseId: string) => ({
             student_id: user.id,
-            class_id: c.class_id
+            class_id: courseId
           })),
           skipDuplicates: true
         });
+      } else if (user.cohort_id) {
+        // Fallback to old cohort auto-enrollment
+        const cohortClasses = await prisma.cohort_classes.findMany({
+          where: { cohort_id: user.cohort_id }
+        });
+
+        if (cohortClasses.length > 0) {
+          await prisma.enrollments.createMany({
+            data: cohortClasses.map(c => ({
+              student_id: user.id,
+              class_id: c.class_id
+            })),
+            skipDuplicates: true
+          });
+        }
       }
     }
 

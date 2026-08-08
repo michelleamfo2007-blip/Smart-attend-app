@@ -24,7 +24,9 @@ model users {
   department     String?
   program        String?
   cohort_id      String?  @db.Uuid
+  programme_id   String?  @db.Uuid
   
+  programme_rel         programmes?            @relation(fields: [programme_id], references: [id], onDelete: SetNull)
   institution           institutions?          @relation(fields: [institution_id], references: [id], onDelete: Cascade)
   cohort                cohorts?               @relation(fields: [cohort_id], references: [id], onDelete: SetNull)
   classes_lectured      classes[]              @relation("lecturer")
@@ -60,7 +62,12 @@ model classes {
   start_time     String?
   end_time       String?
   classroom_id   String?  @db.Uuid
+  course_code    String?
+  credit_hours   Int?     @default(3)
+  is_compulsory  Boolean  @default(true)
+  programme_id   String?  @db.Uuid
 
+  programme     programmes?          @relation(fields: [programme_id], references: [id], onDelete: SetNull)
   institution   institutions?        @relation(fields: [institution_id], references: [id], onDelete: Cascade)
   lecturer      users?               @relation("lecturer", fields: [lecturer_id], references: [id], onDelete: SetNull)
   classroom     classrooms?          @relation(fields: [classroom_id], references: [id], onDelete: SetNull)
@@ -199,4 +206,36 @@ model institutions {
   classrooms        classrooms[]
   cohorts           cohorts[]
   imports           import_history[]
+  colleges          colleges[]
+}
+
+model colleges {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  institution_id String   @db.Uuid
+  name           String
+  created_at     DateTime @default(now()) @db.Timestamptz
+
+  institution    institutions @relation(fields: [institution_id], references: [id], onDelete: Cascade)
+  departments    departments[]
+}
+
+model departments {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  college_id   String   @db.Uuid
+  name         String
+  created_at   DateTime @default(now()) @db.Timestamptz
+
+  college      colleges @relation(fields: [college_id], references: [id], onDelete: Cascade)
+  programmes   programmes[]
+}
+
+model programmes {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  department_id String   @db.Uuid
+  name          String
+  created_at    DateTime @default(now()) @db.Timestamptz
+
+  department    departments @relation(fields: [department_id], references: [id], onDelete: Cascade)
+  classes       classes[]
+  users         users[]
 }
