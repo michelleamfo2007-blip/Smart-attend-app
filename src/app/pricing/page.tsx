@@ -8,7 +8,7 @@ export default function PricingPage() {
   const [isYearly, setIsYearly] = useState(false);
   
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'var(--font-inter), sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'var(--font-inter), sans-serif', overflowX: 'hidden', width: '100vw', maxWidth: '100%' }}>
       {/* Navbar */}
       <header className={styles.header}>
         <div className={styles.logo}>
@@ -52,7 +52,7 @@ export default function PricingPage() {
         </div>
 
         {/* Pricing Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '32px', alignItems: 'flex-start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '32px', alignItems: 'flex-start' }}>
           
           {/* Starter Plan */}
           <div style={{ background: 'white', borderRadius: '24px', padding: '40px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
