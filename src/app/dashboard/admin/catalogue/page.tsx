@@ -7,7 +7,7 @@ import { BookOpen, School, Building2, GraduationCap } from 'lucide-react';
 import ImportCatalogueClient from './ImportCatalogueClient';
 
 export default async function CataloguePage() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const token = cookieStore.get('token')?.value;
   if (!token) return <div>Unauthorized</div>;
   
