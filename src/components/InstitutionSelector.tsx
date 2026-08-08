@@ -27,7 +27,7 @@ export default function InstitutionSelector({ onSelect, selectedId, error }: Ins
     // Load institutions
     const fetchInstitutions = async () => {
       try {
-        const res = await fetch('/api/admin/institutions'); // Adjust endpoint if needed
+        const res = await fetch('/api/institutions'); // Public endpoint
         if (res.ok) {
           const data = await res.json();
           setInstitutions(data.institutions || data);

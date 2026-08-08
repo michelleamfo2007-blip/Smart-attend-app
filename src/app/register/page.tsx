@@ -6,20 +6,7 @@ import Link from 'next/link';
 import { GraduationCap, Presentation } from 'lucide-react';
 import styles from './register.module.css';
 
-const ROLES = [
-  {
-    id: 'STUDENT',
-    label: 'Student',
-    description: 'Mark attendance for enrolled courses',
-    icon: <GraduationCap size={20} />,
-  },
-  {
-    id: 'LECTURER',
-    label: 'Lecturer',
-    description: 'Start sessions and track attendance',
-    icon: <Presentation size={20} />,
-  },
-];
+
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -29,7 +16,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState('STUDENT');
+  const [role] = useState('LECTURER');
   const [inviteCode, setInviteCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -65,12 +52,8 @@ export default function RegisterPage() {
     setError('');
     if (!name.trim()) { setError('Please enter your full name.'); return; }
     if (!email.trim()) { setError('Please enter your email.'); return; }
-    if (role === 'LECTURER' && !inviteCode.trim()) {
-      setError('Please enter the Institution/Lecturer Invite Code.');
-      return;
-    }
-    if (role === 'STUDENT' && !selectedInstitution) {
-      setError('Please select your institution.');
+    if (!inviteCode.trim()) {
+      setError('Please enter the Institution Invite Code.');
       return;
     }
     setStep(2);
@@ -99,8 +82,7 @@ export default function RegisterPage() {
           email, 
           password, 
           role, 
-          inviteCode: role === 'LECTURER' ? inviteCode : undefined,
-          institution_id: role === 'STUDENT' ? selectedInstitution : undefined
+          inviteCode
         }),
       });
 
@@ -148,7 +130,7 @@ export default function RegisterPage() {
                 <div className={styles.stepGuideNum}>1</div>
                 <div>
                   <strong>Your details</strong>
-                  <span>Name, email & role</span>
+                  <span>Name, email & code</span>
                 </div>
               </div>
               <div className={styles.stepConnector} />
@@ -256,81 +238,23 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              {/* Role selector */}
               <div className="input-group">
-                <label className="input-label">I am a...</label>
-                <div className={styles.roleGrid}>
-                  {ROLES.map((r) => (
-                    <button
-                      key={r.id}
-                      type="button"
-                      id={`role-${r.id.toLowerCase()}`}
-                      className={`${styles.roleCard} ${role === r.id ? styles.roleCardActive : ''}`}
-                      onClick={() => setRole(r.id)}
-                    >
-                      <span className={styles.roleEmoji}>{r.icon}</span>
-                      <strong className={styles.roleLabel}>{r.label}</strong>
-                      <span className={styles.roleDesc}>{r.description}</span>
-                      {role === r.id && (
-                        <div className={styles.roleCheck}>
-                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                            <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </div>
-                      )}
-                    </button>
-                  ))}
+                <label htmlFor="reg-invite-code" className="input-label">Institution Invite Code</label>
+                <div className={styles.inputWrapper}>
+                  <svg className={styles.inputIcon} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                  </svg>
+                  <input
+                    id="reg-invite-code"
+                    type="text"
+                    className={`input-field ${styles.inputWithIcon}`}
+                    placeholder="Enter institution invite code (e.g. INST-X7B9A)"
+                    value={inviteCode}
+                    onChange={(e) => setInviteCode(e.target.value)}
+                    required
+                  />
                 </div>
               </div>
-
-              {role === 'STUDENT' && (
-                <div className="input-group">
-                  <label htmlFor="reg-institution" className="input-label">Your Institution</label>
-                  <div className={styles.inputWrapper}>
-                    <svg className={styles.inputIcon} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/>
-                      <line x1="9" y1="22" x2="9" y2="2"/>
-                      <line x1="15" y1="22" x2="15" y2="2"/>
-                    </svg>
-                    <select
-                      id="reg-institution"
-                      className={`input-field ${styles.inputWithIcon}`}
-                      style={{ appearance: 'none', cursor: 'pointer' }}
-                      value={selectedInstitution}
-                      onChange={(e) => setSelectedInstitution(e.target.value)}
-                      required
-                    >
-                      <option value="" disabled>Select an institution...</option>
-                      {institutions.map(inst => (
-                        <option key={inst.id} value={inst.id}>{inst.name}</option>
-                      ))}
-                    </select>
-                    <div style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#9ca3af' }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9l6 6 6-6"/></svg>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {role === 'LECTURER' && (
-                <div className="input-group">
-                  <label htmlFor="reg-invite-code" className="input-label">Institution Invite Code</label>
-                  <div className={styles.inputWrapper}>
-                    <svg className={styles.inputIcon} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-                    </svg>
-                    <input
-                      id="reg-invite-code"
-                      type="text"
-                      className={`input-field ${styles.inputWithIcon}`}
-                      placeholder="Enter lecturer invite code (e.g. LECTURER-X7B9A)"
-                      value={inviteCode}
-                      onChange={(e) => setInviteCode(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-              )}
 
               <button type="submit" id="reg-next-btn" className={`btn btn-primary ${styles.submitBtn}`}>
                 Continue

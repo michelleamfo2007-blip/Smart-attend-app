@@ -100,10 +100,10 @@ export default function AdminClassesPage() {
     <div className={styles.page}>
       <div className={styles.pageHeader}>
         <div>
-          <h1 className={styles.pageTitle}>All Classes</h1>
-          <p className={styles.pageSubtitle}>Select a class to view enrolled students and attendance analytics.</p>
+          <h1 className={styles.pageTitle}>All Modules</h1>
+          <p className={styles.pageSubtitle}>Select a module to view enrolled students and attendance analytics.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>Add Class</button>
+        <button className="btn btn-primary" onClick={() => setShowModal(true)}>Add Module</button>
       </div>
 
       {msg && (
@@ -116,14 +116,14 @@ export default function AdminClassesPage() {
       <section className={styles.section}>
         <div className={styles.table}>
           <div className={styles.tableHeader} style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr' }}>
-            <span>Class Name</span>
+            <span>Module Name</span>
             <span>Lecturer</span>
             <span>Info</span>
             <span>Analytics</span>
             <span>Current Status</span>
           </div>
           {classes.length === 0 ? (
-            <div className={styles.tableEmpty}>No classes found.</div>
+            <div className={styles.tableEmpty}>No modules found.</div>
           ) : (
             classes.map(c => (
               <div 
@@ -157,15 +157,15 @@ export default function AdminClassesPage() {
         </div>
       </section>
 
-      {/* Add Class Modal */}
+      {/* Add Module Modal */}
       {showModal && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>Add New Class</h2>
+            <h2 className={styles.modalTitle}>Add New Module</h2>
             <form onSubmit={handleCreateClass}>
               <div className={styles.formGroup}>
-                <label>Class Name</label>
-                <input type="text" className={styles.input} placeholder="e.g. CS 101" value={newClassName} onChange={e => setNewClassName(e.target.value)} required />
+                <label>Module Name</label>
+                <input type="text" className={styles.input} placeholder="e.g. Applied Calculus" value={newClassName} onChange={e => setNewClassName(e.target.value)} required />
               </div>
               <div className={styles.formGroup}>
                 <label>Lecturer (Optional)</label>
@@ -189,7 +189,7 @@ export default function AdminClassesPage() {
               <div className={styles.modalActions}>
                 <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-                  {isSubmitting ? 'Saving...' : 'Save Class'}
+                  {isSubmitting ? 'Saving...' : 'Save Module'}
                 </button>
               </div>
             </form>

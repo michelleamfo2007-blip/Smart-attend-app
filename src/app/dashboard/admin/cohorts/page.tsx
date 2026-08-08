@@ -87,11 +87,11 @@ export default function CohortsPage() {
     <div className={styles.container}>
       <header className={styles.header}>
         <div>
-          <h1 className={styles.title}>Cohorts & Student Groups</h1>
-          <p className={styles.subtitle}>Group students and automatically enroll them in classes.</p>
+          <h1 className={styles.title}>Programs & Student Groups</h1>
+          <p className={styles.subtitle}>Group students into programs and automatically enroll them in modules.</p>
         </div>
         <button className={styles.btnPrimary} onClick={() => setShowModal(true)}>
-          Create Cohort
+          Create Program
         </button>
       </header>
 
@@ -104,12 +104,12 @@ export default function CohortsPage() {
               <h3 className={styles.cardTitle}>{cohort.name}</h3>
               <div className={styles.cardStats}>
                 <span>{cohort._count?.users || 0} Students</span>
-                <span>{cohort._count?.cohort_classes || 0} Classes</span>
+                <span>{cohort._count?.cohort_classes || 0} Modules</span>
               </div>
             </div>
           ))}
           {cohorts.length === 0 && (
-            <p className={styles.empty}>No cohorts found. Create one to get started.</p>
+            <p className={styles.empty}>No programs found. Create one to get started.</p>
           )}
         </div>
       )}
@@ -117,10 +117,10 @@ export default function CohortsPage() {
       {showModal && (
         <div className={styles.modalOverlay}>
           <div className={styles.modal}>
-            <h2>Create New Cohort</h2>
+            <h2>Create New Program</h2>
             <form onSubmit={handleCreateCohort}>
               <div className={styles.formGroup}>
-                <label>Cohort Name (e.g. BSc Computer Science - Level 100 Group A)</label>
+                <label>Program Name (e.g. BSc Computer Science - Level 100)</label>
                 <input 
                   type="text" 
                   value={newCohortName}
@@ -132,8 +132,8 @@ export default function CohortsPage() {
               </div>
 
               <div className={styles.formGroup}>
-                <label>Assign Classes (Auto-Enrollment)</label>
-                <p className={styles.helpText}>Students who join this cohort will automatically be enrolled in these classes.</p>
+                <label>Assign Modules (Auto-Enrollment)</label>
+                <p className={styles.helpText}>Students who join this program will automatically be enrolled in these modules.</p>
                 <div className={styles.classList}>
                   {classes.map(c => (
                     <label key={c.id} className={styles.checkboxLabel}>
@@ -145,14 +145,14 @@ export default function CohortsPage() {
                       {c.name} ({c.level || 'No level'})
                     </label>
                   ))}
-                  {classes.length === 0 && <p className={styles.helpText}>No classes available.</p>}
+                  {classes.length === 0 && <p className={styles.helpText}>No modules available.</p>}
                 </div>
               </div>
 
               <div className={styles.modalActions}>
                 <button type="button" className={styles.btnSecondary} onClick={() => setShowModal(false)}>Cancel</button>
                 <button type="submit" className={styles.btnPrimary} disabled={isSubmitting || !newCohortName.trim()}>
-                  {isSubmitting ? 'Creating...' : 'Create Cohort'}
+                  {isSubmitting ? 'Creating...' : 'Create Program'}
                 </button>
               </div>
             </form>

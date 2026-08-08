@@ -1,6 +1,8 @@
 .page {
   display: flex;
   min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 /* ─── Left Panel ─── */
@@ -354,6 +356,9 @@
 
   .leftPanel {
     padding: 40px 32px;
+    width: 100%;
+    flex: none;
+    min-height: auto;
   }
 
   .leftContent {
@@ -371,6 +376,7 @@
   .rightPanel {
     width: 100%;
     padding: 40px 24px;
+    flex: none;
   }
 }
 

@@ -13,15 +13,15 @@ const NAV_LINKS = {
   ],
   LECTURER: [
     { href: '/dashboard/lecturer', label: 'Overview', icon: HomeIcon },
-    { href: '/dashboard/lecturer/classes', label: 'Classes', icon: BookIcon },
+    { href: '/dashboard/lecturer/classes', label: 'Modules', icon: BookIcon },
     { href: '/dashboard/lecturer/sessions', label: 'Sessions', icon: CalendarIcon },
   ],
   ADMIN: [
     { href: '/dashboard/admin', label: 'Overview', icon: HomeIcon },
     { href: '/dashboard/admin/institutions', label: 'Institutions', icon: BuildingIcon },
     { href: '/dashboard/admin/users', label: 'Users', icon: UsersIcon },
-    { href: '/dashboard/admin/classes', label: 'Classes', icon: BookIcon },
-    { href: '/dashboard/admin/cohorts', label: 'Cohorts', icon: UsersIcon },
+    { href: '/dashboard/admin/classes', label: 'Modules', icon: BookIcon },
+    { href: '/dashboard/admin/cohorts', label: 'Programs', icon: UsersIcon },
   ],
 };
 

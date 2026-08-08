@@ -41,7 +41,8 @@ export default function LoginScreen() {
       if (role === 'ADMIN') {
         router.replace('/(admin)');
       } else if (role === 'LECTURER') {
-        router.replace('/(lecturer)');
+        Alert.alert('Access Denied', 'Lecturers cannot use the mobile app. Please use the web dashboard.');
+        logout();
       } else if (role === 'STUDENT') {
         router.replace('/(student)');
       } else {
@@ -142,7 +143,8 @@ export default function LoginScreen() {
       if (role === 'ADMIN') {
         router.replace('/(admin)');
       } else if (role === 'LECTURER') {
-        router.replace('/(lecturer)');
+        Alert.alert('Access Denied', 'Lecturers cannot use the mobile app. Please use the web dashboard.');
+        await logout();
       } else if (role === 'STUDENT') {
         router.replace('/(student)');
       } else {

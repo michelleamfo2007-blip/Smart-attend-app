@@ -16,10 +16,8 @@ export default function RegisterScreen() {
   const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
   
   const [name, setName] = useState('');
-  const [email, setEmail] = useState(''); // Only used for Lecturer
   const [studentId, setStudentId] = useState(''); // Index Number for Students
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('STUDENT');
   const [inviteCode, setInviteCode] = useState(''); // Institution invite code
   const [loading, setLoading] = useState(false);
 
@@ -54,7 +52,7 @@ export default function RegisterScreen() {
       if (data.cohorts?.length > 0) {
         setShowCohortModal(true);
       } else {
-        Alert.alert('Notice', 'No cohorts found for this institution.');
+        Alert.alert('Notice', 'No programs found for this institution.');
       }
     } catch (err: any) {
       Alert.alert('Error', 'Failed to connect to server.');
@@ -64,21 +62,9 @@ export default function RegisterScreen() {
   };
 
   const handleRegister = async () => {
-    if (!name || !password) {
-      Alert.alert('Error', 'Please fill out all required fields.');
+    if (!name || !password || !studentId || !selectedCohort) {
+      Alert.alert('Error', 'Please fill out all required fields, including your Index Number and Program.');
       return;
-    }
-
-    if (role === 'STUDENT') {
-      if (!studentId || !selectedCohort) {
-        Alert.alert('Error', 'Please enter your Index Number and select your Cohort.');
-        return;
-      }
-    } else {
-      if (!email || !inviteCode) {
-        Alert.alert('Error', 'Please enter your email and lecturer invite code.');
-        return;
-      }
     }
 
     setLoading(true);
@@ -89,16 +75,10 @@ export default function RegisterScreen() {
       const payload = {
         name,
         password,
-        role,
+        role: 'STUDENT',
         device_id: currentDeviceId,
-        // Role specific fields
-        ...(role === 'STUDENT' ? {
-          student_id: studentId.trim(),
-          cohort_id: selectedCohort.id
-        } : {
-          email: email.toLowerCase().trim(),
-          inviteCode: inviteCode.trim()
-        })
+        student_id: studentId.trim(),
+        cohort_id: selectedCohort.id
       };
 
       const response = await fetch(`${API_URL}/api/auth/register`, {
@@ -140,8 +120,6 @@ export default function RegisterScreen() {
       // Route based on role
       if (userSession.role === 'ADMIN') {
         router.replace('/(admin)');
-      } else if (userSession.role === 'LECTURER') {
-        router.replace('/(lecturer)');
       } else {
         router.replace('/(student)');
       }
@@ -152,13 +130,7 @@ export default function RegisterScreen() {
     }
   };
 
-  // Switch role reset
-  useEffect(() => {
-    setInviteCode('');
-    setSelectedCohort(null);
-    setCohorts([]);
-    setInstitutionName('');
-  }, [role]);
+
 
   return (
     <Animated.View entering={FadeIn.duration(800)} style={{ flex: 1, backgroundColor: theme.background }}>
@@ -176,26 +148,6 @@ export default function RegisterScreen() {
             
             <Animated.View entering={FadeInDown.duration(600).delay(300)} style={styles.form}>
               <View style={styles.inputGroup}>
-                <ThemedText type="defaultSemiBold">I am a...</ThemedText>
-                <View style={styles.roleContainer}>
-                  <TouchableOpacity 
-                    style={[styles.roleCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }, role === 'STUDENT' && { borderColor: theme.primary, backgroundColor: theme.primaryLight }]}
-                    onPress={() => setRole('STUDENT')}
-                    activeOpacity={0.7}
-                  >
-                    <ThemedText style={[styles.roleText, role === 'STUDENT' && styles.roleTextActive]}>Student</ThemedText>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.roleCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }, role === 'LECTURER' && { borderColor: theme.primary, backgroundColor: theme.primaryLight }]}
-                    onPress={() => setRole('LECTURER')}
-                    activeOpacity={0.7}
-                  >
-                    <ThemedText style={[styles.roleText, role === 'LECTURER' && styles.roleTextActive]}>Lecturer</ThemedText>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
                 <ThemedText type="defaultSemiBold">Full Name</ThemedText>
                 <TextInput
                   style={[styles.input, { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }]}
@@ -207,90 +159,58 @@ export default function RegisterScreen() {
                 />
               </View>
 
-              {role === 'LECTURER' && (
-                <>
-                  <View style={styles.inputGroup}>
-                    <ThemedText type="defaultSemiBold">Email address</ThemedText>
-                    <TextInput
-                      style={[styles.input, { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }]}
-                      placeholder="you@name@gmail.com"
-                      placeholderTextColor={theme.textSecondary}
-                      value={email}
-                      onChangeText={setEmail}
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                    />
-                  </View>
-                  <View style={styles.inputGroup}>
-                    <ThemedText type="defaultSemiBold">Lecturer Invite Code</ThemedText>
-                    <TextInput
-                      style={[styles.input, { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }]}
-                      placeholder="Enter code provided by Admin"
-                      placeholderTextColor={theme.textSecondary}
-                      value={inviteCode}
-                      onChangeText={setInviteCode}
-                      autoCapitalize="characters"
-                    />
-                  </View>
-                </>
-              )}
+              <View style={styles.inputGroup}>
+                <ThemedText type="defaultSemiBold">Index Number (Student ID)</ThemedText>
+                <TextInput
+                  style={[styles.input, { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }]}
+                  placeholder="e.g. 10293847"
+                  placeholderTextColor={theme.textSecondary}
+                  value={studentId}
+                  onChangeText={setStudentId}
+                  autoCapitalize="characters"
+                />
+              </View>
 
-              {role === 'STUDENT' && (
-                <>
-                  <View style={styles.inputGroup}>
-                    <ThemedText type="defaultSemiBold">Index Number (Student ID)</ThemedText>
-                    <TextInput
-                      style={[styles.input, { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }]}
-                      placeholder="e.g. 10293847"
-                      placeholderTextColor={theme.textSecondary}
-                      value={studentId}
-                      onChangeText={setStudentId}
-                      autoCapitalize="characters"
-                    />
-                  </View>
+              <View style={styles.inputGroup}>
+                <ThemedText type="defaultSemiBold">Institution Invite Code</ThemedText>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TextInput
+                    style={[styles.input, { flex: 1, backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }]}
+                    placeholder="Enter school code"
+                    placeholderTextColor={theme.textSecondary}
+                    value={inviteCode}
+                    onChangeText={(txt) => {
+                      setInviteCode(txt);
+                      setSelectedCohort(null);
+                    }}
+                    autoCapitalize="characters"
+                  />
+                  <TouchableOpacity 
+                    style={[styles.smallBtn, { backgroundColor: theme.primary }]}
+                    onPress={fetchCohorts}
+                    disabled={loadingCohorts}
+                  >
+                    {loadingCohorts ? <ActivityIndicator size="small" color="#fff" /> : <ThemedText style={{color: 'white', fontWeight: 'bold'}}>Verify</ThemedText>}
+                  </TouchableOpacity>
+                </View>
+              </View>
 
-                  <View style={styles.inputGroup}>
-                    <ThemedText type="defaultSemiBold">Institution Invite Code</ThemedText>
-                    <View style={{ flexDirection: 'row', gap: 8 }}>
-                      <TextInput
-                        style={[styles.input, { flex: 1, backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }]}
-                        placeholder="Enter school code"
-                        placeholderTextColor={theme.textSecondary}
-                        value={inviteCode}
-                        onChangeText={(txt) => {
-                          setInviteCode(txt);
-                          setSelectedCohort(null);
-                        }}
-                        autoCapitalize="characters"
-                      />
-                      <TouchableOpacity 
-                        style={[styles.smallBtn, { backgroundColor: theme.primary }]}
-                        onPress={fetchCohorts}
-                        disabled={loadingCohorts}
-                      >
-                        {loadingCohorts ? <ActivityIndicator size="small" color="#fff" /> : <ThemedText style={{color: 'white', fontWeight: 'bold'}}>Verify</ThemedText>}
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-
-                  {institutionName ? (
-                    <View style={styles.inputGroup}>
-                      <ThemedText type="defaultSemiBold">Select Your Cohort</ThemedText>
-                      <TouchableOpacity 
-                        style={[styles.dropdownBtn, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
-                        onPress={() => setShowCohortModal(true)}
-                      >
-                        <ThemedText style={{ color: selectedCohort ? theme.text : theme.textSecondary }}>
-                          {selectedCohort ? selectedCohort.name : 'Tap to select...'}
-                        </ThemedText>
-                      </TouchableOpacity>
-                      <ThemedText themeColor="textSecondary" style={{ fontSize: 12, marginTop: -4 }}>
-                        {institutionName}
-                      </ThemedText>
-                    </View>
-                  ) : null}
-                </>
-              )}
+              {institutionName ? (
+                <View style={styles.inputGroup}>
+                  <ThemedText type="defaultSemiBold">Select Your Program</ThemedText>
+                  <TouchableOpacity 
+                    style={[styles.dropdownBtn, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
+                    onPress={() => setShowCohortModal(true)}
+                  >
+                    <ThemedText style={{ color: selectedCohort ? theme.text : theme.textSecondary }}>
+                      {selectedCohort ? selectedCohort.name : 'Tap to select...'}
+                    </ThemedText>
+                  </TouchableOpacity>
+                  <ThemedText themeColor="textSecondary" style={{ fontSize: 12, marginTop: -4 }}>
+                    {institutionName}
+                  </ThemedText>
+                </View>
+              ) : null}
 
               <View style={styles.inputGroup}>
                 <ThemedText type="defaultSemiBold">Password</ThemedText>
@@ -329,12 +249,12 @@ export default function RegisterScreen() {
         </SafeAreaView>
       </KeyboardAvoidingView>
 
-      {/* Cohort Selection Modal */}
+      {/* Program Selection Modal */}
       <Modal visible={showCohortModal} transparent={true} animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.background }]}>
             <View style={styles.modalHeader}>
-              <ThemedText type="subtitle">Select Your Cohort</ThemedText>
+              <ThemedText type="subtitle">Select Your Program</ThemedText>
               <TouchableOpacity onPress={() => setShowCohortModal(false)}>
                 <ThemedText style={{ color: theme.primary, fontWeight: 'bold' }}>Close</ThemedText>
               </TouchableOpacity>
@@ -381,16 +301,6 @@ const styles = StyleSheet.create({
     padding: 16,
     fontSize: 16,
   },
-  roleContainer: { flexDirection: 'row', gap: Spacing.four },
-  roleCard: {
-    flex: 1,
-    padding: Spacing.four,
-    borderWidth: 1,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  roleText: { color: '#64748B', fontWeight: '500' },
-  roleTextActive: { color: '#2563EB', fontWeight: 'bold' },
   button: {
     padding: 18,
     borderRadius: 12,
