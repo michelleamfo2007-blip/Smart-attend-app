@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import styles from '../landing.module.css';
 
 export default function PricingPage() {
   const [isYearly, setIsYearly] = useState(false);
@@ -9,19 +10,21 @@ export default function PricingPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'var(--font-inter), sans-serif' }}>
       {/* Navbar */}
-      <nav style={{ padding: '24px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', borderBottom: '1px solid #e5e7eb' }}>
-        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none' }}>
-          <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'linear-gradient(135deg, #e01e37, #85101f)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      <header className={styles.header}>
+        <div className={styles.logo}>
+          <div className={styles.logoIcon}>
+            <svg width="20" height="20" viewBox="0 0 32 32" fill="none">
+              <path d="M8 16L13 21L24 10" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
           </div>
-          <span style={{ fontSize: '1.25rem', fontWeight: 800, color: '#111827', letterSpacing: '-0.5px' }}>SmartAttend</span>
-        </Link>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-          <Link href="/" style={{ color: '#4b5563', fontWeight: 600, textDecoration: 'none', fontSize: '0.95rem', marginRight: '16px' }}>Home</Link>
-          <Link href="/login" style={{ color: '#4b5563', fontWeight: 600, textDecoration: 'none', fontSize: '0.95rem' }}>Log in</Link>
-          <Link href="/onboard?plan=starter" style={{ padding: '8px 16px', background: '#e01e37', color: 'white', borderRadius: '8px', fontWeight: 600, textDecoration: 'none', fontSize: '0.95rem' }}>Start Free Trial</Link>
+          <Link href="/" style={{textDecoration: 'none', color: 'inherit'}}>SmartAttend</Link>
         </div>
-      </nav>
+        <nav className={styles.nav}>
+          <Link href="/" className={styles.navLink}>Home</Link>
+          <Link href="/login" className={styles.loginBtn}>Log In</Link>
+          <Link href="/onboard?plan=starter" className={styles.ctaBtn}>Start Free Trial</Link>
+        </nav>
+      </header>
 
       {/* Hero */}
       <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '80px 24px' }}>
