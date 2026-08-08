@@ -17,7 +17,7 @@ export default function PricingPage() {
               <path d="M8 16L13 21L24 10" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
-          <Link href="/" style={{textDecoration: 'none', color: 'inherit'}}>SmartAttend</Link>
+          <span className={styles.logoText}><Link href="/" style={{textDecoration: 'none', color: 'inherit'}}>SmartAttend</Link></span>
         </div>
         <nav className={styles.nav}>
           <Link href="/" className={styles.navLink}>Home</Link>
