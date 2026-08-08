@@ -34,10 +34,19 @@ export default function ProfileScreen() {
     gpa: 3.78, // Mocked for now
   });
   const [loading, setLoading] = useState(true);
+  const [institutionName, setInstitutionName] = useState('');
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
+        // Fetch Institution Name
+        if (user?.institution_id) {
+          const { data: instData } = await supabase.from('institutions').select('name').eq('id', user.institution_id).maybeSingle();
+          if (instData?.name) {
+            setInstitutionName(instData.name);
+          }
+        }
+
         // 1. My Attendance Records
         const { data: myRecords } = await supabase
           .from('attendance_records')
@@ -139,8 +148,8 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.idInfoItem}>
               <Ionicons name="business" size={16} color={PColors.textSecondary} />
-              <Text style={styles.idLabel}>Dept:</Text>
-              <Text style={styles.idValue}>Computer Science</Text>
+              <Text style={styles.idLabel}>Inst:</Text>
+              <Text style={styles.idValue}>{institutionName || 'N/A'}</Text>
             </View>
             <View style={styles.idInfoItem}>
               <Ionicons name="calendar" size={16} color={PColors.textSecondary} />

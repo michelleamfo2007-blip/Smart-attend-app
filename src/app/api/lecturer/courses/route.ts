@@ -6,11 +6,13 @@ export async function GET() {
   try {
     const headersList = await headers();
     const userId = headersList.get('x-user-id');
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const institutionId = headersList.get('x-institution-id');
+    if (!userId || !institutionId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const courses = await prisma.classes.findMany({
       where: {
         lecturer_id: userId,
+        institution_id: institutionId,
       },
       include: {
         sessions: {
@@ -32,7 +34,8 @@ export async function POST(req: Request) {
   try {
     const headersList = await headers();
     const userId = headersList.get('x-user-id');
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const institutionId = headersList.get('x-institution-id');
+    if (!userId || !institutionId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { name, level, semester } = await req.json();
 
@@ -50,12 +53,13 @@ export async function POST(req: Request) {
         semester,
         lecturer_id: userId,
         invite_code,
+        institution_id: institutionId,
       }
     });
 
-    // Auto-enroll existing students matching level and semester
+    // Auto-enroll existing students matching level and semester within the same institution
     const matchingStudents = await prisma.users.findMany({
-      where: { role: 'STUDENT', level, semester }
+      where: { role: 'STUDENT', level, semester, institution_id: institutionId }
     });
 
     if (matchingStudents.length > 0) {

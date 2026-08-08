@@ -8,6 +8,7 @@ export interface User {
   name: string;
   role: 'STUDENT' | 'LECTURER' | 'ADMIN';
   createdAt: string;
+  institution_id?: string | null;
 }
 
 export function useUser() {

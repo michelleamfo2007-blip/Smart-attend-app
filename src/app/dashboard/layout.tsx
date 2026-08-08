@@ -18,8 +18,11 @@ const NAV_LINKS = {
   ],
   ADMIN: [
     { href: '/dashboard/admin', label: 'Overview', icon: HomeIcon },
+    { href: '/dashboard/admin/institutions', label: 'Institutions', icon: BuildingIcon },
     { href: '/dashboard/admin/users', label: 'Users', icon: UsersIcon },
     { href: '/dashboard/admin/classes', label: 'Classes', icon: BookIcon },
+    { href: '/dashboard/admin/cohorts', label: 'Cohorts', icon: UsersIcon },
+    { href: '/dashboard/admin/classrooms', label: 'Classrooms', icon: BuildingIcon },
   ],
 };
 
@@ -54,9 +57,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
-  const links = NAV_LINKS[user.role] || [];
-  const roleColor = { STUDENT: '#3b82f6', LECTURER: '#8b5cf6', ADMIN: '#e01e37' }[user.role];
-  const roleLabel = { STUDENT: 'Student', LECTURER: 'Lecturer', ADMIN: 'Admin' }[user.role];
+  let links = [...(NAV_LINKS[user.role] || [])];
+  // Customizations for ADMIN role
+  if (user.role === 'ADMIN') {
+    // Hide the global Institutions tab for Tenant Admins
+    if (user.institution_id) {
+      links = links.filter(l => l.label !== 'Institutions');
+    }
+  }
+
+  const roleColor = { STUDENT: '#3b82f6', LECTURER: '#8b5cf6', ADMIN: '#e01e37' }[user.role as 'STUDENT' | 'LECTURER' | 'ADMIN'];
+  let roleLabel = { STUDENT: 'Student', LECTURER: 'Lecturer', ADMIN: 'Admin' }[user.role as 'STUDENT' | 'LECTURER' | 'ADMIN'];
+  
+  if (user.role === 'ADMIN') {
+    roleLabel = user.institution_id ? 'School Admin' : 'Super Admin';
+  }
 
   return (
     <div className={styles.shell}>
@@ -206,6 +221,13 @@ function MenuIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+  );
+}
+function BuildingIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? '#e01e37' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="9" y1="22" x2="9" y2="2"/><line x1="15" y1="22" x2="15" y2="2"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="7" x2="9" y2="7"/><line x1="4" y1="17" x2="9" y2="17"/><line x1="15" y1="7" x2="20" y2="7"/><line x1="15" y1="17" x2="20" y2="17"/>
     </svg>
   );
 }

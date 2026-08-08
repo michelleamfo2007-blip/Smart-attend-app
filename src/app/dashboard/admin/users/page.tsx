@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import styles from '../admin.module.css';
 
 interface User {
@@ -21,6 +22,7 @@ interface User {
 }
 
 export default function AdminUsersPage() {
+  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -81,7 +83,12 @@ export default function AdminUsersPage() {
             <div className={styles.tableEmpty}>No users found.</div>
           ) : (
             filteredUsers.map(u => (
-              <div key={u.id} className={styles.tableRow} style={{ gridTemplateColumns: '2fr 2fr 1fr 1fr' }}>
+              <div 
+                key={u.id} 
+                className={`${styles.tableRow} ${styles.clickableRow || ''}`} 
+                style={{ gridTemplateColumns: '2fr 2fr 1fr 1fr', cursor: 'pointer' }}
+                onClick={() => router.push(`/dashboard/admin/users/${u.id}`)}
+              >
                 <div className={styles.userCell}>
                   <div className={styles.userAvatar}>{(u.name || '?').charAt(0).toUpperCase()}</div>
                   <strong>{u.name}</strong>

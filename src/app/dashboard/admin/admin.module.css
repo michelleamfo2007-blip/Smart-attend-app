@@ -41,7 +41,17 @@
 .sectionTitle { font-size: 1.05rem; font-weight: 700; color: #111827; }
 
 /* Table */
-.table { background: white; border-radius: 14px; border: 1px solid #f0f0f0; overflow: hidden; }
+.table { background: white; border-radius: 14px; border: 1px solid #e5e7eb; width: 100%; border-collapse: collapse; text-align: left; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05); }
+.tableContainer { width: 100%; overflow: visible; border-radius: 14px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05); background: white; margin-top: 10px; animation: slideDown 0.3s ease; }
+.tableContainer .table { border: none; box-shadow: none; border-radius: 0; }
+.table th { padding: 14px 24px; background-color: #f9fafb; font-size: 0.75rem; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e5e7eb; }
+.table td { padding: 16px 24px; font-size: 0.875rem; color: #111827; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
+.table tbody tr { transition: background-color 0.2s ease; }
+.table tbody tr:hover { background-color: #f8fafc; }
+.table tbody tr:last-child td { border-bottom: none; }
+.badge { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; background-color: #f1f5f9; color: #475569; text-transform: capitalize; border: 1px solid #e2e8f0; }
+.actionBtnDel { padding: 8px 14px; background: white; color: #ef4444; border: 1px solid #fca5a5; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-left: 8px; }
+.actionBtnDel:hover { background: #fef2f2; border-color: #ef4444; }
 .tableHeader { display: grid; grid-template-columns: 2fr 2fr 1fr 1fr; padding: 12px 20px; background: #f9fafb; border-bottom: 1px solid #f0f0f0; font-size: 0.75rem; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px; }
 .tableRow { display: grid; grid-template-columns: 2fr 2fr 1fr 1fr; padding: 14px 20px; align-items: center; border-bottom: 1px solid #f9fafb; font-size: 0.875rem; color: #374151; transition: background 0.15s; }
 .tableRow:last-child { border-bottom: none; }
@@ -99,3 +109,68 @@
   flex: 1; padding: 12px 16px; border: 1.5px solid #e5e7eb; border-radius: 10px; font-size: 0.95rem; outline: none; transition: all 0.2s;
 }
 .searchInput:focus { border-color: #e01e37; box-shadow: 0 0 0 3px rgba(224,30,55,0.1); }
+
+.percentageBarContainer {
+  display: inline-block;
+  width: 60px;
+  height: 6px;
+  background-color: #e2e8f0;
+  border-radius: 4px;
+  margin-right: 12px;
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+.percentageBarFill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+
+.textGreen { color: #10b981; }
+.textYellow { color: #f59e0b; }
+.textRed { color: #ef4444; }
+.clickableRow:hover {
+  background-color: #f8fafc;
+}
+
+/* Form Overhaul Styles */
+.formSection { margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid #e5e7eb; }
+.formSection:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.formSectionTitle { font-size: 1.1rem; font-weight: 700; color: #111827; margin-bottom: 16px; }
+
+/* Plan Cards */
+.planGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 16px; }
+.planCard { border: 2px solid #e5e7eb; border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.2s; background: white; position: relative; }
+.planCard:hover { border-color: #cbd5e1; }
+.planCardActive { border-color: #e01e37; background: #fff0f2; }
+.planTitle { font-weight: 700; font-size: 1.05rem; color: #111827; margin-bottom: 4px; display: block; }
+.planPrice { font-weight: 800; font-size: 1.4rem; color: #111827; margin-bottom: 12px; display: block; }
+.planFeature { font-size: 0.8rem; color: #6b7280; display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+
+/* Toggle Switch */
+.switchContainer { display: flex; align-items: center; gap: 12px; cursor: pointer; margin-bottom: 12px; }
+.switch { position: relative; width: 44px; height: 24px; background: #e5e7eb; border-radius: 24px; transition: background 0.3s; }
+.switchOn { background: #e01e37; }
+.switchHandle { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: white; border-radius: 50%; transition: transform 0.3s; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+.switchOn .switchHandle { transform: translateX(20px); }
+.switchLabel { font-size: 0.9rem; font-weight: 500; color: #374151; }
+
+.textarea { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 0.9rem; resize: vertical; min-height: 80px; }
+.textarea:focus { outline: none; border-color: #e01e37; box-shadow: 0 0 0 3px rgba(224,30,55,0.1); }
+
+.filterSelect { padding: 12px 16px; border: 1.5px solid #e5e7eb; border-radius: 10px; font-size: 0.95rem; outline: none; background: white; cursor: pointer; }
+.filterSelect:focus { border-color: #e01e37; }
+
+/* Dropdown Menu */
+.dropdownContainer { position: relative; display: inline-block; }
+.dropdownMenu { position: absolute; right: 0; top: 100%; margin-top: 4px; background: white; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); z-index: 50; min-width: 160px; overflow: hidden; animation: slideDown 0.15s ease; }
+.dropdownItem { display: block; width: 100%; text-align: left; padding: 10px 16px; font-size: 0.875rem; color: #374151; background: none; border: none; cursor: pointer; transition: background 0.15s; }
+.dropdownItem:hover { background: #f3f4f6; }
+.dropdownItemDanger { color: #ef4444; }
+.dropdownItemDanger:hover { background: #fef2f2; }
+
+/* Modal Overlay */
+.modalOverlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(2px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modalContent { background: white; border-radius: 16px; width: 100%; max-width: 800px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }

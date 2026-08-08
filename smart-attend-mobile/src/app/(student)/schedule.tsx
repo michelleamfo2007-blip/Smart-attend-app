@@ -6,7 +6,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing, Colors } from '@/constants/theme';
 import { useColorScheme } from 'react-native';
 import { supabase } from '../../lib/supabase';
-import { SymbolView } from 'expo-symbols';
+import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useFocusEffect } from 'expo-router';
 
@@ -22,7 +22,7 @@ export default function ScheduleScreen() {
       try {
         const { data: matchedClasses } = await supabase
           .from('classes')
-          .select('id, name, schedule_time')
+          .select('id, name, schedule_time, users!lecturer_id(name)')
           .eq('level', user?.level)
           .eq('semester', user?.semester);
 
@@ -79,14 +79,16 @@ export default function ScheduleScreen() {
                     {code ? <ThemedText style={{ fontSize: 11, color: theme.textSecondary, marginBottom: 8 }}>{code}</ThemedText> : null}
                     
                     <View style={styles.detailRow}>
-                      <SymbolView name="clock.fill" size={14} tintColor={theme.primary} />
+                      <Ionicons name="time" size={14} color={theme.primary} />
                       <ThemedText style={styles.detailText}>{cls.schedule_time || 'Time TBD'}</ThemedText>
                     </View>
                     
-                    <View style={styles.detailRow}>
-                      <SymbolView name="mappin.and.ellipse" size={14} tintColor={theme.primary} />
-                      <ThemedText style={styles.detailText}>Campus</ThemedText>
-                    </View>
+                    {cls.users?.name && (
+                      <View style={styles.detailRow}>
+                        <Ionicons name="person" size={14} color={theme.primary} />
+                        <ThemedText style={styles.detailText}>{cls.users.name}</ThemedText>
+                      </View>
+                    )}
                   </View>
                 </Animated.View>
               );

@@ -20,7 +20,7 @@ export default function LoginScreen() {
   const scheme = useColorScheme() ?? 'light';
   const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
   
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState(''); // Can be Email or Student ID
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { user, loading: authLoading } = useAuth();
@@ -51,33 +51,79 @@ export default function LoginScreen() {
   }, [showSplash, authLoading, user?.id]);
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please enter both email and password.');
+    if (!identifier || !password) {
+      Alert.alert('Error', 'Please enter your email/ID and password.');
       return;
     }
 
     setLoading(true);
     try {
-      // Check Supabase for user
-      const { data: foundUser, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email.toLowerCase())
-        .eq('password', password)
-        .maybeSingle();
-
-      if (error || !foundUser) {
-        Alert.alert('Login Failed', 'Invalid email or password.');
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.20.10.4:3000';
+      
+      const response = await fetch(`${API_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: identifier.toLowerCase().trim(), 
+          student_id: identifier.trim(), // Backend will try both fields
+          password 
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        Alert.alert('Login Failed', data.error || 'Invalid credentials.');
         setLoading(false);
         return;
       }
       
+      const foundUser = data.user;
+      const token = data.token;
+      
+      if (!foundUser || !token) {
+        Alert.alert('Login Failed', 'Invalid response from server.');
+        setLoading(false);
+        return;
+      }
+
+      const userSession: User = {
+        id: foundUser.id,
+        name: foundUser.name,
+        email: foundUser.email,
+        role: foundUser.role,
+        level: foundUser.level,
+        semester: foundUser.semester,
+        institution_id: foundUser.institution_id
+      };
+
+      // Set the session FIRST so Supabase is authenticated for the next queries
+      await login(userSession, token);
+      
       // DEVICE BINDING LOGIC
       const currentDeviceId = await getDeviceId();
+      
+      const { data: deviceOwner } = await supabase
+        .from('users')
+        .select('id, email')
+        .eq('device_id', currentDeviceId)
+        .neq('id', foundUser.id)
+        .maybeSingle();
+
+      if (deviceOwner) {
+         await logout();
+         Alert.alert(
+           'Device Binding Error',
+           'This phone is already registered to another user. You cannot use the same phone for multiple accounts.'
+         );
+         setLoading(false);
+         return;
+      }
+
       if (!foundUser.device_id) {
-        // First time login since feature added: bind device
         await supabase.from('users').update({ device_id: currentDeviceId }).eq('id', foundUser.id);
       } else if (foundUser.device_id !== currentDeviceId) {
+        await logout();
         Alert.alert(
           'Device Binding Error',
           'This account is registered on another device. Please contact an administrator if you got a new phone.'
@@ -85,17 +131,6 @@ export default function LoginScreen() {
         setLoading(false);
         return;
       }
-      
-      const userSession: User = {
-        id: foundUser.id,
-        name: foundUser.name,
-        email: foundUser.email,
-        role: foundUser.role,
-        level: foundUser.level,
-        semester: foundUser.semester
-      };
-
-      await login(userSession);
       
       // Save push token if available
       if (expoPushToken) {
@@ -149,17 +184,16 @@ export default function LoginScreen() {
             
             <Animated.View entering={FadeInDown.duration(600).delay(400)} style={styles.form}>
               <View style={styles.inputGroup}>
-                <ThemedText type="defaultSemiBold">Email address</ThemedText>
+                <ThemedText type="defaultSemiBold">Email address or Index Number</ThemedText>
                 <TextInput
                   style={[
                     styles.input, 
                     { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }
                   ]}
-                  placeholder="you@university.edu"
+                  placeholder="you@university.edu or 10293847"
                   placeholderTextColor={theme.textSecondary}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
+                  value={identifier}
+                  onChangeText={setIdentifier}
                   autoCapitalize="none"
                 />
               </View>

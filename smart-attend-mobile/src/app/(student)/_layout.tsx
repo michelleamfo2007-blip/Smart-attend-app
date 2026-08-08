@@ -2,7 +2,7 @@ import { Tabs, router } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { useColorScheme, View, Platform } from 'react-native';
 import { Colors } from '@/constants/theme';
-import { SymbolView } from 'expo-symbols';
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -47,7 +47,7 @@ export default function StudentLayout() {
         options={{
           title: 'Overview',
           tabBarIcon: ({ color }) => (
-            <SymbolView name="house.fill" size={24} tintColor={color} fallback={undefined} />
+            <Ionicons name="home" size={24} color={color} />
           ),
         }}
       />
@@ -56,7 +56,7 @@ export default function StudentLayout() {
         options={{
           title: 'Schedule',
           tabBarIcon: ({ color }) => (
-            <SymbolView name="calendar" size={24} tintColor={color} fallback={undefined} />
+            <Ionicons name="calendar" size={24} color={color} />
           ),
         }}
       />
@@ -65,7 +65,7 @@ export default function StudentLayout() {
         options={{
           title: 'Mark Present',
           tabBarIcon: ({ color }) => (
-            <SymbolView name="qrcode.viewfinder" size={24} tintColor={color} fallback={undefined} />
+            <Ionicons name="qr-code" size={24} color={color} />
           ),
         }}
       />
@@ -74,7 +74,7 @@ export default function StudentLayout() {
         options={{
           title: 'History',
           tabBarIcon: ({ color }) => (
-            <SymbolView name="clock.fill" size={24} tintColor={color} fallback={undefined} />
+            <Ionicons name="time" size={24} color={color} />
           ),
         }}
       />
@@ -83,7 +83,7 @@ export default function StudentLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color }) => (
-            <SymbolView name="person.crop.circle.fill" size={24} tintColor={color} fallback={undefined} />
+            <Ionicons name="person-circle" size={24} color={color} />
           ),
         }}
       />

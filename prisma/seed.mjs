@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Seeding database...\n');
+  console.log(' Seeding database...\n');
 
   // Create Admin
   const adminPassword = await bcrypt.hash('admin123', 10);
@@ -18,7 +18,7 @@ async function main() {
       role: 'ADMIN',
     },
   });
-  console.log('✅ Admin created:', admin.email);
+  console.log(' Admin created:', admin.email);
 
   // Create a Lecturer
   const lecturerPassword = await bcrypt.hash('lecturer123', 10);
@@ -32,7 +32,7 @@ async function main() {
       role: 'LECTURER',
     },
   });
-  console.log('✅ Lecturer created:', lecturer.email);
+  console.log(' Lecturer created:', lecturer.email);
 
   // Create a Student
   const studentPassword = await bcrypt.hash('student123', 10);
@@ -46,7 +46,7 @@ async function main() {
       role: 'STUDENT',
     },
   });
-  console.log('✅ Student created:', student.email);
+  console.log(' Student created:', student.email);
 
   // Create sample courses
   const course1 = await prisma.course.upsert({
@@ -69,7 +69,7 @@ async function main() {
     },
   });
 
-  console.log('✅ Courses created: CS101, MATH201');
+  console.log(' Courses created: CS101, MATH201');
 
   // Enroll student in courses
   await prisma.enrollment.upsert({
@@ -84,14 +84,14 @@ async function main() {
     create: { userId: student.id, courseId: course2.id },
   });
 
-  console.log('✅ Student enrolled in CS101 and MATH201');
+  console.log(' Student enrolled in CS101 and MATH201');
 
-  console.log('\n🎉 Seed complete! Login credentials:\n');
-  console.log('  👑 Admin    → admin@smartattend.com     / admin123');
-  console.log('  📋 Lecturer → lecturer@smartattend.com  / lecturer123');
-  console.log('  🎓 Student  → student@smartattend.com   / student123\n');
+  console.log('\n Seed complete! Login credentials:\n');
+  console.log('   Admin    → admin@smartattend.com     / admin123');
+  console.log('   Lecturer → lecturer@smartattend.com  / lecturer123');
+  console.log('   Student  → student@smartattend.com   / student123\n');
 }
 
 main()
-  .catch((e) => { console.error('❌ Seed failed:', e); process.exit(1); })
+  .catch((e) => { console.error(' Seed failed:', e); process.exit(1); })
   .finally(() => prisma.$disconnect());

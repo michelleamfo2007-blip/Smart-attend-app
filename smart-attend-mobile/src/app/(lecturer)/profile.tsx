@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Platform, Alert } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
@@ -6,11 +6,26 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing, Colors } from '@/constants/theme';
 import { useColorScheme } from 'react-native';
 import { SymbolView } from 'expo-symbols';
+import { supabase } from '../../lib/supabase';
 
 export default function LecturerProfileScreen() {
   const { user, logout } = useAuth();
   const scheme = useColorScheme() ?? 'light';
   const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
+
+  const [institutionName, setInstitutionName] = useState('');
+
+  useEffect(() => {
+    const fetchInst = async () => {
+      if (user?.institution_id) {
+        const { data: instData } = await supabase.from('institutions').select('name').eq('id', user.institution_id).maybeSingle();
+        if (instData?.name) {
+          setInstitutionName(instData.name);
+        }
+      }
+    };
+    fetchInst();
+  }, [user?.institution_id]);
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
@@ -21,7 +36,7 @@ export default function LecturerProfileScreen() {
 
       <View style={[styles.idBadge, { backgroundColor: scheme === 'dark' ? 'rgba(124, 58, 237, 0.15)' : 'rgba(124, 58, 237, 0.08)', borderColor: 'rgba(124, 58, 237, 0.3)' }]}>
         <View style={styles.idBadgeHeader}>
-          <Text style={[styles.universityName, { color: theme.primary }]}>University Portal</Text>
+          <Text style={[styles.universityName, { color: theme.primary }]}>{institutionName || 'University Portal'}</Text>
           <SymbolView name="graduationcap.fill" size={24} tintColor={theme.primary} />
         </View>
         <View style={styles.idBadgeBody}>

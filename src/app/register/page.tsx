@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { GraduationCap, Presentation } from 'lucide-react';
 import styles from './register.module.css';
 
 const ROLES = [
@@ -10,13 +11,13 @@ const ROLES = [
     id: 'STUDENT',
     label: 'Student',
     description: 'Mark attendance for enrolled courses',
-    icon: '🎓',
+    icon: <GraduationCap size={20} />,
   },
   {
     id: 'LECTURER',
     label: 'Lecturer',
     description: 'Start sessions and track attendance',
-    icon: '📋',
+    icon: <Presentation size={20} />,
   },
 ];
 
@@ -35,6 +36,16 @@ export default function RegisterPage() {
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const [institutions, setInstitutions] = useState<{id: string, name: string}[]>([]);
+  const [selectedInstitution, setSelectedInstitution] = useState('');
+
+  useEffect(() => {
+    fetch('/api/institutions')
+      .then(res => res.json())
+      .then(data => setInstitutions(data.institutions || []))
+      .catch(console.error);
+  }, []);
 
   const passwordStrength = (() => {
     if (!password) return 0;
@@ -58,6 +69,10 @@ export default function RegisterPage() {
       setError('Please enter the Institution/Lecturer Invite Code.');
       return;
     }
+    if (role === 'STUDENT' && !selectedInstitution) {
+      setError('Please select your institution.');
+      return;
+    }
     setStep(2);
   };
 
@@ -79,7 +94,14 @@ export default function RegisterPage() {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, role, inviteCode }),
+        body: JSON.stringify({ 
+          name, 
+          email, 
+          password, 
+          role, 
+          inviteCode: role === 'LECTURER' ? inviteCode : undefined,
+          institution_id: role === 'STUDENT' ? selectedInstitution : undefined
+        }),
       });
 
       const data = await res.json();
@@ -155,6 +177,14 @@ export default function RegisterPage() {
 
       {/* Right Panel */}
       <div className={styles.rightPanel}>
+        <div style={{ width: '100%', maxWidth: '480px', margin: '0 auto 1rem auto' }}>
+          <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: '#64748b', textDecoration: 'none', fontSize: '0.875rem', fontWeight: '500' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            Back to Home
+          </Link>
+        </div>
         <div className={styles.formCard}>
           {/* Progress bar */}
           <div className={styles.progressBar}>
@@ -253,6 +283,35 @@ export default function RegisterPage() {
                 </div>
               </div>
 
+              {role === 'STUDENT' && (
+                <div className="input-group">
+                  <label htmlFor="reg-institution" className="input-label">Your Institution</label>
+                  <div className={styles.inputWrapper}>
+                    <svg className={styles.inputIcon} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/>
+                      <line x1="9" y1="22" x2="9" y2="2"/>
+                      <line x1="15" y1="22" x2="15" y2="2"/>
+                    </svg>
+                    <select
+                      id="reg-institution"
+                      className={`input-field ${styles.inputWithIcon}`}
+                      style={{ appearance: 'none', cursor: 'pointer' }}
+                      value={selectedInstitution}
+                      onChange={(e) => setSelectedInstitution(e.target.value)}
+                      required
+                    >
+                      <option value="" disabled>Select an institution...</option>
+                      {institutions.map(inst => (
+                        <option key={inst.id} value={inst.id}>{inst.name}</option>
+                      ))}
+                    </select>
+                    <div style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#9ca3af' }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {role === 'LECTURER' && (
                 <div className="input-group">
                   <label htmlFor="reg-invite-code" className="input-label">Institution Invite Code</label>
@@ -264,7 +323,7 @@ export default function RegisterPage() {
                       id="reg-invite-code"
                       type="text"
                       className={`input-field ${styles.inputWithIcon}`}
-                      placeholder="Enter lecturer invite code"
+                      placeholder="Enter lecturer invite code (e.g. LECTURER-X7B9A)"
                       value={inviteCode}
                       onChange={(e) => setInviteCode(e.target.value)}
                       required

@@ -2,7 +2,7 @@ import { Tabs, router } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { useColorScheme, View, Platform } from 'react-native';
 import { Colors } from '@/constants/theme';
-import { SymbolView } from 'expo-symbols';
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -47,7 +47,7 @@ export default function LecturerLayout() {
         options={{
           title: 'Overview',
           tabBarIcon: ({ color }) => (
-            <SymbolView name="house.fill" size={24} tintColor={color} fallback={undefined} />
+            <Ionicons name="home" size={24} color={color} />
           ),
         }}
       />
@@ -56,7 +56,7 @@ export default function LecturerLayout() {
         options={{
           title: 'Session',
           tabBarIcon: ({ color }) => (
-            <SymbolView name="play.circle.fill" size={24} tintColor={color} fallback={undefined} />
+            <Ionicons name="play-circle" size={24} color={color} />
           ),
         }}
       />
@@ -65,7 +65,7 @@ export default function LecturerLayout() {
         options={{
           title: 'Roster',
           tabBarIcon: ({ color }) => (
-            <SymbolView name="person.3.fill" size={24} tintColor={color} fallback={undefined} />
+            <Ionicons name="people" size={24} color={color} />
           ),
         }}
       />
@@ -74,7 +74,7 @@ export default function LecturerLayout() {
         options={{
           title: 'Disputes',
           tabBarIcon: ({ color }) => (
-            <SymbolView name="exclamationmark.bubble.fill" size={24} tintColor={color} fallback={undefined} />
+            <Ionicons name="chatbubble-ellipses" size={24} color={color} />
           ),
         }}
       />
@@ -83,7 +83,7 @@ export default function LecturerLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color }) => (
-            <SymbolView name="person.fill" size={24} tintColor={color} fallback={undefined} />
+            <Ionicons name="person" size={24} color={color} />
           ),
         }}
       />

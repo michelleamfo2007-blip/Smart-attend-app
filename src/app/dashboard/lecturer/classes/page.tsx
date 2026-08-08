@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { BookOpen } from 'lucide-react';
 import styles from '../../lecturer/lecturer.module.css';
 
 interface Class {
@@ -103,7 +104,7 @@ export default function LecturerClassesPage() {
       <section className={styles.section}>
         {classes.length === 0 ? (
           <div className={styles.emptyState}>
-            <div className={styles.emptyIcon}>📋</div>
+            <div className={styles.emptyIcon}><BookOpen size={48} color="#94a3b8" /></div>
             <p>No classes created yet.</p>
             <span>Go to the Overview page to create your first class.</span>
           </div>

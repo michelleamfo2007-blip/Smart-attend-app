@@ -1,14 +1,11 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, TextInput, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, TextInput, TouchableOpacity, ActivityIndicator, Alert, ScrollView, Modal, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth, UserRole, User } from '../context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Spacing, Colors } from '@/constants/theme';
+import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme, KeyboardAvoidingView, Platform } from 'react-native';
-import { supabase } from '../lib/supabase';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { getDeviceId } from '../lib/deviceId';
 
@@ -19,105 +16,126 @@ export default function RegisterScreen() {
   const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
   
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(''); // Only used for Lecturer
+  const [studentId, setStudentId] = useState(''); // Index Number for Students
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<UserRole>('STUDENT');
-  const [inviteCode, setInviteCode] = useState('');
+  const [inviteCode, setInviteCode] = useState(''); // Institution invite code
   const [loading, setLoading] = useState(false);
 
-  const handleRegister = async () => {
-    if (!name || !email || !password) {
-      Alert.alert('Error', 'Please fill out all fields.');
+  // Cohort Selection State
+  const [cohorts, setCohorts] = useState<any[]>([]);
+  const [selectedCohort, setSelectedCohort] = useState<any>(null);
+  const [loadingCohorts, setLoadingCohorts] = useState(false);
+  const [showCohortModal, setShowCohortModal] = useState(false);
+  const [institutionName, setInstitutionName] = useState('');
+
+  const fetchCohorts = async () => {
+    if (!inviteCode.trim()) {
+      Alert.alert('Required', 'Please enter an institution invite code first.');
       return;
+    }
+
+    setLoadingCohorts(true);
+    try {
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.20.10.4:3000';
+      const response = await fetch(`${API_URL}/api/public/cohorts?inviteCode=${inviteCode.trim()}`);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        Alert.alert('Error', data.error || 'Invalid institution invite code');
+        setCohorts([]);
+        setInstitutionName('');
+        return;
+      }
+      
+      setCohorts(data.cohorts || []);
+      setInstitutionName(data.institution?.name || '');
+      if (data.cohorts?.length > 0) {
+        setShowCohortModal(true);
+      } else {
+        Alert.alert('Notice', 'No cohorts found for this institution.');
+      }
+    } catch (err: any) {
+      Alert.alert('Error', 'Failed to connect to server.');
+    } finally {
+      setLoadingCohorts(false);
+    }
+  };
+
+  const handleRegister = async () => {
+    if (!name || !password) {
+      Alert.alert('Error', 'Please fill out all required fields.');
+      return;
+    }
+
+    if (role === 'STUDENT') {
+      if (!studentId || !selectedCohort) {
+        Alert.alert('Error', 'Please enter your Index Number and select your Cohort.');
+        return;
+      }
+    } else {
+      if (!email || !inviteCode) {
+        Alert.alert('Error', 'Please enter your email and lecturer invite code.');
+        return;
+      }
     }
 
     setLoading(true);
     try {
-      let finalLevel = null;
-      let finalSemester = null;
+      const currentDeviceId = await getDeviceId();
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.20.10.4:3000';
+      
+      const payload = {
+        name,
+        password,
+        role,
+        device_id: currentDeviceId,
+        // Role specific fields
+        ...(role === 'STUDENT' ? {
+          student_id: studentId.trim(),
+          cohort_id: selectedCohort.id
+        } : {
+          email: email.toLowerCase().trim(),
+          inviteCode: inviteCode.trim()
+        })
+      };
 
-      if (role === 'STUDENT') {
-        if (!inviteCode) {
-          Alert.alert('Error', 'Students must provide a Class Invite Code.');
-          setLoading(false);
-          return;
-        }
-
-        // Verify invite code
-        const { data: classData, error: classError } = await supabase
-          .from('classes')
-          .select('level, semester')
-          .eq('invite_code', inviteCode.trim())
-          .maybeSingle();
-
-        if (classError || !classData) {
-          Alert.alert('Invalid Code', 'The Class Invite Code is invalid or does not exist.');
-          setLoading(false);
-          return;
-        }
-
-        finalLevel = classData.level;
-        finalSemester = classData.semester;
-      } else if (role === 'LECTURER') {
-        if (!inviteCode) {
-          Alert.alert('Error', 'Lecturers must provide an Institution Invite Code.');
-          setLoading(false);
-          return;
-        }
-        const validCode = process.env.EXPO_PUBLIC_LECTURER_CODE || 'LECTURER-2026';
-        if (inviteCode.trim() !== validCode) {
-          Alert.alert('Invalid Code', 'The Institution Invite Code is incorrect.');
-          setLoading(false);
-          return;
-        }
-      }
-
-      // Check if email already exists
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', email.toLowerCase())
-        .maybeSingle();
-
-      if (existingUser) {
-        Alert.alert('Error', 'An account with this email already exists.');
+      const response = await fetch(`${API_URL}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        Alert.alert('Registration Failed', data.error || 'An error occurred during registration.');
         setLoading(false);
         return;
       }
-
-      // Get the device ID for binding
-      const currentDeviceId = await getDeviceId();
-
-      // Create new user object in Supabase
-      const { data: newUser, error } = await supabase
-        .from('users')
-        .insert({
-          name,
-          email: email.toLowerCase(),
-          password,
-          role,
-          level: finalLevel,
-          semester: finalSemester,
-          device_id: currentDeviceId
-        })
-        .select()
-        .single();
-
-      if (error || !newUser) {
-        throw new Error(error?.message || 'Failed to create account');
+      
+      const newUser = data.user;
+      const token = data.token;
+      
+      if (!newUser || !token) {
+        Alert.alert('Error', 'Invalid response from server.');
+        setLoading(false);
+        return;
       }
       
-      // Log them in using context (without the password field)
+      // Log them in using context
       const userSession: User = {
         id: newUser.id,
         name: newUser.name,
         email: newUser.email,
         role: newUser.role,
         level: newUser.level,
-        semester: newUser.semester
+        semester: newUser.semester,
+        institution_id: newUser.institution_id
       };
       
-      await login(userSession);
+      await login(userSession, token);
       
       // Route based on role
       if (userSession.role === 'ADMIN') {
@@ -134,6 +152,14 @@ export default function RegisterScreen() {
     }
   };
 
+  // Switch role reset
+  useEffect(() => {
+    setInviteCode('');
+    setSelectedCohort(null);
+    setCohorts([]);
+    setInstitutionName('');
+  }, [role]);
+
   return (
     <Animated.View entering={FadeIn.duration(800)} style={{ flex: 1, backgroundColor: theme.background }}>
       <KeyboardAvoidingView 
@@ -149,52 +175,6 @@ export default function RegisterScreen() {
             </Animated.View>
             
             <Animated.View entering={FadeInDown.duration(600).delay(300)} style={styles.form}>
-              <View style={styles.inputGroup}>
-                <ThemedText type="defaultSemiBold">Full Name</ThemedText>
-                <TextInput
-                  style={[
-                    styles.input, 
-                    { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }
-                  ]}
-                  placeholder="John Doe"
-                  placeholderTextColor={theme.textSecondary}
-                  value={name}
-                  onChangeText={setName}
-                  autoCapitalize="words"
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <ThemedText type="defaultSemiBold">Email address</ThemedText>
-                <TextInput
-                  style={[
-                    styles.input, 
-                    { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }
-                  ]}
-                  placeholder="you@name@gmail.com"
-                  placeholderTextColor={theme.textSecondary}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <ThemedText type="defaultSemiBold">Password</ThemedText>
-                <TextInput
-                  style={[
-                    styles.input, 
-                    { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }
-                  ]}
-                  placeholder="Create a password"
-                  placeholderTextColor={theme.textSecondary}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                />
-              </View>
-
               <View style={styles.inputGroup}>
                 <ThemedText type="defaultSemiBold">I am a...</ThemedText>
                 <View style={styles.roleContainer}>
@@ -215,45 +195,114 @@ export default function RegisterScreen() {
                 </View>
               </View>
 
-              {role === 'STUDENT' && (
-                <View style={styles.inputGroup}>
-                  <ThemedText type="defaultSemiBold">Class Invite Code</ThemedText>
-                  <TextInput
-                    style={[
-                      styles.input, 
-                      { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }
-                    ]}
-                    placeholder="Enter the code given by your lecturer"
-                    placeholderTextColor={theme.textSecondary}
-                    value={inviteCode}
-                    onChangeText={setInviteCode}
-                    autoCapitalize="characters"
-                  />
-                  <ThemedText themeColor="textSecondary" style={{ fontSize: 12, marginTop: -4 }}>
-                    Your invite code will automatically enroll you in the correct level and semester.
-                  </ThemedText>
-                </View>
-              )}
+              <View style={styles.inputGroup}>
+                <ThemedText type="defaultSemiBold">Full Name</ThemedText>
+                <TextInput
+                  style={[styles.input, { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }]}
+                  placeholder="John Doe"
+                  placeholderTextColor={theme.textSecondary}
+                  value={name}
+                  onChangeText={setName}
+                  autoCapitalize="words"
+                />
+              </View>
 
               {role === 'LECTURER' && (
-                <View style={styles.inputGroup}>
-                  <ThemedText type="defaultSemiBold">Institution Invite Code</ThemedText>
-                  <TextInput
-                    style={[
-                      styles.input, 
-                      { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }
-                    ]}
-                    placeholder="Enter lecturer invite code"
-                    placeholderTextColor={theme.textSecondary}
-                    value={inviteCode}
-                    onChangeText={setInviteCode}
-                    autoCapitalize="characters"
-                  />
-                  <ThemedText themeColor="textSecondary" style={{ fontSize: 12, marginTop: -4 }}>
-                    Required to register as a verified lecturer.
-                  </ThemedText>
-                </View>
+                <>
+                  <View style={styles.inputGroup}>
+                    <ThemedText type="defaultSemiBold">Email address</ThemedText>
+                    <TextInput
+                      style={[styles.input, { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }]}
+                      placeholder="you@name@gmail.com"
+                      placeholderTextColor={theme.textSecondary}
+                      value={email}
+                      onChangeText={setEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                    />
+                  </View>
+                  <View style={styles.inputGroup}>
+                    <ThemedText type="defaultSemiBold">Lecturer Invite Code</ThemedText>
+                    <TextInput
+                      style={[styles.input, { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }]}
+                      placeholder="Enter code provided by Admin"
+                      placeholderTextColor={theme.textSecondary}
+                      value={inviteCode}
+                      onChangeText={setInviteCode}
+                      autoCapitalize="characters"
+                    />
+                  </View>
+                </>
               )}
+
+              {role === 'STUDENT' && (
+                <>
+                  <View style={styles.inputGroup}>
+                    <ThemedText type="defaultSemiBold">Index Number (Student ID)</ThemedText>
+                    <TextInput
+                      style={[styles.input, { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }]}
+                      placeholder="e.g. 10293847"
+                      placeholderTextColor={theme.textSecondary}
+                      value={studentId}
+                      onChangeText={setStudentId}
+                      autoCapitalize="characters"
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <ThemedText type="defaultSemiBold">Institution Invite Code</ThemedText>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <TextInput
+                        style={[styles.input, { flex: 1, backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }]}
+                        placeholder="Enter school code"
+                        placeholderTextColor={theme.textSecondary}
+                        value={inviteCode}
+                        onChangeText={(txt) => {
+                          setInviteCode(txt);
+                          setSelectedCohort(null);
+                        }}
+                        autoCapitalize="characters"
+                      />
+                      <TouchableOpacity 
+                        style={[styles.smallBtn, { backgroundColor: theme.primary }]}
+                        onPress={fetchCohorts}
+                        disabled={loadingCohorts}
+                      >
+                        {loadingCohorts ? <ActivityIndicator size="small" color="#fff" /> : <ThemedText style={{color: 'white', fontWeight: 'bold'}}>Verify</ThemedText>}
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {institutionName ? (
+                    <View style={styles.inputGroup}>
+                      <ThemedText type="defaultSemiBold">Select Your Cohort</ThemedText>
+                      <TouchableOpacity 
+                        style={[styles.dropdownBtn, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
+                        onPress={() => setShowCohortModal(true)}
+                      >
+                        <ThemedText style={{ color: selectedCohort ? theme.text : theme.textSecondary }}>
+                          {selectedCohort ? selectedCohort.name : 'Tap to select...'}
+                        </ThemedText>
+                      </TouchableOpacity>
+                      <ThemedText themeColor="textSecondary" style={{ fontSize: 12, marginTop: -4 }}>
+                        {institutionName}
+                      </ThemedText>
+                    </View>
+                  ) : null}
+                </>
+              )}
+
+              <View style={styles.inputGroup}>
+                <ThemedText type="defaultSemiBold">Password</ThemedText>
+                <TextInput
+                  style={[styles.input, { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }]}
+                  placeholder="Create a password"
+                  placeholderTextColor={theme.textSecondary}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                />
+              </View>
 
               <TouchableOpacity 
                 style={[styles.button, { backgroundColor: theme.primary }]} 
@@ -275,10 +324,43 @@ export default function RegisterScreen() {
                 </TouchableOpacity>
               </View>
             </Animated.View>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </KeyboardAvoidingView>
+
+      {/* Cohort Selection Modal */}
+      <Modal visible={showCohortModal} transparent={true} animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.background }]}>
+            <View style={styles.modalHeader}>
+              <ThemedText type="subtitle">Select Your Cohort</ThemedText>
+              <TouchableOpacity onPress={() => setShowCohortModal(false)}>
+                <ThemedText style={{ color: theme.primary, fontWeight: 'bold' }}>Close</ThemedText>
+              </TouchableOpacity>
+            </View>
+            
+            <FlatList
+              data={cohorts}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={{ paddingBottom: 20 }}
+              renderItem={({ item }) => (
+                <TouchableOpacity 
+                  style={[styles.cohortItem, { borderBottomColor: theme.border }]}
+                  onPress={() => {
+                    setSelectedCohort(item);
+                    setShowCohortModal(false);
+                  }}
+                >
+                  <ThemedText style={{ fontWeight: selectedCohort?.id === item.id ? 'bold' : 'normal', color: selectedCohort?.id === item.id ? theme.primary : theme.text }}>
+                    {item.name}
+                  </ThemedText>
+                </TouchableOpacity>
+              )}
+            />
           </View>
-        </ScrollView>
-      </SafeAreaView>
-    </KeyboardAvoidingView>
+        </View>
+      </Modal>
     </Animated.View>
   );
 }
@@ -298,11 +380,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
   },
   roleContainer: { flexDirection: 'row', gap: Spacing.four },
   roleCard: {
@@ -311,11 +388,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
   },
   roleText: { color: '#64748B', fontWeight: '500' },
   roleTextActive: { color: '#2563EB', fontWeight: 'bold' },
@@ -324,13 +396,44 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     marginTop: Spacing.four,
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
   },
-  buttonText: { color: 'white', fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
+  buttonText: { color: 'white', fontSize: 16, fontWeight: '700' },
   loginContainer: { flexDirection: 'row', justifyContent: 'center', marginTop: Spacing.four },
   loginLink: { fontWeight: 'bold' },
+  smallBtn: {
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 12,
+  },
+  dropdownBtn: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    justifyContent: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  cohortItem: {
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+  }
 });

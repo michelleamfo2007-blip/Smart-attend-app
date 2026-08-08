@@ -5,15 +5,20 @@ import { signToken } from '@/lib/auth';
 
 export async function POST(req: Request) {
   try {
-    const { email, password } = await req.json();
+    const { email, student_id, password } = await req.json();
 
-    if (!email || !password) {
-      return NextResponse.json({ error: 'Missing email or password' }, { status: 400 });
+    if ((!email && !student_id) || !password) {
+      return NextResponse.json({ error: 'Missing login credentials or password' }, { status: 400 });
     }
 
-    // Find user
-    const user = await prisma.users.findUnique({
-      where: { email },
+    // Find user by either email or student_id
+    const user = await prisma.users.findFirst({
+      where: {
+        OR: [
+          { email: email || undefined },
+          { student_id: student_id || undefined }
+        ]
+      }
     });
 
     if (!user || !user.password) {
@@ -32,6 +37,7 @@ export async function POST(req: Request) {
       userId: user.id,
       email: user.email,
       role: user.role,
+      institutionId: user.institution_id,
     });
 
     const response = NextResponse.json({
@@ -40,7 +46,14 @@ export async function POST(req: Request) {
         email: user.email,
         name: user.name,
         role: user.role,
-      }
+        institution_id: user.institution_id,
+        level: user.level,
+        semester: user.semester,
+        device_id: user.device_id,
+        student_id: user.student_id,
+        cohort_id: user.cohort_id
+      },
+      token: token // Return token for mobile clients
     });
 
     // Set cookie

@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "smart-attend-mobile",
-    "slug": "smart-attend-mobile",
+    "name": "smart-attend-saas",
+    "slug": "smart-attend-saas",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "smartattendmobile",
+    "scheme": "smartattendsaas",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
@@ -58,8 +58,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "903e7b1d-42a9-421e-a0b8-19376515e9b6"
+        "projectId": "572f6bc1-7a3b-4052-92ce-175290194dba"
       }
-    }
+    },
+    "owner": "mercedes.dev"
   }
 }

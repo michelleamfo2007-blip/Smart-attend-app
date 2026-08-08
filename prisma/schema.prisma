@@ -10,36 +10,100 @@ datasource db {
 }
 
 model users {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name      String?
-  email     String?  @unique
-  password  String?
-  role      String?
-  level     String?
-  semester  String?
-  device_id String?
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  institution_id String?  @db.Uuid
+  name           String?
+  email          String?  @unique
+  password       String?
+  role           String?
+  level          String?
+  semester       String?
+  device_id      String?
+  student_id     String?
+  staff_id       String?
+  department     String?
+  program        String?
+  cohort_id      String?  @db.Uuid
   
+  institution           institutions?          @relation(fields: [institution_id], references: [id], onDelete: Cascade)
+  cohort                cohorts?               @relation(fields: [cohort_id], references: [id], onDelete: SetNull)
   classes_lectured      classes[]              @relation("lecturer")
   attendance_sessions   attendance_sessions[]  @relation("session_lecturer")
   enrollments           enrollments[]
   records               attendance_records[]
+  imports               import_history[]
+}
+
+model import_history {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  institution_id String   @db.Uuid
+  uploaded_by    String   @db.Uuid
+  file_name      String
+  import_type    String
+  success_count  Int      @default(0)
+  failed_count   Int      @default(0)
+  created_at     DateTime @default(now()) @db.Timestamptz
+
+  institution    institutions @relation(fields: [institution_id], references: [id], onDelete: Cascade)
+  admin          users        @relation(fields: [uploaded_by], references: [id], onDelete: Cascade)
 }
 
 model classes {
-  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name          String
-  lecturer_id   String   @db.Uuid
-  level         String?
-  semester      String?
-  schedule_time String?
-  invite_code   String?  @unique
-  start_time    String?
-  end_time      String?
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  institution_id String?  @db.Uuid
+  name           String
+  lecturer_id    String   @db.Uuid
+  level          String?
+  semester       String?
+  schedule_time  String?
+  invite_code    String?  @unique
+  start_time     String?
+  end_time       String?
+  classroom_id   String?  @db.Uuid
 
-  lecturer      users    @relation("lecturer", fields: [lecturer_id], references: [id], onDelete: Cascade)
+  institution   institutions?        @relation(fields: [institution_id], references: [id], onDelete: Cascade)
+  lecturer      users                @relation("lecturer", fields: [lecturer_id], references: [id], onDelete: Cascade)
+  classroom     classrooms?          @relation(fields: [classroom_id], references: [id], onDelete: SetNull)
   sessions      attendance_sessions[]
   records       attendance_records[]
   enrollments   enrollments[]
+  cohort_classes cohort_classes[]
+}
+
+model classrooms {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  institution_id String   @db.Uuid
+  name           String
+  latitude       Float?
+  longitude      Float?
+  radius_meters  Int      @default(50)
+  created_at     DateTime @default(now()) @db.Timestamptz
+
+  institution    institutions @relation(fields: [institution_id], references: [id], onDelete: Cascade)
+  classes        classes[]
+}
+
+model cohorts {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  institution_id String   @db.Uuid
+  name           String
+  created_at     DateTime @default(now()) @db.Timestamptz
+
+  institution    institutions @relation(fields: [institution_id], references: [id], onDelete: Cascade)
+  users          users[]
+  cohort_classes cohort_classes[]
+}
+
+model cohort_classes {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cohort_id  String   @db.Uuid
+  class_id   String   @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz
+
+  cohort     cohorts  @relation(fields: [cohort_id], references: [id], onDelete: Cascade)
+  class      classes  @relation(fields: [class_id], references: [id], onDelete: Cascade)
+
+  @@unique([cohort_id, class_id])
 }
 
 model attendance_sessions {
@@ -108,4 +172,31 @@ model attendance_disputes {
 model system_settings {
   id                   String @id @default("global")
   lecturer_invite_code String @default("LECTURER-2026")
+}
+
+model institutions {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String
+  domain            String?  @unique
+  logo              String?
+  contact_email     String?
+  phone_number      String?
+  subscription_plan String?  @default("free")
+  status            String   @default("active")
+  billing_cycle     String   @default("monthly")
+  trial_period      Boolean  @default(false)
+  max_users         Int?
+  api_access        Boolean  @default(false)
+  sso               Boolean  @default(false)
+  custom_branding   Boolean  @default(false)
+  invite_code       String?  @unique
+  notes             String?
+  created_at        DateTime @default(now()) @db.Timestamptz
+  updated_at        DateTime @updatedAt @db.Timestamptz
+
+  users             users[]
+  classes           classes[]
+  classrooms        classrooms[]
+  cohorts           cohorts[]
+  imports           import_history[]
 }

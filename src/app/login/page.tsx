@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { MapPin, Zap, BarChart3 } from 'lucide-react';
+import InstitutionSelector from '@/components/InstitutionSelector';
 import styles from './login.module.css';
 
 export default function LoginPage() {
@@ -10,8 +12,16 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [institutionId, setInstitutionId] = useState<string>('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const savedInst = localStorage.getItem('recentInstitutionId');
+    if (savedInst) {
+      setInstitutionId(savedInst);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +32,7 @@ export default function LoginPage() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, institutionId }),
       });
 
       const data = await res.json();
@@ -67,21 +77,21 @@ export default function LoginPage() {
 
           <div className={styles.features}>
             <div className={styles.featureItem}>
-              <div className={styles.featureIcon}>📍</div>
+              <div className={styles.featureIcon}><MapPin size={20} /></div>
               <div>
                 <strong>GPS Verified</strong>
                 <span>Students must be physically present</span>
               </div>
             </div>
             <div className={styles.featureItem}>
-              <div className={styles.featureIcon}>⚡</div>
+              <div className={styles.featureIcon}><Zap size={20} /></div>
               <div>
                 <strong>Real-time Tracking</strong>
                 <span>Live attendance updates as they happen</span>
               </div>
             </div>
             <div className={styles.featureItem}>
-              <div className={styles.featureIcon}>📊</div>
+              <div className={styles.featureIcon}><BarChart3 size={20} /></div>
               <div>
                 <strong>Detailed Reports</strong>
                 <span>Analytics and export for every session</span>
@@ -98,6 +108,12 @@ export default function LoginPage() {
       {/* Right Panel – Login Form */}
       <div className={styles.rightPanel}>
         <div className={styles.formCard}>
+          <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: '#64748b', textDecoration: 'none', marginBottom: '2rem', fontSize: '0.875rem', fontWeight: '500' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            Back to Home
+          </Link>
           <div className={styles.formHeader}>
             <h2>Welcome back</h2>
             <p>Sign in to your SmartAttend account</p>
@@ -112,6 +128,16 @@ export default function LoginPage() {
                 {error}
               </div>
             )}
+
+            <div className="input-group" style={{ marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <span style={{ fontSize: '0.875rem', color: '#64748b' }}>For Students & Lecturers (Admins can skip)</span>
+              </div>
+              <InstitutionSelector 
+                onSelect={(id) => setInstitutionId(id)}
+                selectedId={institutionId}
+              />
+            </div>
 
             <div className="input-group">
               <label htmlFor="email" className="input-label">Email address</label>

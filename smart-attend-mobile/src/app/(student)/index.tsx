@@ -5,7 +5,6 @@ import { useAuth } from '../../context/AuthContext';
 import { Spacing } from '@/constants/theme';
 import { supabase } from '../../lib/supabase';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
-import { SymbolView } from 'expo-symbols';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
 import { Colors } from '@/constants/theme';
@@ -27,6 +26,7 @@ export default function StudentOverviewScreen() {
   const [nextClass, setNextClass] = useState<any>(null);
   const [todaysClasses, setTodaysClasses] = useState<any[]>([]);
   const [recentAttendance, setRecentAttendance] = useState<any[]>([]);
+  const [timeRemaining, setTimeRemaining] = useState<string>('Calculated soon...');
 
   // Greeting logic
   const currentHour = new Date().getHours();
@@ -100,6 +100,41 @@ export default function StudentOverviewScreen() {
     fetchData();
   }, [user?.id]);
 
+  useEffect(() => {
+    if (!nextClass || !nextClass.start_time) return;
+
+    const updateCountdown = () => {
+      const now = new Date();
+      
+      // Parse nextClass.start_time (assumes HH:MM or HH:MM:SS format)
+      const [hours, minutes] = nextClass.start_time.split(':').map(Number);
+      const classTime = new Date();
+      classTime.setHours(hours, minutes, 0, 0);
+
+      const diffMs = classTime.getTime() - now.getTime();
+      
+      if (diffMs < 0) {
+        setTimeRemaining('In progress or passed');
+        return;
+      }
+
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMins / 60);
+
+      if (diffHours > 0) {
+        const remainingMins = diffMins % 60;
+        setTimeRemaining(`Starts in ${diffHours}h ${remainingMins}m`);
+      } else {
+        setTimeRemaining(`Starts in ${diffMins} mins`);
+      }
+    };
+
+    updateCountdown(); // Initial call
+    const intervalId = setInterval(updateCountdown, 60000); // Update every minute
+
+    return () => clearInterval(intervalId);
+  }, [nextClass]);
+
   if (loading) {
     return <ActivityIndicator style={{ flex: 1, backgroundColor: theme.background }} color={theme.primary} />;
   }
@@ -151,7 +186,7 @@ export default function StudentOverviewScreen() {
         {nextClass && (
           <Animated.View entering={FadeInDown.duration(500).delay(200)} style={[styles.nextClassCard, { backgroundColor: theme.primary }]}>
             <View style={styles.nextClassHeader}>
-               <SymbolView name="book.fill" size={16} tintColor="#FFF" />
+               <Ionicons name="book" size={16} color="#FFF" />
                <Text style={styles.nextClassTitleLabel}>NEXT CLASS</Text>
             </View>
             <Text style={styles.nextClassName}>{nextClass.name}</Text>
@@ -160,27 +195,27 @@ export default function StudentOverviewScreen() {
             </Text>
             <View style={styles.nextClassDetails}>
                <View style={styles.nextClassDetailItem}>
-                 <SymbolView name="location.fill" size={14} tintColor="rgba(255,255,255,0.8)" />
+                 <Ionicons name="location" size={14} color="rgba(255,255,255,0.8)" />
                  <Text style={styles.nextClassDetailText}>Main Campus</Text>
                </View>
                <View style={styles.nextClassDetailItem}>
-                 <SymbolView name="person.fill" size={14} tintColor="rgba(255,255,255,0.8)" />
+                 <Ionicons name="person" size={14} color="rgba(255,255,255,0.8)" />
                  <Text style={styles.nextClassDetailText}>Professor</Text>
                </View>
             </View>
             <View style={styles.countdownBadge}>
-               <SymbolView name="clock.fill" size={14} tintColor={theme.primary} />
-               <Text style={[styles.countdownText, { color: theme.primary }]}>Starts in 45 mins</Text>
+               <Ionicons name="time" size={14} color={theme.primary} />
+               <Text style={[styles.countdownText, { color: theme.primary }]}>{timeRemaining}</Text>
             </View>
           </Animated.View>
         )}
 
         {/* TODAY'S SCHEDULE */}
-        <Animated.View entering={FadeInDown.duration(500).delay(300)}>
+        <Animated.View entering={FadeInDown.duration(500).delay(300)} style={{ marginBottom: Spacing.six }}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Today's Schedule</Text>
           <View style={[styles.scheduleContainer, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
             {todaysClasses.map((cls, index) => (
-              <View key={cls.id || index} style={styles.scheduleItem}>
+              <View key={cls.id || index} style={[styles.scheduleItem, { borderBottomColor: theme.border, borderBottomWidth: index === todaysClasses.length - 1 ? 0 : 1 }]}>
                 <Text style={[styles.scheduleTime, { color: theme.textSecondary }]}>
                   {cls.start_time ? cls.start_time.substring(0,5) : '09:00'}
                 </Text>
@@ -191,19 +226,21 @@ export default function StudentOverviewScreen() {
               </View>
             ))}
             {todaysClasses.length === 0 && (
-              <Text style={{ color: theme.textSecondary, padding: 16 }}>No classes scheduled for today.</Text>
+              <View style={{ padding: 16 }}>
+                <Text style={{ color: theme.textSecondary }}>No classes scheduled for today.</Text>
+              </View>
             )}
           </View>
         </Animated.View>
 
         {/* LARGE SCAN BUTTON */}
-        <Animated.View entering={FadeInUp.duration(500).delay(400)} style={{ marginVertical: Spacing.six }}>
+        <Animated.View entering={FadeInUp.duration(500).delay(400)} style={{ marginBottom: Spacing.six }}>
            <TouchableOpacity 
              style={[styles.largeScanButton, { backgroundColor: theme.primary }]}
-             onPress={() => router.push('/(student)/scan-qr')}
+             onPress={() => router.push('/(student)/mark-attendance')}
              activeOpacity={0.8}
            >
-             <SymbolView name="qrcode.viewfinder" size={40} tintColor="#FFF" />
+             <Ionicons name="qr-code-outline" size={40} color="#FFF" />
              <View style={styles.scanButtonTextContainer}>
                 <Text style={styles.scanButtonTitle}>Scan QR Code</Text>
                 <Text style={styles.scanButtonSubtitle}>Tap to mark attendance</Text>
@@ -212,13 +249,13 @@ export default function StudentOverviewScreen() {
         </Animated.View>
 
         {/* RECENT ATTENDANCE */}
-        <Animated.View entering={FadeInUp.duration(500).delay(500)}>
+        <Animated.View entering={FadeInUp.duration(500).delay(500)} style={{ marginBottom: Spacing.six }}>
            <Text style={[styles.sectionTitle, { color: theme.text }]}>Recent Attendance</Text>
            <View style={[styles.listContainer, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
               {recentAttendance.length > 0 ? recentAttendance.map((record, index) => (
                  <View key={record.id || index} style={[styles.listItem, { borderBottomColor: theme.border, borderBottomWidth: index === recentAttendance.length - 1 ? 0 : 1 }]}>
                     <View style={styles.listItemLeft}>
-                       <SymbolView name="checkmark.circle.fill" size={20} tintColor="#22C55E" />
+                       <Ionicons name="checkmark-circle" size={20} color="#22C55E" />
                        <Text style={[styles.listItemText, { color: theme.text }]}>Present</Text>
                     </View>
                     <Text style={[styles.listItemTime, { color: theme.textSecondary }]}>
@@ -226,23 +263,10 @@ export default function StudentOverviewScreen() {
                     </Text>
                  </View>
               )) : (
-                <Text style={{ color: theme.textSecondary, padding: 16 }}>No recent attendance records.</Text>
+                <View style={{ padding: 16 }}>
+                  <Text style={{ color: theme.textSecondary }}>No recent attendance records.</Text>
+                </View>
               )}
-           </View>
-        </Animated.View>
-
-        {/* NOTIFICATIONS */}
-        <Animated.View entering={FadeInUp.duration(500).delay(600)} style={{ marginBottom: 40 }}>
-           <Text style={[styles.sectionTitle, { color: theme.text }]}>Notifications</Text>
-           <View style={[styles.listContainer, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-               <View style={[styles.listItem, { borderBottomColor: theme.border, borderBottomWidth: 1 }]}>
-                  <SymbolView name="bell.fill" size={20} tintColor={theme.primary} />
-                  <Text style={[styles.listItemText, { color: theme.text }]}>Attendance marked successfully</Text>
-               </View>
-               <View style={[styles.listItem, { borderBottomColor: theme.border, borderBottomWidth: 0 }]}>
-                  <SymbolView name="exclamationmark.circle.fill" size={20} tintColor="#F59E0B" />
-                  <Text style={[styles.listItemText, { color: theme.text }]}>Keep up the good work! You are on track.</Text>
-               </View>
            </View>
         </Animated.View>
 
@@ -382,13 +406,12 @@ const styles = StyleSheet.create({
   scheduleContainer: {
     borderRadius: 16,
     borderWidth: 1,
-    padding: 16,
-    paddingBottom: 8,
+    overflow: 'hidden',
   },
   scheduleItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    padding: 16,
   },
   scheduleTime: {
     width: 50,
@@ -399,10 +422,10 @@ const styles = StyleSheet.create({
     width: 3,
     height: 24,
     borderRadius: 2,
-    marginHorizontal: 16,
+    marginHorizontal: 12,
   },
   scheduleName: {
-    fontSize: 15,
+    fontSize: 16,
     flex: 1,
   },
   largeScanButton: {

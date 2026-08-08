@@ -1,31 +1,281 @@
-import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Dimensions, Alert, Platform } from 'react-native';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as Location from 'expo-location';
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'expo-router';
+import { saveOfflineScan } from '../../hooks/useOfflineSync';
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import { Colors, Spacing } from '@/constants/theme';
+import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { Ionicons } from '@expo/vector-icons';
-import { Spacing } from '@/constants/theme';
-import { useColorScheme } from 'react-native';
-import { Colors } from '@/constants/theme';
 
-export default function MarkAttendanceScreen() {
+const { width } = Dimensions.get('window');
+
+function getDistanceFromLatLonInM(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371e3;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+export default function ScanQRScreen() {
+  const { user } = useAuth();
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
-  const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const [permission, requestPermission] = useCameraPermissions();
+  const [scanned, setScanned] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [statusMsg, setStatusMsg] = useState('Scan the QR code displayed by your lecturer');
+  const [statusType, setStatusType] = useState<'info' | 'error' | 'success'>('info');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  const MAX_DISTANCE_METERS = 50;
+
+  useEffect(() => {
+    const authenticate = async () => {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      
+      if (hasHardware && isEnrolled) {
+        const result = await LocalAuthentication.authenticateAsync({
+          promptMessage: 'Verify identity to mark attendance',
+          fallbackLabel: 'Use Passcode',
+        });
+        
+        if (result.success) {
+          setIsAuthenticated(true);
+        } else {
+          Alert.alert('Authentication Failed', 'You must verify your identity to check in.');
+          router.back();
+        }
+      } else {
+        // If device doesn't support biometrics, just allow them through
+        setIsAuthenticated(true);
+      }
+    };
+    
+    authenticate();
+  }, []);
+
+  if (!isAuthenticated) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#7C3AED" />
+        <ThemedText style={{ color: 'white', marginTop: 16, textAlign: 'center' }}>Verifying identity...</ThemedText>
+      </View>
+    );
+  }
+
+  if (!permission) {
+    return <View style={styles.container}><ActivityIndicator size="large" color="#7C3AED" /></View>;
+  }
+
+  if (!permission.granted) {
+    return (
+      <View style={styles.container}>
+        <ThemedText style={{ textAlign: 'center', marginBottom: 20 }}>We need your permission to show the camera</ThemedText>
+        <TouchableOpacity style={styles.button} onPress={requestPermission}>
+          <Text style={styles.buttonText}>Grant Permission</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const handleBarCodeScanned = async ({ type, data }: { type: string, data: string }) => {
+    if (scanned || processing) return;
+    setScanned(true);
+    setProcessing(true);
+
+    console.log("SCANNED DATA:", data);
+    setStatusType('info');
+    setStatusMsg('QR detected! Verifying...');
+
+    try {
+      let qrData;
+      try {
+        qrData = JSON.parse(data);
+      } catch (e) {
+        throw new Error('Invalid QR Code format.');
+      }
+
+      if (!qrData.sessionId) {
+        throw new Error('Invalid QR Code payload.');
+      }
+
+      // Check for QR expiration (Dynamic QR Code)
+      if (qrData.t) {
+        const qrAgeMs = Date.now() - qrData.t;
+        // 30 seconds expiration window
+        if (qrAgeMs > 30000 || qrAgeMs < -10000) {
+          throw new Error('This QR code has expired. Please scan the current code on the screen.');
+        }
+      } else {
+        // Optional: Reject codes without timestamp (enforce dynamic QR)
+        throw new Error('Invalid QR Code format. Dynamic QR required.');
+      }
+
+      const sessionId = qrData.sessionId;
+
+      // 1. Fetch Session from Supabase
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('attendance_sessions')
+        .select('*')
+        .eq('id', sessionId)
+        .single();
+
+      if (sessionError || !sessionData) {
+        throw new Error('Session not found or invalid.');
+      }
+
+      // 2. Check if active
+      if (sessionData.status !== 'active') {
+        throw new Error('This attendance session has been closed.');
+      }
+
+      // 3. Check expiry
+      if (new Date(sessionData.expires_at) < new Date()) {
+        throw new Error('This QR code has expired.');
+      }
+
+      // 4. Verify GPS Location
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        throw new Error('Location permission is required for attendance.');
+      }
+
+      const locationPromise = Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Location fetch timed out.")), 10000)
+      );
+      const studentLocation: any = await Promise.race([locationPromise, timeoutPromise]);
+
+      if (studentLocation.mocked) {
+        throw new Error('Mock Location (Fake GPS) detected. Please disable it to mark attendance.');
+      }
+
+      const distance = getDistanceFromLatLonInM(
+        studentLocation.coords.latitude,
+        studentLocation.coords.longitude,
+        sessionData.latitude,
+        sessionData.longitude
+      );
+
+      if (distance > MAX_DISTANCE_METERS) {
+        throw new Error(`You are too far from the classroom (${Math.round(distance)}m away). You must be within ${MAX_DISTANCE_METERS}m.`);
+      }
+
+      // 5. Mark Attendance
+      const scanData = {
+        student_id: user?.id,
+        student_name: user?.name,
+        class_id: sessionData.class_id,
+        session_id: sessionData.id,
+        timestamp: new Date().toISOString()
+      };
+
+      const { error: insertError } = await supabase
+        .from('attendance_records')
+        .insert(scanData);
+
+      if (insertError) {
+        // If it's a unique constraint, they already checked in
+        if (insertError.code === '23505') {
+          throw new Error('You have already marked attendance for this session.');
+        }
+        
+        // If it's a network error (TypeError: Failed to fetch), queue offline
+        if (insertError.message?.includes('Failed to fetch') || insertError.message?.includes('Network request failed')) {
+           await saveOfflineScan(scanData);
+           setStatusType('info');
+           setStatusMsg('Offline: Scan saved and will sync later.');
+           setTimeout(() => router.replace('/(student)'), 3000);
+           return;
+        }
+
+        throw insertError;
+      }
+
+      setStatusType('success');
+      setStatusMsg('Successfully checked in!');
+
+      if (Platform.OS === 'web') {
+        window.alert('Successfully checked in!');
+      }
+
+      // Auto go back after 2 seconds
+      setTimeout(() => {
+        router.replace('/(student)');
+      }, 2500);
+
+    } catch (error: any) {
+      console.error(error);
+      setStatusType('error');
+      setStatusMsg(error.message || 'An unexpected error occurred.');
+      setProcessing(false);
+      // Wait 3 seconds before allowing another scan
+      setTimeout(() => setScanned(false), 3000);
+    }
+  };
+
+  const getStatusColor = () => {
+    if (statusType === 'error') return '#ef4444';
+    if (statusType === 'success') return '#10b981';
+    return '#7C3AED';
+  };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={[styles.header, { borderBottomColor: theme.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.text }]}>Mark Attendance</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <View style={styles.container}>
+      <CameraView
+        style={StyleSheet.absoluteFill}
+        facing="back"
+        barcodeScannerSettings={{
+          barcodeTypes: ["qr"],
+        }}
+        onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+      >
+        <View style={styles.overlay}>
+          {/* Header */}
+          <Animated.View entering={FadeInDown.duration(600)} style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <Ionicons name="chevron-back" size={24} color="white" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Scan QR Code</Text>
+            <View style={{ width: 40 }} />
+          </Animated.View>
 
-      <View style={styles.content}>
-        <Text style={[styles.placeholder, { color: theme.textSecondary }]}>
-          Attendance screen coming soon...
-        </Text>
-      </View>
+          {/* Scanner Box */}
+          <View style={styles.scannerBoxContainer}>
+            <View style={styles.scannerBox}>
+              <View style={[styles.corner, styles.topLeft]} />
+              <View style={[styles.corner, styles.topRight]} />
+              <View style={[styles.corner, styles.bottomLeft]} />
+              <View style={[styles.corner, styles.bottomRight]} />
+            </View>
+            <Text style={styles.microcopy}>
+              Point your camera at the QR code shown on the presentation screen.
+            </Text>
+          </View>
+
+          {/* Status Toast */}
+          <Animated.View entering={FadeInUp.duration(600)} style={styles.footer}>
+            <View style={[styles.statusBox, { backgroundColor: getStatusColor() }]}>
+              {processing && statusType === 'info' && <ActivityIndicator color="white" style={{ marginRight: 12 }} />}
+              {statusType === 'success' && <Ionicons name="checkmark-circle" size={24} color="white" style={{ marginRight: 12 }} />}
+              {statusType === 'error' && <Ionicons name="alert-circle" size={24} color="white" style={{ marginRight: 12 }} />}
+              <Text style={styles.statusText}>{statusMsg}</Text>
+            </View>
+          </Animated.View>
+
+        </View>
+      </CameraView>
     </View>
   );
 }
@@ -33,33 +283,95 @@ export default function MarkAttendanceScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: 'center',
+    backgroundColor: '#000',
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'space-between',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.four,
-    paddingTop: 60,
-    paddingBottom: Spacing.four,
-    borderBottomWidth: 1,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   backButton: {
     width: 40,
     height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  title: {
-    fontSize: 18,
+  headerTitle: {
+    color: 'white',
+    fontSize: 20,
     fontWeight: '700',
   },
-  content: {
+  scannerBoxContainer: {
     flex: 1,
-    padding: Spacing.four,
+    alignItems: 'center',
     justifyContent: 'center',
+  },
+  scannerBox: {
+    width: width * 0.7,
+    height: width * 0.7,
+    backgroundColor: 'transparent',
+  },
+  corner: {
+    position: 'absolute',
+    width: 40,
+    height: 40,
+    borderColor: 'white',
+  },
+  topLeft: { top: 0, left: 0, borderTopWidth: 4, borderLeftWidth: 4, borderTopLeftRadius: 16 },
+  topRight: { top: 0, right: 0, borderTopWidth: 4, borderRightWidth: 4, borderTopRightRadius: 16 },
+  bottomLeft: { bottom: 0, left: 0, borderBottomWidth: 4, borderLeftWidth: 4, borderBottomLeftRadius: 16 },
+  bottomRight: { bottom: 0, right: 0, borderBottomWidth: 4, borderRightWidth: 4, borderBottomRightRadius: 16 },
+  footer: {
+    padding: 30,
+    paddingBottom: Platform.OS === 'ios' ? 50 : 30,
+  },
+  statusBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  statusText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    flex: 1,
+  },
+  button: {
+    backgroundColor: '#7C3AED',
+    padding: 16,
+    borderRadius: 12,
+    marginHorizontal: 40,
     alignItems: 'center',
   },
-  placeholder: {
+  buttonText: {
+    color: 'white',
     fontSize: 16,
+    fontWeight: 'bold',
+  },
+  microcopy: {
+    color: 'rgba(255,255,255,0.8)',
     textAlign: 'center',
+    marginTop: 24,
+    paddingHorizontal: 40,
+    fontSize: 14,
+    lineHeight: 20,
   }
 });
