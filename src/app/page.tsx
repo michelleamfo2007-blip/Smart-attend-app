@@ -26,7 +26,7 @@ export default function Home() {
       <section className={styles.hero}>
         <div className={styles.blob}></div>
         <div className={styles.heroContent}>
-          <span className={styles.badge}>New: Cohort Auto-Enrollment 🚀</span>
+          <span className={styles.badge}>New: Cohort Auto-Enrollment</span>
           <h1 className={styles.title}>
             Frictionless GPS Attendance for<br/><span className={styles.highlight}>Modern Campuses</span>
           </h1>
