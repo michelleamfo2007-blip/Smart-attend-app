@@ -24,10 +24,19 @@ interface Session {
   records: { id: string; student_id: string }[];
 }
 
+interface CatalogueModule {
+  id: string;
+  name: string;
+  course_code: string;
+  level: string;
+  credit_hours: number;
+}
+
 export default function LecturerDashboard() {
   const { user } = useUser();
   const [qrTimestamp, setQrTimestamp] = useState(Date.now());
   const [classes, setClasses] = useState<Class[]>([]);
+  const [catalogue, setCatalogue] = useState<CatalogueModule[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState<string | null>(null);
@@ -36,20 +45,25 @@ export default function LecturerDashboard() {
   
   // Create Class State
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newClassName, setNewClassName] = useState('');
-  const [newClassLevel, setNewClassLevel] = useState('');
+  const [selectedModule, setSelectedModule] = useState('');
   const [newClassSemester, setNewClassSemester] = useState('');
+  const [scheduleDay, setScheduleDay] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
   const [creating, setCreating] = useState(false);
 
   const fetchData = useCallback(async () => {
-    const [classesRes, sessionsRes] = await Promise.all([
+    const [classesRes, sessionsRes, catalogueRes] = await Promise.all([
       fetch('/api/lecturer/courses'), // The API is still /courses, but returns classes
       fetch('/api/lecturer/sessions'),
+      fetch('/api/lecturer/catalogue'),
     ]);
     const classesData = await classesRes.json();
     const sessionsData = await sessionsRes.json();
+    const catalogueData = await catalogueRes.json();
     setClasses(classesData.courses || []);
     setSessions(sessionsData.sessions || []);
+    setCatalogue(catalogueData.catalogue || []);
     setLoading(false);
   }, []);
 
@@ -68,15 +82,23 @@ export default function LecturerDashboard() {
       const res = await fetch('/api/lecturer/courses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newClassName, level: newClassLevel, semester: newClassSemester }),
+        body: JSON.stringify({ 
+          moduleId: selectedModule, 
+          semester: newClassSemester,
+          scheduleDay,
+          startTime,
+          endTime
+        }),
       });
       const data = await res.json();
       if (res.ok) {
-        setMsg({ type: 'success', text: `✓ Class "${data.course.name}" created successfully!` });
+        setMsg({ type: 'success', text: `✓ Class scheduled successfully!` });
         setShowCreateModal(false);
-        setNewClassName('');
-        setNewClassLevel('');
+        setSelectedModule('');
         setNewClassSemester('');
+        setScheduleDay('');
+        setStartTime('');
+        setEndTime('');
         fetchData();
       } else {
         setMsg({ type: 'error', text: data.error || 'Failed to create class' });
@@ -251,6 +273,45 @@ export default function LecturerDashboard() {
         </div>
       )}
 
+      {/* Weekly Schedule */}
+      <div style={{ marginTop: '40px', marginBottom: '20px' }}>
+        <h2 style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#111827' }}>Weekly Schedule</h2>
+        <p style={{ color: '#6b7280', fontSize: '0.95rem' }}>Your timetable for the semester</p>
+      </div>
+
+      <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #f3f4f6', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+        {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map(day => {
+          // @ts-ignore
+          const dayClasses = classes.filter(c => c.schedule_time === day).sort((a, b) => a.start_time?.localeCompare(b.start_time || '') || 0);
+          return (
+            <div key={day} style={{ borderBottom: day !== 'Friday' ? '1px solid #f3f4f6' : 'none', display: 'flex' }}>
+              <div style={{ width: '120px', padding: '24px', background: '#f9fafb', fontWeight: 'bold', color: '#374151', borderRight: '1px solid #f3f4f6', display: 'flex', alignItems: 'center' }}>
+                {day}
+              </div>
+              <div style={{ padding: '16px 24px', flex: 1, display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                {dayClasses.length === 0 ? (
+                  <div style={{ color: '#9ca3af', fontStyle: 'italic', display: 'flex', alignItems: 'center' }}>No classes scheduled</div>
+                ) : (
+                  dayClasses.map(cls => (
+                    <div key={cls.id} style={{ background: '#e01e3710', border: '1px solid #e01e3730', borderRadius: '8px', padding: '12px 16px', minWidth: '200px' }}>
+                      <div style={{ fontWeight: 'bold', color: '#e01e37', marginBottom: '4px' }}>
+                        {/* @ts-ignore */}
+                        {cls.start_time} - {cls.end_time}
+                      </div>
+                      <div style={{ fontWeight: '600', color: '#111827' }}>{cls.name}</div>
+                      <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>
+                        {/* @ts-ignore */}
+                        {cls.course_code} · {cls.level}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
       {/* My Classes Grid */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '32px', marginBottom: '20px' }}>
         <h2 style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#111827' }}>My Classes</h2>
@@ -319,49 +380,81 @@ export default function LecturerDashboard() {
             </div>
             <form className={styles.modalForm} onSubmit={handleCreateClass}>
               <div className={styles.formGroup}>
-                <label>Class Name</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. Intro to Computer Science" 
-                  value={newClassName} 
-                  onChange={e => setNewClassName(e.target.value)} 
-                  required 
-                />
-              </div>
-              <div className={styles.formGroup}>
-                <label>Level/Code</label>
+                <label>Select Module from Catalogue</label>
                 <select 
                   className={styles.inputField} 
-                  value={newClassLevel} 
-                  onChange={e => setNewClassLevel(e.target.value)} 
+                  value={selectedModule} 
+                  onChange={e => setSelectedModule(e.target.value)} 
                   required
-                  style={{ padding: '12px 14px', border: '1.5px solid #e5e7eb', borderRadius: '10px', fontSize: '0.95rem' }}
+                  style={{ padding: '12px 14px', border: '1.5px solid #e5e7eb', borderRadius: '10px', fontSize: '0.95rem', width: '100%' }}
                 >
-                  <option value="" disabled>Select Level</option>
-                  <option value="Level 3">Level 3</option>
-                  <option value="Level 4">Level 4</option>
-                  <option value="Level 5">Level 5</option>
-                  <option value="Level 6">Level 6</option>
+                  <option value="" disabled>-- Select a Module --</option>
+                  {catalogue.map(mod => (
+                    <option key={mod.id} value={mod.id}>
+                      {mod.course_code} - {mod.name} (Level {mod.level})
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className={styles.formGroup}>
-                <label>Semester</label>
+                <label>Semester Taught</label>
                 <select 
                   className={styles.inputField} 
                   value={newClassSemester} 
                   onChange={e => setNewClassSemester(e.target.value)} 
                   required
-                  style={{ padding: '12px 14px', border: '1.5px solid #e5e7eb', borderRadius: '10px', fontSize: '0.95rem' }}
+                  style={{ padding: '12px 14px', border: '1.5px solid #e5e7eb', borderRadius: '10px', fontSize: '0.95rem', width: '100%' }}
                 >
                   <option value="" disabled>Select Semester</option>
                   <option value="First Semester">First Semester</option>
                   <option value="Second Semester">Second Semester</option>
                 </select>
               </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className={styles.formGroup}>
+                  <label>Day of the Week</label>
+                  <select 
+                    className={styles.inputField} 
+                    value={scheduleDay} 
+                    onChange={e => setScheduleDay(e.target.value)} 
+                    required
+                    style={{ padding: '12px 14px', border: '1.5px solid #e5e7eb', borderRadius: '10px', fontSize: '0.95rem', width: '100%' }}
+                  >
+                    <option value="" disabled>Day</option>
+                    <option value="Monday">Monday</option>
+                    <option value="Tuesday">Tuesday</option>
+                    <option value="Wednesday">Wednesday</option>
+                    <option value="Thursday">Thursday</option>
+                    <option value="Friday">Friday</option>
+                  </select>
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Start Time</label>
+                  <input 
+                    type="time" 
+                    value={startTime} 
+                    onChange={e => setStartTime(e.target.value)} 
+                    required 
+                    style={{ padding: '12px 14px', border: '1.5px solid #e5e7eb', borderRadius: '10px', fontSize: '0.95rem', width: '100%' }}
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>End Time</label>
+                  <input 
+                    type="time" 
+                    value={endTime} 
+                    onChange={e => setEndTime(e.target.value)} 
+                    required 
+                    style={{ padding: '12px 14px', border: '1.5px solid #e5e7eb', borderRadius: '10px', fontSize: '0.95rem', width: '100%' }}
+                  />
+                </div>
+              </div>
+
               <div className={styles.modalFooter}>
                 <button type="button" className={styles.cancelBtn} onClick={() => setShowCreateModal(false)}>Cancel</button>
                 <button type="submit" className={styles.submitBtn} disabled={creating}>
-                  {creating ? 'Creating...' : 'Create Class'}
+                  {creating ? 'Scheduling...' : 'Schedule Class'}
                 </button>
               </div>
             </form>

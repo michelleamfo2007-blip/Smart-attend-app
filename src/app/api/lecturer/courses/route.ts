@@ -44,20 +44,37 @@ export async function POST(req: Request) {
 
     if (!userId || !institutionId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { name, level, semester } = await req.json();
+    const { moduleId, scheduleDay, startTime, endTime, semester } = await req.json();
 
-    if (!name || !level || !semester) {
+    if (!moduleId || !scheduleDay || !startTime || !endTime || !semester) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    // Find the module in the catalogue
+    const moduleItem = await prisma.classes.findUnique({
+      where: { id: moduleId }
+    });
+
+    if (!moduleItem) {
+      return NextResponse.json({ error: 'Module not found in catalogue' }, { status: 404 });
     }
 
     // Generate a unique 6-character alphanumeric invite code
     const invite_code = Math.random().toString(36).substring(2, 8).toUpperCase();
 
+    // Create a new scheduled class for this lecturer based on the module
     const newClass = await prisma.classes.create({
       data: {
-        name,
-        level,
+        name: moduleItem.name,
+        course_code: moduleItem.course_code,
+        credit_hours: moduleItem.credit_hours,
+        is_compulsory: moduleItem.is_compulsory,
+        level: moduleItem.level, // Inherit level from module, but let them override semester
         semester,
+        schedule_time: scheduleDay,
+        start_time: startTime,
+        end_time: endTime,
+        programme_id: moduleItem.programme_id,
         lecturer_id: userId,
         invite_code,
         institution_id: institutionId,
@@ -66,7 +83,7 @@ export async function POST(req: Request) {
 
     // Auto-enroll existing students matching level and semester within the same institution
     const matchingStudents = await prisma.users.findMany({
-      where: { role: 'STUDENT', level, semester, institution_id: institutionId }
+      where: { role: 'STUDENT', level: moduleItem.level, semester, institution_id: institutionId }
     });
 
     if (matchingStudents.length > 0) {
