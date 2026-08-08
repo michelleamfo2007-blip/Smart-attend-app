@@ -115,7 +115,7 @@ export default function AdminClassesPage() {
 
       <section className={styles.section}>
         <div className={styles.table}>
-          <div className={styles.tableHeader} style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr' }}>
+          <div className={styles.tableHeader} style={{ gridTemplateColumns: '2.5fr 1.5fr 0.8fr 1.5fr 1fr', gap: '1rem' }}>
             <span>Module Name</span>
             <span>Lecturer</span>
             <span>Info</span>
@@ -129,7 +129,7 @@ export default function AdminClassesPage() {
               <div 
                 key={c.id} 
                 className={styles.tableRow} 
-                style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', cursor: 'pointer' }}
+                style={{ gridTemplateColumns: '2.5fr 1.5fr 0.8fr 1.5fr 1fr', gap: '1rem', cursor: 'pointer' }}
                 onClick={() => router.push(`/dashboard/admin/classes/${c.id}`)}
               >
                 <span><strong>{c.name}</strong></span>
