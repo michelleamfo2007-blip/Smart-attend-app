@@ -55,10 +55,10 @@ export default function AdminClassesPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const handleCreateClass = async (e: React.FormEvent) => {
+    const handleCreateClass = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newClassName || !newClassLecturer) {
-      setMsg({ type: 'error', text: 'Class name and lecturer are required' });
+    if (!newClassName) {
+      setMsg({ type: 'error', text: 'Class name is required' });
       return;
     }
 
@@ -168,9 +168,9 @@ export default function AdminClassesPage() {
                 <input type="text" className={styles.input} placeholder="e.g. CS 101" value={newClassName} onChange={e => setNewClassName(e.target.value)} required />
               </div>
               <div className={styles.formGroup}>
-                <label>Lecturer</label>
-                <select className={styles.input} value={newClassLecturer} onChange={e => setNewClassLecturer(e.target.value)} required>
-                  <option value="">Select a lecturer...</option>
+                <label>Lecturer (Optional)</label>
+                <select className={styles.input} value={newClassLecturer} onChange={e => setNewClassLecturer(e.target.value)}>
+                  <option value="">Leave unassigned for now...</option>
                   {lecturers.map(l => (
                     <option key={l.id} value={l.id}>{l.name} ({l.email})</option>
                   ))}

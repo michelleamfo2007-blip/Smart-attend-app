@@ -40,14 +40,14 @@ export async function POST(req: Request) {
     if (!payload || payload.userRole !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const { name, lecturer_id, level, semester, schedule_time } = await req.json();
-    if (!name || !lecturer_id) {
-      return NextResponse.json({ error: 'Name and lecturer are required' }, { status: 400 });
+    if (!name) {
+      return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
 
     const course = await prisma.classes.create({
       data: { 
         name, 
-        lecturer_id, 
+        lecturer_id: lecturer_id || null, 
         level, 
         semester, 
         schedule_time,

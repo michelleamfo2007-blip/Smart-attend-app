@@ -52,7 +52,7 @@ model classes {
   id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   institution_id String?  @db.Uuid
   name           String
-  lecturer_id    String   @db.Uuid
+  lecturer_id    String?  @db.Uuid
   level          String?
   semester       String?
   schedule_time  String?
@@ -62,7 +62,7 @@ model classes {
   classroom_id   String?  @db.Uuid
 
   institution   institutions?        @relation(fields: [institution_id], references: [id], onDelete: Cascade)
-  lecturer      users                @relation("lecturer", fields: [lecturer_id], references: [id], onDelete: Cascade)
+  lecturer      users?               @relation("lecturer", fields: [lecturer_id], references: [id], onDelete: SetNull)
   classroom     classrooms?          @relation(fields: [classroom_id], references: [id], onDelete: SetNull)
   sessions      attendance_sessions[]
   records       attendance_records[]
