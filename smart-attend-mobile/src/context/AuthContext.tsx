@@ -14,7 +14,7 @@ export interface User {
   semester?: string;
   institution_id?: string;
 }
-
+export interface AuthContextType {
   user: User | null;
   token: string | null;
   loading: boolean;
