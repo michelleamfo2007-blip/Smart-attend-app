@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useUser } from '@/hooks/useUser';
 import styles from './lecturer.module.css';
 import { BookOpen, PlusCircle, MinusCircle, Users, Activity } from 'lucide-react';
+import QRCode from 'react-qr-code';
 
 interface Class {
   id: string;
@@ -50,6 +51,7 @@ export default function LecturerDashboard() {
   const [starting, setStarting] = useState<string | null>(null);
   const [ending, setEnding] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [qrTimestamp, setQrTimestamp] = useState<number>(Date.now());
   
   // Create Class State
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -78,6 +80,14 @@ export default function LecturerDashboard() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    // Rotate QR code timestamp every 10 seconds
+    const interval = setInterval(() => {
+      setQrTimestamp(Date.now());
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleCreateClass = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -241,12 +251,25 @@ export default function LecturerDashboard() {
               <strong>Session in Progress</strong>
               <p>{activeSession.class.name} ({activeSession.class.level}) · Started {new Date(activeSession.created_at).toLocaleTimeString()}</p>
             </div>
-            <div style={{ background: '#fdf2f2', border: '2px solid #e01e37', borderRadius: '16px', padding: '32px', textAlign: 'center', marginBottom: '24px' }}>
-              <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#e01e37', letterSpacing: '1px', marginBottom: '8px' }}>ATTENDANCE CODE</div>
-              <div style={{ fontSize: '64px', fontWeight: '900', color: '#111827', letterSpacing: '8px', lineHeight: '1' }}>
-                {activeSession.attendance_code || '------'}
+            
+            <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
+              <div style={{ background: 'white', padding: '16px', borderRadius: '16px', border: '1px solid #e5e7eb' }}>
+                <QRCode 
+                  value={JSON.stringify({ 
+                    sessionId: activeSession.id, 
+                    timestamp: qrTimestamp 
+                  })} 
+                  size={160} 
+                  level="H"
+                />
               </div>
-              <p style={{ color: '#6b7280', fontSize: '14px', marginTop: '16px' }}>Students must enter this code in their mobile app to mark attendance.</p>
+              <div style={{ background: '#fdf2f2', border: '2px solid #e01e37', borderRadius: '16px', padding: '32px', textAlign: 'center', flex: 1 }}>
+                <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#e01e37', letterSpacing: '1px', marginBottom: '8px' }}>DYNAMIC QR SCANNER</div>
+                <div style={{ fontSize: '18px', fontWeight: '600', color: '#111827', lineHeight: '1.4' }}>
+                  Students must scan this QR code with the Smart Attend mobile app to check in.
+                </div>
+                <p style={{ color: '#6b7280', fontSize: '13px', marginTop: '12px' }}>Code rotates automatically to prevent screenshot sharing.</p>
+              </div>
             </div>
           </div>
           
