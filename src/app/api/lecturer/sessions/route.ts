@@ -57,10 +57,14 @@ export async function POST(req: Request) {
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 2); // default 2 hours
 
+    // Generate 6-digit random code
+    const attendance_code = Math.floor(100000 + Math.random() * 900000).toString();
+
     const session = await prisma.attendance_sessions.create({
       data: {
         class_id: courseId,
         lecturer_id: userId,
+        attendance_code,
         latitude,
         longitude,
         status: 'active',

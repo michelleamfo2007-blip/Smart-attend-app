@@ -114,14 +114,15 @@ model cohort_classes {
 }
 
 model attendance_sessions {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  class_id    String   @db.Uuid
-  lecturer_id String   @db.Uuid
-  latitude    Float?
-  longitude   Float?
-  status      String   @default("active")
-  expires_at  DateTime @db.Timestamptz
-  created_at  DateTime @default(now()) @db.Timestamptz
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  class_id        String   @db.Uuid
+  lecturer_id     String   @db.Uuid
+  attendance_code String?
+  latitude        Float?
+  longitude       Float?
+  status          String   @default("active")
+  expires_at      DateTime @db.Timestamptz
+  created_at      DateTime @default(now()) @db.Timestamptz
 
   class       classes  @relation(fields: [class_id], references: [id], onDelete: Cascade)
   lecturer    users    @relation("session_lecturer", fields: [lecturer_id], references: [id], onDelete: Cascade)

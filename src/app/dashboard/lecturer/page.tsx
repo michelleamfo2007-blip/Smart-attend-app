@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useUser } from '@/hooks/useUser';
 import styles from './lecturer.module.css';
-import QRCode from 'react-qr-code';
+import { BookOpen, PlusCircle, MinusCircle, Users, Activity } from 'lucide-react';
 
 interface Class {
   id: string;
@@ -42,7 +42,7 @@ interface CatalogueModule {
 
 export default function LecturerDashboard() {
   const { user } = useUser();
-  const [qrTimestamp, setQrTimestamp] = useState(Date.now());
+
   const [classes, setClasses] = useState<Class[]>([]);
   const [catalogue, setCatalogue] = useState<CatalogueModule[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -78,11 +78,6 @@ export default function LecturerDashboard() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
-
-  useEffect(() => {
-    const interval = setInterval(() => setQrTimestamp(Date.now()), 10000);
-    return () => clearInterval(interval);
-  }, []);
 
   const handleCreateClass = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -246,15 +241,12 @@ export default function LecturerDashboard() {
               <strong>Session in Progress</strong>
               <p>{activeSession.class.name} ({activeSession.class.level}) · Started {new Date(activeSession.created_at).toLocaleTimeString()}</p>
             </div>
-            
-            <div className={styles.qrCodeWrapper}>
-              <div style={{ background: 'white', padding: '16px', borderRadius: '12px' }}>
-                <QRCode 
-                  value={JSON.stringify({ sessionId: activeSession.id, t: qrTimestamp })}
-                  size={200}
-                />
+            <div style={{ background: '#fdf2f2', border: '2px solid #e01e37', borderRadius: '16px', padding: '32px', textAlign: 'center', marginBottom: '24px' }}>
+              <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#e01e37', letterSpacing: '1px', marginBottom: '8px' }}>ATTENDANCE CODE</div>
+              <div style={{ fontSize: '64px', fontWeight: '900', color: '#111827', letterSpacing: '8px', lineHeight: '1' }}>
+                {activeSession.attendance_code || '------'}
               </div>
-              <p className={styles.qrHelper}>Students can scan this code with the Mobile App</p>
+              <p style={{ color: '#6b7280', fontSize: '14px', marginTop: '16px' }}>Students must enter this code in their mobile app to mark attendance.</p>
             </div>
           </div>
           

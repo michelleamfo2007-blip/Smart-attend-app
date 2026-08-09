@@ -33,20 +33,23 @@ export async function POST(req: Request) {
     const userId = headersList.get('x-user-id');
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { sessionId, latitude, longitude } = await req.json();
+    const { attendanceCode, latitude, longitude } = await req.json();
 
-    if (!sessionId || latitude == null || longitude == null) {
+    if (!attendanceCode || latitude == null || longitude == null) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Verify session is active
-    const session = await prisma.attendance_sessions.findUnique({
-      where: { id: sessionId },
+    // Verify session is active and matches code
+    const session = await prisma.attendance_sessions.findFirst({
+      where: { 
+        status: 'active',
+        attendance_code: attendanceCode
+      },
       include: { class: { include: { classroom: true } } }
     });
     
-    if (!session || session.status !== 'active') {
-      return NextResponse.json({ error: 'Session is not active or invalid QR code.' }, { status: 400 });
+    if (!session) {
+      return NextResponse.json({ error: 'Invalid attendance code or session has ended.' }, { status: 400 });
     }
 
     // Verify the student is enrolled in this class!
@@ -65,7 +68,7 @@ export async function POST(req: Request) {
 
     // Check already marked
     const existing = await prisma.attendance_records.findUnique({
-      where: { student_id_session_id: { session_id: sessionId, student_id: userId } },
+      where: { student_id_session_id: { session_id: session.id, student_id: userId } },
     });
     if (existing) {
       return NextResponse.json({ error: 'Attendance already marked' }, { status: 400 });
@@ -98,7 +101,7 @@ export async function POST(req: Request) {
 
     const record = await prisma.attendance_records.create({
       data: { 
-        session_id: sessionId, 
+        session_id: session.id, 
         student_id: userId, 
         class_id: session.class_id,
         location: `Lat: ${latitude}, Lng: ${longitude}`,
