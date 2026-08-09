@@ -19,6 +19,17 @@ export async function GET() {
         institution_id: institutionId,
         lecturer_id: null,
       },
+      include: {
+        programme: {
+          include: {
+            department: {
+              include: {
+                college: true
+              }
+            }
+          }
+        }
+      },
       orderBy: {
         name: 'asc'
       }

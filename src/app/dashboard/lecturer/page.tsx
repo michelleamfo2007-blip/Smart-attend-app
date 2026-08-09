@@ -30,6 +30,14 @@ interface CatalogueModule {
   course_code: string;
   level: string;
   credit_hours: number;
+  programme?: {
+    department: {
+      name: string;
+      college: {
+        name: string;
+      }
+    }
+  }
 }
 
 export default function LecturerDashboard() {
@@ -45,6 +53,8 @@ export default function LecturerDashboard() {
   
   // Create Class State
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [filterLevel, setFilterLevel] = useState('');
+  const [filterCollege, setFilterCollege] = useState('');
   const [selectedModule, setSelectedModule] = useState('');
   const [newClassSemester, setNewClassSemester] = useState('');
   const [scheduleDay, setScheduleDay] = useState('');
@@ -173,6 +183,15 @@ export default function LecturerDashboard() {
   const totalAttendance = sessions.reduce((acc, s) => acc + (s.records?.length || 0), 0);
 
   if (loading) return <div className={styles.loading}><div className={styles.spinner} /></div>;
+
+  const uniqueLevels = Array.from(new Set(catalogue.map(m => m.level))).sort();
+  const uniqueColleges = Array.from(new Set(catalogue.map(m => m.programme?.department.college.name).filter(Boolean))).sort();
+
+  const filteredCatalogue = catalogue.filter(m => {
+    if (filterLevel && m.level !== filterLevel) return false;
+    if (filterCollege && m.programme?.department.college.name !== filterCollege) return false;
+    return true;
+  });
 
   return (
     <div className={styles.page}>
@@ -342,6 +361,38 @@ export default function LecturerDashboard() {
               <button className={styles.closeModalBtn} onClick={() => setShowCreateModal(false)}>✕</button>
             </div>
             <form className={styles.modalForm} onSubmit={handleCreateClass}>
+              {/* Filters */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: '#f9fafb', padding: '12px', borderRadius: '12px', border: '1px solid #f3f4f6' }}>
+                <div className={styles.formGroup} style={{ gap: '4px' }}>
+                  <label style={{ fontSize: '0.75rem', color: '#6b7280' }}>Filter by College</label>
+                  <select 
+                    className={styles.inputField} 
+                    value={filterCollege} 
+                    onChange={e => { setFilterCollege(e.target.value); setSelectedModule(''); }}
+                    style={{ padding: '8px 12px', border: '1.5px solid #e5e7eb', borderRadius: '8px', fontSize: '0.85rem' }}
+                  >
+                    <option value="">All Colleges</option>
+                    {uniqueColleges.map(c => (
+                      <option key={c as string} value={c as string}>{c as string}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className={styles.formGroup} style={{ gap: '4px' }}>
+                  <label style={{ fontSize: '0.75rem', color: '#6b7280' }}>Filter by Level</label>
+                  <select 
+                    className={styles.inputField} 
+                    value={filterLevel} 
+                    onChange={e => { setFilterLevel(e.target.value); setSelectedModule(''); }}
+                    style={{ padding: '8px 12px', border: '1.5px solid #e5e7eb', borderRadius: '8px', fontSize: '0.85rem' }}
+                  >
+                    <option value="">All Levels</option>
+                    {uniqueLevels.map(l => (
+                      <option key={l} value={l}>Level {l}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div className={styles.formGroup}>
                 <label>Select Module from Catalogue</label>
                 <select 
@@ -352,7 +403,7 @@ export default function LecturerDashboard() {
                   style={{ padding: '12px 14px', border: '1.5px solid #e5e7eb', borderRadius: '10px', fontSize: '0.95rem', width: '100%' }}
                 >
                   <option value="" disabled>-- Select a Module --</option>
-                  {catalogue.map(mod => (
+                  {filteredCatalogue.map(mod => (
                     <option key={mod.id} value={mod.id}>
                       {mod.course_code} - {mod.name} (Level {mod.level})
                     </option>
