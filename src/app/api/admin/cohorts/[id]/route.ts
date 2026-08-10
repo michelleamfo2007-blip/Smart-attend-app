@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
-import { verifyAuth } from '@/lib/auth';
+import { verifyToken } from '@/lib/auth';
+import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
-    const user = await verifyAuth(req);
-    if (!user || user.role !== 'ADMIN') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const cookieStore = await cookies();
+    const token = cookieStore.get('token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = await verifyToken(token);
+    if (!user || user.userRole !== 'ADMIN') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const cohort = await prisma.cohorts.findUnique({
       where: { id: params.id, institution_id: user.institutionId },
@@ -32,8 +36,11 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   try {
-    const user = await verifyAuth(req);
-    if (!user || user.role !== 'ADMIN') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const cookieStore = await cookies();
+    const token = cookieStore.get('token')?.value;
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = await verifyToken(token);
+    if (!user || user.userRole !== 'ADMIN') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
     const { name, student_id } = body;
