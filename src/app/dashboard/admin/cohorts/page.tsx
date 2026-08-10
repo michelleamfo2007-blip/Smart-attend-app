@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useUser } from '@/hooks/useUser';
+import { Users, BookOpen, Layers } from 'lucide-react';
 import styles from './page.module.css';
 
 export default function CohortsPage() {
@@ -101,10 +102,19 @@ export default function CohortsPage() {
         <div className={styles.grid}>
           {cohorts.map(cohort => (
             <div key={cohort.id} className={styles.card}>
+              <div className={styles.cardIconWrapper}>
+                <Layers size={24} />
+              </div>
               <h3 className={styles.cardTitle}>{cohort.name}</h3>
               <div className={styles.cardStats}>
-                <span>{cohort._count?.users || 0} Students</span>
-                <span>{cohort._count?.cohort_classes || 0} Modules</span>
+                <span>
+                  <Users size={16} />
+                  {cohort._count?.users || 0} Students
+                </span>
+                <span>
+                  <BookOpen size={16} />
+                  {cohort._count?.cohort_classes || 0} Modules
+                </span>
               </div>
             </div>
           ))}

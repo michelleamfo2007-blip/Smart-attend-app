@@ -5,6 +5,7 @@ import prisma from '@/lib/prisma';
 import styles from './page.module.css';
 import { BookOpen, School, Building2, GraduationCap } from 'lucide-react';
 import ImportCatalogueClient from './ImportCatalogueClient';
+import CatalogueList from './CatalogueList';
 
 export default async function CataloguePage() {
   const cookieStore = await cookies();
@@ -46,78 +47,7 @@ export default async function CataloguePage() {
           <p>Start by adding your first College or School to build your curriculum hierarchy.</p>
         </div>
       ) : (
-        <div className={styles.collegesList}>
-          {colleges.map(college => (
-            <div key={college.id} className={styles.collegeCard}>
-              <div className={styles.collegeHeader}>
-                <h2 className={styles.collegeTitle}>
-                  <School className={styles.icon} size={24} /> {college.name}
-                </h2>
-                <button className="btn btn-outline" style={{ padding: '6px 12px', borderRadius: '8px', fontSize: '14px' }}>Add Dept</button>
-              </div>
-
-              <div className={styles.departmentsList}>
-                {college.departments.length === 0 ? (
-                  <p className={styles.emptyText}>No departments yet.</p>
-                ) : (
-                  college.departments.map(dept => (
-                    <div key={dept.id} className={styles.departmentCard}>
-                      <div className={styles.deptHeader}>
-                        <h3 className={styles.deptTitle}>
-                          <Building2 className={styles.icon} size={20} /> {dept.name}
-                        </h3>
-                        <button className="btn btn-outline" style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '12px' }}>Add Prog</button>
-                      </div>
-
-                      <div className={styles.programmesList}>
-                        {dept.programmes.length === 0 ? (
-                          <p className={styles.emptyText}>No programmes yet.</p>
-                        ) : (
-                          dept.programmes.map(prog => (
-                            <div key={prog.id} className={styles.programmeCard}>
-                              <div className={styles.progHeader}>
-                                <h4 className={styles.progTitle}>
-                                  <GraduationCap className={styles.icon} size={18} /> {prog.name}
-                                </h4>
-                                <button className="btn btn-primary" style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '12px' }}>Add Course</button>
-                              </div>
-
-                              <div className={styles.coursesGrid}>
-                                {prog.classes.length === 0 ? (
-                                  <p className={styles.emptyText}>No courses mapped yet.</p>
-                                ) : (
-                                  prog.classes.map(course => (
-                                    <div key={course.id} className={styles.courseItem}>
-                                      <div className={styles.courseMain}>
-                                        <BookOpen size={16} className={styles.courseIcon} />
-                                        <div>
-                                          <strong>{course.course_code}</strong>
-                                          <p>{course.name}</p>
-                                        </div>
-                                      </div>
-                                      <div className={styles.courseMeta}>
-                                        <span className={styles.badge}>Lvl {course.level}</span>
-                                        <span className={styles.badge}>Sem {course.semester}</span>
-                                        <span className={styles.badge}>{course.credit_hours} Cr</span>
-                                        <span className={course.is_compulsory ? styles.badgeCompulsory : styles.badgeElective}>
-                                          {course.is_compulsory ? 'Compulsory' : 'Elective'}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  ))
-                                )}
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+        <CatalogueList colleges={colleges} />
       )}
     </div>
   );

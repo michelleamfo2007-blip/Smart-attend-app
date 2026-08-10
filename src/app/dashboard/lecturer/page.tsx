@@ -339,9 +339,7 @@ export default function LecturerDashboard() {
                   <span style={{ fontSize: '0.8rem', color: '#6b7280', textTransform: 'uppercase', fontWeight: 'bold' }}>Invite Code</span>
                   <div style={{ fontSize: '1.1rem', fontWeight: 'bold', letterSpacing: '2px', color: '#111827' }}>{cls.invite_code || '---'}</div>
                 </div>
-                <button onClick={() => handleRegenerateCode(cls.id)} style={{ background: 'none', border: 'none', color: '#3b82f6', fontSize: '0.9rem', cursor: 'pointer', textDecoration: 'underline' }}>
-                  Regenerate
-                </button>
+
               </div>
 
               <button 

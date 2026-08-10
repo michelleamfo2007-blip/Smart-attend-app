@@ -161,17 +161,10 @@ export default function LecturerClassesPage() {
                   <h3 className={styles.courseName}>{c.name}</h3>
                   <p className={styles.courseDesc}>{c.semester}</p>
                   
-                  <div style={{ margin: '12px 0', padding: '8px 12px', background: '#f3f4f6', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ margin: '12px 0', padding: '8px 12px', background: '#f3f4f6', borderRadius: '8px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                     <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>
                       Invite Code: <strong style={{ color: '#111827', letterSpacing: '1px', marginLeft: '4px' }}>{c.invite_code || '---'}</strong>
                     </div>
-                    <button 
-                      onClick={() => handleRegenerateCode(c.id)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#e01e37', padding: '4px' }}
-                      title="Generate new invite code"
-                    >
-                      ↻
-                    </button>
                   </div>
 
                   <div className={styles.courseFooter}>
