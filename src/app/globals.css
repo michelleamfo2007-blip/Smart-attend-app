@@ -52,6 +52,16 @@ html, body {
   overflow-x: hidden;
 }
 
+/* Hide scrollbar globally for a cleaner app-like experience */
+::-webkit-scrollbar {
+  width: 0px;
+  background: transparent;
+}
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
 /* ─── Buttons ─── */
 .btn {
   display: inline-flex;

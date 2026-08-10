@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import styles from '../admin.module.css';
 
 interface User {
@@ -25,10 +25,21 @@ interface User {
 
 export default function AdminUsersPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get('tab') as 'ALL' | 'STUDENT' | 'LECTURER' || 'ALL';
+  
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'ALL' | 'STUDENT' | 'LECTURER'>('ALL');
+  const [activeTab, setActiveTab] = useState<'ALL' | 'STUDENT' | 'LECTURER'>(initialTab);
+
+  // Update tab if URL changes
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && ['ALL', 'STUDENT', 'LECTURER'].includes(tab)) {
+      setActiveTab(tab as 'ALL' | 'STUDENT' | 'LECTURER');
+    }
+  }, [searchParams]);
 
   const fetchData = useCallback(async () => {
     const res = await fetch('/api/admin/users');
@@ -83,19 +94,19 @@ export default function AdminUsersPage() {
 
       <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', borderBottom: '1px solid #e5e7eb', paddingBottom: '10px' }}>
         <button 
-          onClick={() => setActiveTab('ALL')}
+          onClick={() => router.push('/dashboard/admin/users?tab=ALL')}
           style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: activeTab === 'ALL' ? '#e01e37' : 'transparent', color: activeTab === 'ALL' ? 'white' : '#4b5563', fontWeight: 600, cursor: 'pointer' }}
         >
           All Users
         </button>
         <button 
-          onClick={() => setActiveTab('LECTURER')}
+          onClick={() => router.push('/dashboard/admin/users?tab=LECTURER')}
           style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: activeTab === 'LECTURER' ? '#e01e37' : 'transparent', color: activeTab === 'LECTURER' ? 'white' : '#4b5563', fontWeight: 600, cursor: 'pointer' }}
         >
           Lecturers
         </button>
         <button 
-          onClick={() => setActiveTab('STUDENT')}
+          onClick={() => router.push('/dashboard/admin/users?tab=STUDENT')}
           style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: activeTab === 'STUDENT' ? '#e01e37' : 'transparent', color: activeTab === 'STUDENT' ? 'white' : '#4b5563', fontWeight: 600, cursor: 'pointer' }}
         >
           Students

@@ -8,7 +8,10 @@ import styles from './admin.module.css';
 interface User { id: string; name: string; email: string; role: string; }
 interface Class { id: string; name: string; level: string; semester: string; schedule_time: string; records: { id: string }[]; sessions: { id: string; status: string }[]; lecturer: { name: string }; }
 
+import { useRouter } from 'next/navigation';
+
 export default function AdminDashboard() {
+  const router = useRouter();
   const { user } = useUser();
   const [users, setUsers] = useState<User[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
@@ -67,14 +70,21 @@ export default function AdminDashboard() {
       {/* Stats */}
       <div className={styles.statsGrid}>
         {[
-          { label: 'Total Users', value: users.length, icon: <Users size={20} />, color: '#fff0f2', textColor: '#e01e37' },
-          { label: 'Students', value: students.length, icon: <GraduationCap size={20} />, color: '#eff6ff', textColor: '#3b82f6' },
-          { label: 'Lecturers', value: lecturers.length, icon: <Presentation size={20} />, color: '#fdf4ff', textColor: '#a855f7' },
-          { label: 'Classes', value: classes.length, icon: <BookOpen size={20} />, color: '#fff7ed', textColor: '#f97316' },
-          { label: 'Active Sessions', value: activeSessions, icon: <Activity size={20} />, color: '#f0fdf4', textColor: '#22c55e' },
-          { label: 'Admins', value: admins.length, icon: <Key size={20} />, color: '#f8fafc', textColor: '#64748b' },
-        ].map(({ label, value, icon, color, textColor }) => (
-          <div key={label} className={styles.statCard} style={{ borderLeft: `4px solid ${textColor}` }}>
+          { label: 'Total Users', value: users.length, icon: <Users size={20} />, color: '#fff0f2', textColor: '#e01e37', link: '/dashboard/admin/users?tab=ALL' },
+          { label: 'Students', value: students.length, icon: <GraduationCap size={20} />, color: '#eff6ff', textColor: '#3b82f6', link: '/dashboard/admin/users?tab=STUDENT' },
+          { label: 'Lecturers', value: lecturers.length, icon: <Presentation size={20} />, color: '#fdf4ff', textColor: '#a855f7', link: '/dashboard/admin/users?tab=LECTURER' },
+          { label: 'Classes', value: classes.length, icon: <BookOpen size={20} />, color: '#fff7ed', textColor: '#f97316', link: '/dashboard/admin/classes' },
+          { label: 'Active Sessions', value: activeSessions, icon: <Activity size={20} />, color: '#f0fdf4', textColor: '#22c55e', link: '/dashboard/admin/classes' },
+          { label: 'Admins', value: admins.length, icon: <Key size={20} />, color: '#f8fafc', textColor: '#64748b', link: '/dashboard/admin/users?tab=ALL' },
+        ].map(({ label, value, icon, color, textColor, link }) => (
+          <div 
+            key={label} 
+            className={`${styles.statCard} ${styles.clickableCard || ''}`} 
+            style={{ borderLeft: `4px solid ${textColor}`, cursor: 'pointer', transition: 'transform 0.2s ease-in-out' }}
+            onClick={() => router.push(link)}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
             <div className={styles.statIcon} style={{ background: color, fontSize: '1.4rem' }}>{icon}</div>
             <div><div className={styles.statValue} style={{ color: textColor }}>{value}</div><div className={styles.statLabel}>{label}</div></div>
           </div>
