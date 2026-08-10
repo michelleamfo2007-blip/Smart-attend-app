@@ -81,6 +81,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className={styles.overlay} onClick={() => setSidebarOpen(false)} />
       )}
 
+      {/* Sidebar spacer for fixed sidebar */}
+      <div className={styles.sidebarSpacer} />
+
       {/* Sidebar */}
       <aside className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarOpen : ''}`}>
         {/* Logo */}
@@ -149,12 +152,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <MenuIcon />
           </button>
           <div className={styles.topbarRight}>
-            <div className={styles.topbarUser}>
-              <div className={styles.topbarAvatar}>
-                {user.name.charAt(0).toUpperCase()}
-              </div>
-              <span className={styles.topbarName}>{user.name}</span>
-            </div>
+            {/* User info removed from topbar as requested */}
           </div>
         </header>
 

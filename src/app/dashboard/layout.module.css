@@ -37,16 +37,23 @@
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ─── Sidebar ─── */
-.sidebar {
+.sidebarSpacer {
   width: 248px;
   flex-shrink: 0;
+  display: block;
+}
+
+.sidebar {
+  width: 248px;
   background: #ffffff;
   border-right: 1px solid #f0f0f0;
   display: flex;
   flex-direction: column;
   height: 100vh;
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  bottom: 0;
   overflow-y: auto;
   z-index: 100;
 }
@@ -290,6 +297,10 @@
 
 /* ─── Responsive ─── */
 @media (max-width: 768px) {
+  .sidebarSpacer {
+    display: none;
+  }
+  
   .sidebar {
     position: fixed;
     left: -248px;
