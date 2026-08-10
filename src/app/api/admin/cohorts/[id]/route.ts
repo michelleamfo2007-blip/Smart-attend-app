@@ -3,8 +3,9 @@ import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const cookieStore = await cookies();
     const token = cookieStore.get('token')?.value;
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -12,7 +13,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     if (!user || user.userRole !== 'ADMIN') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const cohort = await prisma.cohorts.findUnique({
-      where: { id: params.id, institution_id: user.institutionId },
+      where: { id, institution_id: user.institutionId },
       include: {
         users: {
           select: { id: true, name: true, student_id: true, email: true }
@@ -34,8 +35,9 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   }
 }
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const cookieStore = await cookies();
     const token = cookieStore.get('token')?.value;
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -51,7 +53,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     // Ensure cohort belongs to this admin's institution
     const cohort = await prisma.cohorts.findUnique({
-      where: { id: params.id, institution_id: user.institutionId }
+      where: { id, institution_id: user.institutionId }
     });
 
     if (!cohort) return NextResponse.json({ error: 'Program not found' }, { status: 404 });

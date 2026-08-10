@@ -5,7 +5,10 @@ import { useUser } from '@/hooks/useUser';
 import { Users, BookOpen, ArrowLeft, Plus } from 'lucide-react';
 import Link from 'next/link';
 
-export default function CohortDetailsPage({ params }: { params: { id: string } }) {
+import { use } from 'react';
+
+export default function CohortDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const { user } = useUser();
   const [cohort, setCohort] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -17,7 +20,7 @@ export default function CohortDetailsPage({ params }: { params: { id: string } }
 
   const fetchCohort = useCallback(async () => {
     try {
-      const res = await fetch(`/api/admin/cohorts/${params.id}`);
+      const res = await fetch(`/api/admin/cohorts/${id}`);
       const data = await res.json();
       if (res.ok) {
         setCohort(data.cohort);
@@ -29,7 +32,7 @@ export default function CohortDetailsPage({ params }: { params: { id: string } }
     } finally {
       setLoading(false);
     }
-  }, [params.id]);
+  }, [id]);
 
   useEffect(() => {
     if (user?.institution_id) {
@@ -41,7 +44,7 @@ export default function CohortDetailsPage({ params }: { params: { id: string } }
     e.preventDefault();
     setAddingStudent(true);
     try {
-      const res = await fetch(`/api/admin/cohorts/${params.id}`, {
+      const res = await fetch(`/api/admin/cohorts/${id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newStudentName, student_id: newStudentId })
