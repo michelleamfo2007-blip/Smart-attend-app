@@ -25,6 +25,7 @@ model users {
   program        String?
   cohort_id      String?  @db.Uuid
   programme_id   String?  @db.Uuid
+  needs_device_reset Boolean @default(false)
   
   programme_rel         programmes?            @relation(fields: [programme_id], references: [id], onDelete: SetNull)
   institution           institutions?          @relation(fields: [institution_id], references: [id], onDelete: Cascade)
@@ -239,4 +240,13 @@ model programmes {
   department    departments @relation(fields: [department_id], references: [id], onDelete: Cascade)
   classes       classes[]
   users         users[]
+}
+
+model audit_logs {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id     String?  @db.Uuid
+  action      String
+  details     String?
+  ip_address  String?
+  created_at  DateTime @default(now()) @db.Timestamptz
 }

@@ -66,12 +66,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'You are not enrolled in this class. Attendance rejected.' }, { status: 403 });
     }
 
-    // Check already marked
+    // Check already marked (Duplicate Scan Prevention)
     const existing = await prisma.attendance_records.findUnique({
       where: { student_id_session_id: { session_id: session.id, student_id: userId } },
     });
     if (existing) {
-      return NextResponse.json({ error: 'Attendance already marked' }, { status: 400 });
+      // Audit log the failed attempt
+      const ip = req.headers.get('x-forwarded-for') || 'unknown';
+      await prisma.audit_logs.create({
+        data: {
+          user_id: userId,
+          action: 'DUPLICATE_SCAN_ATTEMPT',
+          details: `Student attempted to scan into session ${session.id} again.`,
+          ip_address: ip
+        }
+      });
+      return NextResponse.json({ error: 'You have already successfully scanned into this class!' }, { status: 400 });
     }
 
     // Calculate distance
@@ -107,6 +117,17 @@ export async function POST(req: Request) {
         location: `Lat: ${latitude}, Lng: ${longitude}`,
         timestamp: new Date()
       },
+    });
+
+    // Audit log successful scan
+    const ip = req.headers.get('x-forwarded-for') || 'unknown';
+    await prisma.audit_logs.create({
+      data: {
+        user_id: userId,
+        action: 'ATTENDANCE_MARKED',
+        details: `Student marked present for session ${session.id}`,
+        ip_address: ip
+      }
     });
 
     return NextResponse.json({ record, distance: Math.round(distance) }, { status: 201 });

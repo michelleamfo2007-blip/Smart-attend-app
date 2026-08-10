@@ -2,9 +2,17 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { signToken } from '@/lib/auth';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 export async function POST(req: Request) {
   try {
+    const ip = req.headers.get('x-forwarded-for') || 'unknown';
+    
+    // Rate limit: 5 requests per 1 minute window
+    if (!checkRateLimit(`login_${ip}`, 5, 60000)) {
+      return NextResponse.json({ error: 'Too many login attempts. Please try again later.' }, { status: 429 });
+    }
+
     const { email, student_id, password } = await req.json();
 
     if ((!email && !student_id) || !password) {
@@ -63,6 +71,16 @@ export async function POST(req: Request) {
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24 * 7, // 1 week
+    });
+
+    // Audit log
+    await prisma.audit_logs.create({
+      data: {
+        user_id: user.id,
+        action: 'LOGIN',
+        details: 'User logged in successfully',
+        ip_address: ip
+      }
     });
 
     return response;
