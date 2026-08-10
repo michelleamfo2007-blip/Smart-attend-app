@@ -29,21 +29,30 @@ export async function POST(req: Request) {
     const defaultPassword = await bcrypt.hash('Welcome123!', 10);
 
     for (const userData of users) {
-      // Check if user exists
-      const existing = await prisma.users.findUnique({
-        where: { email: userData.email }
-      });
+      // Check if user exists by email or index number
+      let existing = null;
+      if (userData.email) {
+        existing = await prisma.users.findUnique({ where: { email: userData.email } });
+      }
+      if (!existing && userData.index_number) {
+        existing = await prisma.users.findFirst({ 
+          where: { student_id: userData.index_number, institution_id: institutionId } 
+        });
+      }
 
       if (!existing) {
         await prisma.users.create({
           data: {
             name: userData.name,
-            email: userData.email,
+            email: userData.email || undefined,
             role: userData.role,
             institution_id: institutionId,
             level: userData.level || null,
             semester: userData.semester || null,
-            password: defaultPassword, // Users should change this on first login
+            student_id: userData.index_number || null,
+            cohort_id: userData.program_id || null,
+            // Pre-loaded students don't get a password until they register on the app
+            password: userData.role === 'STUDENT' ? null : defaultPassword, 
           }
         });
         successCount++;

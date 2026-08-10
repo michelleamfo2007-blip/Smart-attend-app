@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@/hooks/useUser';
 import { Users, BookOpen, Layers } from 'lucide-react';
+import Link from 'next/link';
 import styles from './page.module.css';
 
 export default function CohortsPage() {
@@ -101,7 +102,7 @@ export default function CohortsPage() {
       ) : (
         <div className={styles.grid}>
           {cohorts.map(cohort => (
-            <div key={cohort.id} className={styles.card}>
+            <Link href={`/dashboard/admin/cohorts/${cohort.id}`} key={cohort.id} className={styles.card} style={{ textDecoration: 'none', color: 'inherit' }}>
               <div className={styles.cardIconWrapper}>
                 <Layers size={24} />
               </div>
@@ -116,7 +117,7 @@ export default function CohortsPage() {
                   {cohort._count?.cohort_classes || 0} Modules
                 </span>
               </div>
-            </div>
+            </Link>
           ))}
           {cohorts.length === 0 && (
             <p className={styles.empty}>No programs found. Create one to get started.</p>

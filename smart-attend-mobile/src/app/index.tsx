@@ -186,13 +186,13 @@ export default function LoginScreen() {
             
             <Animated.View entering={FadeInDown.duration(600).delay(400)} style={styles.form}>
               <View style={styles.inputGroup}>
-                <ThemedText type="defaultSemiBold">Email address or Index Number</ThemedText>
+                <ThemedText type="defaultSemiBold">Index Number</ThemedText>
                 <TextInput
                   style={[
                     styles.input, 
                     { backgroundColor: theme.backgroundElement, color: theme.text, borderColor: theme.border }
                   ]}
-                  placeholder="you@university.edu or 10293847"
+                  placeholder="e.g. 10293847"
                   placeholderTextColor={theme.textSecondary}
                   value={identifier}
                   onChangeText={setIdentifier}

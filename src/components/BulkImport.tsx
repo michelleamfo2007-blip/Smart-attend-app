@@ -15,6 +15,8 @@ interface ParsedUser {
   role: string;
   level?: string;
   semester?: string;
+  index_number?: string;
+  program_id?: string;
 }
 
 export default function BulkImport({ onImportComplete, institutionId }: BulkImportProps) {
@@ -49,7 +51,9 @@ export default function BulkImport({ onImportComplete, institutionId }: BulkImpo
             email: row.email,
             role: row.role.toUpperCase(),
             level: row.level || null,
-            semester: row.semester || null
+            semester: row.semester || null,
+            index_number: row.index_number || null,
+            program_id: row.program_id || null
           });
         });
 
@@ -92,7 +96,7 @@ export default function BulkImport({ onImportComplete, institutionId }: BulkImpo
   };
 
   const downloadTemplate = () => {
-    const template = "name,email,role,level,semester\nJohn Doe,john@example.edu,student,100,1\nJane Smith,jane@example.edu,lecturer,,";
+    const template = "name,email,role,level,semester,index_number,program_id\nJohn Doe,john@example.edu,student,100,1,10293847,PROGRAM-UUID-HERE\nJane Smith,jane@example.edu,lecturer,,,,";
     const blob = new Blob([template], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -143,6 +147,8 @@ export default function BulkImport({ onImportComplete, institutionId }: BulkImpo
                   <th>Name</th>
                   <th>Email</th>
                   <th>Role</th>
+                  <th>Index</th>
+                  <th>Program ID</th>
                 </tr>
               </thead>
               <tbody>
@@ -151,6 +157,8 @@ export default function BulkImport({ onImportComplete, institutionId }: BulkImpo
                     <td>{row.name}</td>
                     <td>{row.email}</td>
                     <td>{row.role}</td>
+                    <td>{row.index_number || '-'}</td>
+                    <td>{row.program_id ? '✓' : '-'}</td>
                   </tr>
                 ))}
               </tbody>

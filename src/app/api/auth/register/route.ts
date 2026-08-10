@@ -15,8 +15,20 @@ export async function POST(req: Request) {
     let assignedInstitutionId = institution_id;
 
     if (role === 'STUDENT') {
-      if (!student_id || (!cohort_id && !programme_id)) {
-        return NextResponse.json({ error: 'Index Number and Program are required for students' }, { status: 400 });
+      // For pre-loaded students, we only technically require student_id and an institution code to look them up.
+      // If manual registration without pre-loading is allowed, we would require cohort_id/programme_id.
+      if (!student_id) {
+        return NextResponse.json({ error: 'Index Number is required for students' }, { status: 400 });
+      }
+
+      if (inviteCode && !programme_id && !cohort_id) {
+        const institution = await prisma.institutions.findUnique({ 
+          where: { invite_code: inviteCode } 
+        });
+        if (!institution) {
+          return NextResponse.json({ error: 'Invalid Institution Invite Code' }, { status: 403 });
+        }
+        assignedInstitutionId = institution.id;
       }
 
       if (programme_id) {
@@ -45,8 +57,19 @@ export async function POST(req: Request) {
         where: { student_id, institution_id: assignedInstitutionId }
       });
       
+      let preloadedStudent = null;
       if (existingStudentId) {
-        return NextResponse.json({ error: 'This Index Number is already registered.' }, { status: 400 });
+        if (existingStudentId.password) {
+          return NextResponse.json({ error: 'This Index Number is already registered.' }, { status: 400 });
+        } else {
+          // This is a pre-loaded student (they have no password).
+          preloadedStudent = existingStudentId;
+        }
+      } else {
+         // If they are not preloaded, and they didn't provide a cohort/program during manual signup:
+         if (!cohort_id && !programme_id) {
+           return NextResponse.json({ error: 'Index Number not found in pre-loaded roster. Please select a Program to register manually.' }, { status: 400 });
+         }
       }
 
     } else if (role === 'LECTURER') {
@@ -88,34 +111,45 @@ export async function POST(req: Request) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
-    const user = await prisma.users.create({
-      data: {
-        email: email || undefined,
-        name,
-        password: hashedPassword,
-        role: role || 'STUDENT',
-        student_id: student_id || undefined,
-        cohort_id: cohort_id || undefined,
-        programme_id: programme_id || undefined,
-        level: level || undefined,
-        semester: semester || undefined,
-        institution_id: role === 'ADMIN' ? null : assignedInstitutionId,
-        device_id: device_id || undefined,
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        student_id: true,
-        cohort_id: true,
-        programme_id: true,
-        level: true,
-        semester: true,
-        institution_id: true,
-      }
-    });
+    let user;
+
+    if (role === 'STUDENT' && preloadedStudent) {
+      // CLAIM PRELOADED ACCOUNT
+      user = await prisma.users.update({
+        where: { id: preloadedStudent.id },
+        data: {
+          name, // Update name in case they fixed a typo
+          password: hashedPassword,
+          device_id: device_id || undefined,
+          email: email || undefined
+        },
+        select: {
+          id: true, email: true, name: true, role: true, student_id: true,
+          cohort_id: true, programme_id: true, level: true, semester: true, institution_id: true,
+        }
+      });
+    } else {
+      // CREATE NEW ACCOUNT
+      user = await prisma.users.create({
+        data: {
+          email: email || undefined,
+          name,
+          password: hashedPassword,
+          role: role || 'STUDENT',
+          student_id: student_id || undefined,
+          cohort_id: cohort_id || undefined,
+          programme_id: programme_id || undefined,
+          level: level || undefined,
+          semester: semester || undefined,
+          institution_id: role === 'ADMIN' ? null : assignedInstitutionId,
+          device_id: device_id || undefined,
+        },
+        select: {
+          id: true, email: true, name: true, role: true, student_id: true,
+          cohort_id: true, programme_id: true, level: true, semester: true, institution_id: true,
+        }
+      });
+    }
 
     // Magic Auto-Enrollment
     if (user.role === 'STUDENT') {
