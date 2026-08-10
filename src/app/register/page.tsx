@@ -159,14 +159,7 @@ export default function RegisterPage() {
 
       {/* Right Panel */}
       <div className={styles.rightPanel}>
-        <div style={{ width: '100%', maxWidth: '480px', margin: '0 auto 1rem auto' }}>
-          <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: '#64748b', textDecoration: 'none', fontSize: '0.875rem', fontWeight: '500' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M19 12H5M12 19l-7-7 7-7"/>
-            </svg>
-            Back to Home
-          </Link>
-        </div>
+        {/* Back to Home removed per user request */}
         <div className={styles.formCard}>
           {/* Progress bar */}
           <div className={styles.progressBar}>

@@ -172,7 +172,7 @@
 
 /* ─── Right Panel ─── */
 .rightPanel {
-  width: 540px;
+  width: 600px;
   flex-shrink: 0;
   background: #f9fafb;
   display: flex;
@@ -183,7 +183,7 @@
 
 .formCard {
   width: 100%;
-  max-width: 420px;
+  max-width: 480px;
   background: #ffffff;
   border-radius: 20px;
   box-shadow: 0 4px 40px rgba(0,0,0,0.08);
