@@ -17,7 +17,18 @@ export async function GET() {
       where: { lecturer_id: userId },
       include: {
         class: true,
-        records: true,
+        records: {
+          include: {
+            student: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                student_id: true,
+              }
+            }
+          }
+        },
       },
       orderBy: { created_at: 'desc' },
     });
