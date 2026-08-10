@@ -8,8 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useOfflineSync } from '../hooks/useOfflineSync';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useFonts } from 'expo-font';
-import { Poppins_700Bold, Poppins_600SemiBold } from '@expo-google-fonts/poppins';
-import { Inter_400Regular, Inter_500Medium } from '@expo-google-fonts/inter';
+import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -19,10 +18,10 @@ export default function RootLayout() {
   usePushNotifications();
 
   const [fontsLoaded] = useFonts({
-    Poppins_700Bold,
-    Poppins_600SemiBold,
     Inter_400Regular,
     Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
   });
 
   if (!fontsLoaded) {

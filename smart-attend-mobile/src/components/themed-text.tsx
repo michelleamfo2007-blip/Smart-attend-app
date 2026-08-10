@@ -34,15 +34,15 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
 
 const styles = StyleSheet.create({
   logo: {
-    fontFamily: 'Poppins_700Bold',
+    fontFamily: 'Inter_700Bold',
     fontSize: 28,
   },
   title: {
-    fontFamily: 'Poppins_700Bold',
+    fontFamily: 'Inter_700Bold',
     fontSize: 24,
   },
   subtitle: {
-    fontFamily: 'Poppins_600SemiBold',
+    fontFamily: 'Inter_600SemiBold',
     fontSize: 20,
   },
   default: {
