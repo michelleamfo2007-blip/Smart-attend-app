@@ -30,7 +30,7 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       const currentDeviceId = await getDeviceId();
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.20.10.4:3000';
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.smartattend.co';
       
       const payload = {
         name,

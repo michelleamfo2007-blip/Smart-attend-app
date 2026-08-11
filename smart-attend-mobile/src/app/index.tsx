@@ -59,7 +59,7 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.20.10.4:3000';
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://www.smartattend.co';
       
       const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
