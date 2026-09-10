@@ -292,41 +292,43 @@ export default function StudentOverviewScreen() {
         {nextClass && (
           <Animated.View entering={FadeInDown.duration(500).delay(300)} style={{ marginBottom: Spacing.six }}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>Joined class</Text>
-            <LinearGradient
-              colors={['#e01e37', '#b76e79', '#c9a07a']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.nextClassCard}
-            >
+            <View style={[styles.nextClassCard, { backgroundColor: theme.backgroundElement }]}>
+              <View style={styles.nextClassTopBanner} />
               <View style={styles.nextClassContent}>
                 <View style={styles.nextClassHeader}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.nextClassCodeLight}>{nextClass.course_code || 'Course'}</Text>
-                    <Text style={styles.nextClassNameLight}>{nextClass.name}</Text>
+                    <Text style={[styles.nextClassCode, { color: theme.primary }]}>
+                      {nextClass.course_code || 'Course'}
+                    </Text>
+                    <Text style={[styles.nextClassName, { color: theme.text }]}>{nextClass.name}</Text>
                   </View>
                 </View>
 
-                <View style={styles.nextClassDividerLight} />
+                <View style={styles.nextClassDivider} />
 
                 <View style={styles.nextClassDetails}>
                   <View style={styles.nextClassDetailItem}>
-                    <Ionicons name="time-outline" size={16} color="rgba(255,255,255,0.85)" />
-                    <Text style={styles.nextClassDetailTextLight}>
-                      Timetable: {nextClass.start_time ? `${nextClass.start_time.substring(0,5)} - ${nextClass.end_time?.substring(0,5)}` : (nextClass.schedule_time || 'Not set')}
+                    <Ionicons name="time-outline" size={16} color={theme.textSecondary} />
+                    <Text style={[styles.nextClassDetailText, { color: theme.textSecondary }]}>
+                      Timetable:{' '}
+                      {nextClass.start_time
+                        ? `${nextClass.start_time.substring(0, 5)} - ${nextClass.end_time?.substring(0, 5)}`
+                        : nextClass.schedule_time || 'Not set'}
                     </Text>
                   </View>
                   <View style={styles.nextClassDetailItem}>
-                    <Ionicons name="school-outline" size={16} color="rgba(255,255,255,0.85)" />
-                    <Text style={styles.nextClassDetailTextLight}>
-                      {nextClass.classroom?.name || (nextClass.level ? `Level ${nextClass.level}` : 'Joined class')}
+                    <Ionicons name="school-outline" size={16} color={theme.textSecondary} />
+                    <Text style={[styles.nextClassDetailText, { color: theme.textSecondary }]}>
+                      {nextClass.classroom?.name ||
+                        (nextClass.level ? `Level ${nextClass.level}` : 'Joined class')}
                     </Text>
                   </View>
                 </View>
-                <Text style={styles.scheduleNoteLight}>
+                <Text style={[styles.scheduleNote, { color: theme.textSecondary }]}>
                   Timetable time is just the weekly schedule. Use Live now above when the lecturer starts attendance.
                 </Text>
               </View>
-            </LinearGradient>
+            </View>
           </Animated.View>
         )}
 
@@ -588,15 +590,20 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...Platform.select({
       ios: {
-        shadowColor: '#e01e37',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.25,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.05,
         shadowRadius: 16,
       },
       android: {
-        elevation: 4,
+        elevation: 3,
       },
     }),
+  },
+  nextClassTopBanner: {
+    height: 6,
+    backgroundColor: '#e01e37',
+    width: '100%',
   },
   nextClassContent: {
     padding: 20,
@@ -606,21 +613,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
-  nextClassCodeLight: {
+  nextClassCode: {
     fontSize: 12,
     fontWeight: '700',
     marginBottom: 4,
     letterSpacing: 0.5,
-    color: 'rgba(255,245,238,0.9)',
   },
-  nextClassNameLight: {
+  nextClassName: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#fff',
   },
-  nextClassDividerLight: {
+  nextClassDivider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: '#F1F5F9',
     marginVertical: 16,
   },
   nextClassDetails: {
@@ -633,16 +638,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  nextClassDetailTextLight: {
+  nextClassDetailText: {
     fontSize: 13,
     fontWeight: '500',
-    color: 'rgba(255,255,255,0.9)',
-  },
-  scheduleNoteLight: {
-    marginTop: 12,
-    fontSize: 12,
-    lineHeight: 17,
-    color: 'rgba(255,255,255,0.78)',
   },
   listContainer: {
     borderRadius: 20,
