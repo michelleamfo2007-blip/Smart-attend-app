@@ -22,7 +22,7 @@ export default function PricingPage() {
         <nav className={styles.nav}>
           <Link href="/" className={styles.navLink}>Home</Link>
           <Link href="/login" className={styles.loginBtn}>Log In</Link>
-          <Link href="/onboard?plan=starter" className={styles.ctaBtn}>Start Free Trial</Link>
+          <Link href="/onboard?plan=starter" className={styles.ctaBtn}>Start 6-Month Free Trial</Link>
         </nav>
       </header>
 
@@ -64,7 +64,7 @@ export default function PricingPage() {
             <p style={{ color: '#6b7280', fontSize: '0.95rem', marginBottom: '32px' }}>Perfect for small schools and bootcamps just getting started.</p>
             
             <Link href="/onboard?plan=starter" style={{ display: 'block', textAlign: 'center', padding: '12px', background: '#f1f5f9', color: '#111827', borderRadius: '12px', fontWeight: 600, textDecoration: 'none', marginBottom: '32px', transition: 'background 0.2s' }}>
-              Get Started
+              Start 6-Month Free Trial
             </Link>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -110,7 +110,7 @@ export default function PricingPage() {
             <p style={{ color: '#6b7280', fontSize: '0.95rem', marginBottom: '32px' }}>Unlimited scaling for massive global universities.</p>
             
             <Link href="/onboard?plan=enterprise" style={{ display: 'block', textAlign: 'center', padding: '12px', background: '#e01e37', color: 'white', borderRadius: '12px', fontWeight: 600, textDecoration: 'none', marginBottom: '32px', transition: 'background 0.2s', boxShadow: '0 4px 6px -1px rgba(224,30,55,0.3)' }}>
-              Contact Sales
+              Start 6-Month Free Trial
             </Link>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -132,7 +132,7 @@ export default function PricingPage() {
             <p style={{ color: '#6b7280', fontSize: '0.95rem', marginBottom: '32px' }}>Deployed to your private servers. Pricing tiered by total student volume.</p>
             
             <Link href="/onboard?plan=self-hosted" style={{ display: 'block', textAlign: 'center', padding: '12px', background: '#111827', color: 'white', borderRadius: '12px', fontWeight: 600, textDecoration: 'none', marginBottom: '32px', transition: 'background 0.2s' }}>
-              Contact Sales
+              Start 6-Month Free Trial
             </Link>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

@@ -2,10 +2,11 @@
   min-height: 100vh;
   background: #f8fafc;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 40px 20px;
+  padding: 32px 20px 64px;
   font-family: var(--font-inter), sans-serif;
+  overflow-y: auto;
 }
 
 .container {
@@ -13,24 +14,59 @@
   max-width: 600px;
   width: 100%;
   border-radius: 24px;
-  padding: 48px;
-  box-shadow: 0 20px 25px -5px rgba(0,0,0,0.05);
+  padding: 40px 40px 36px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05);
   border: 1px solid #e5e7eb;
+  margin-top: 8px;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #64748b;
+  text-decoration: none;
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.backLink:hover {
+  color: #0f172a;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.logoMark {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #e01e37, #85101f);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
 }
 
 .title {
-  font-size: 2rem;
+  font-size: clamp(1.5rem, 4vw, 2rem);
   font-weight: 800;
   color: #111827;
   text-align: center;
-  margin-bottom: 8px;
+  margin: 0 0 8px;
   letter-spacing: -0.5px;
+  line-height: 1.2;
+  overflow: visible;
 }
 
 .subtitle {
   text-align: center;
   color: #6b7280;
-  margin-bottom: 40px;
+  margin: 0;
+  font-size: 1rem;
 }
 
 .section {
@@ -57,6 +93,14 @@
   align-items: center;
   justify-content: center;
   font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.sectionHint {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin: 0 0 16px;
+  line-height: 1.45;
 }
 
 .inputGroup {
@@ -80,12 +124,19 @@
   outline: none;
   transition: all 0.2s;
   background: #f9fafb;
+  box-sizing: border-box;
 }
 
 .input:focus {
   border-color: #e01e37;
   background: white;
-  box-shadow: 0 0 0 3px rgba(224,30,55,0.1);
+  box-shadow: 0 0 0 3px rgba(224, 30, 55, 0.1);
+}
+
+.hint {
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  color: #64748b;
 }
 
 .submitBtn {
@@ -95,12 +146,12 @@
   color: white;
   border: none;
   border-radius: 12px;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 4px 6px -1px rgba(224,30,55,0.3);
-  margin-top: 16px;
+  box-shadow: 0 4px 6px -1px rgba(224, 30, 55, 0.3);
+  margin-top: 8px;
 }
 
 .submitBtn:hover {
@@ -114,12 +165,20 @@
   transform: none;
 }
 
+.footerNote {
+  margin: 12px 0 0;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.45;
+}
+
 .error {
   background: #fef2f2;
   color: #b91c1c;
   padding: 12px 16px;
   border-radius: 8px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   font-size: 0.9rem;
   border: 1px solid #fecdd3;
 }
@@ -127,10 +186,96 @@
 .selectedPlan {
   background: #fff0f2;
   border: 1px solid #fecdd3;
-  padding: 16px;
+  padding: 16px 18px;
   border-radius: 12px;
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.selectedPlanMain {
+  min-width: 0;
+}
+
+.selectedPlanLabel {
+  display: block;
+  font-size: 0.8rem;
+  color: #e01e37;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.selectedPlanName {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #111827;
+  text-transform: capitalize;
+  line-height: 1.3;
+}
+
+.selectedPlanMeta {
+  margin-top: 6px;
+  font-size: 0.9rem;
+  color: #4b5563;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  margin-bottom: 32px;
+  gap: 4px;
+}
+
+.metaDot {
+  color: #cbd5e1;
+}
+
+.changeLink {
+  color: #6b7280;
+  font-size: 0.9rem;
+  text-decoration: underline;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.changeLink:hover {
+  color: #111827;
+}
+
+.trialBanner {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  padding: 14px 16px;
+  border-radius: 12px;
+  margin-bottom: 28px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.trialBanner strong {
+  font-size: 0.95rem;
+  color: #047857;
+}
+
+.loading {
+  padding: 40px;
+  text-align: center;
+  color: #64748b;
+}
+
+@media (max-width: 640px) {
+  .container {
+    padding: 28px 20px;
+    border-radius: 16px;
+  }
+
+  .selectedPlan {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }

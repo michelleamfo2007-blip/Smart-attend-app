@@ -30,7 +30,9 @@ export async function POST(req: Request) {
 
     const normalizedContactEmail = normalizeEmail(contactEmail);
     const normalizedAdminEmail = normalizeEmail(adminEmail);
-    const selectedPlan = normalizePlan(plan || 'starter');
+    const selectedPlan = normalizePlan(
+      String(plan || 'starter').toLowerCase() === 'self-hosted' ? 'enterprise' : plan || 'starter'
+    );
     const planDef = getPlan(selectedPlan);
     // Every new school gets a 6-month free trial; paid periods start after checkout/renewal.
     const subscriptionEndsAt = addTrialPeriod(new Date());
