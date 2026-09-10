@@ -278,31 +278,7 @@ export default function MarkAttendanceScreen() {
                   </TouchableOpacity>
                 </View>
               )}
-
-              {/* Soft vignette + clean QR finder — no broken corner arcs */}
-              <View style={styles.overlay} pointerEvents="none">
-                <View style={styles.overlayBand} />
-                <View style={styles.overlayMidRow}>
-                  <View style={styles.overlayBand} />
-                  <View style={styles.finder}>
-                    <View style={[styles.finderArm, styles.finderTLH]} />
-                    <View style={[styles.finderArm, styles.finderTLV]} />
-                    <View style={[styles.finderArm, styles.finderTRH]} />
-                    <View style={[styles.finderArm, styles.finderTRV]} />
-                    <View style={[styles.finderArm, styles.finderBLH]} />
-                    <View style={[styles.finderArm, styles.finderBLV]} />
-                    <View style={[styles.finderArm, styles.finderBRH]} />
-                    <View style={[styles.finderArm, styles.finderBRV]} />
-                  </View>
-                  <View style={styles.overlayBand} />
-                </View>
-                <View style={styles.overlayBand} />
-              </View>
             </View>
-
-            <Text style={[styles.scanHint, { color: theme.textSecondary }]}>
-              Align the lecturer QR inside the square
-            </Text>
 
             <View style={[styles.statusBox, { backgroundColor: statusColor }]}>
               {processing && statusType === 'info' ? (
@@ -394,40 +370,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 12,
     padding: 16,
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  overlayBand: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
-  },
-  overlayMidRow: {
-    height: SCAN_SIZE * 0.62,
-    flexDirection: 'row',
-  },
-  finder: {
-    width: SCAN_SIZE * 0.62,
-    height: SCAN_SIZE * 0.62,
-    position: 'relative',
-  },
-  finderArm: {
-    position: 'absolute',
-    backgroundColor: '#fff',
-    borderRadius: 2,
-  },
-  finderTLH: { top: 0, left: 0, width: 28, height: 3 },
-  finderTLV: { top: 0, left: 0, width: 3, height: 28 },
-  finderTRH: { top: 0, right: 0, width: 28, height: 3 },
-  finderTRV: { top: 0, right: 0, width: 3, height: 28 },
-  finderBLH: { bottom: 0, left: 0, width: 28, height: 3 },
-  finderBLV: { bottom: 0, left: 0, width: 3, height: 28 },
-  finderBRH: { bottom: 0, right: 0, width: 28, height: 3 },
-  finderBRV: { bottom: 0, right: 0, width: 3, height: 28 },
-  scanHint: {
-    textAlign: 'center',
-    fontSize: 13,
-    fontWeight: '600',
   },
   statusBox: {
     flexDirection: 'row',
