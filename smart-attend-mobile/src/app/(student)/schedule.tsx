@@ -1,91 +1,113 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { StyleSheet, View, Text, ScrollView, ActivityIndicator, Platform } from 'react-native';
-import { useAuth } from '../../context/AuthContext';
+import { useFocusEffect } from 'expo-router';
 import { Spacing, Colors } from '@/constants/theme';
 import { apiFetch } from '../../lib/api';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 export default function ScheduleScreen() {
-  const { user } = useAuth();
   const theme = Colors.light;
   const [loading, setLoading] = useState(true);
   const [schedule, setSchedule] = useState<any[]>([]);
 
-  useEffect(() => {
-    const fetchSchedule = async () => {
-      try {
-        const data = await apiFetch('/api/student/dashboard');
-        if (data.classes) {
-          setSchedule(data.classes);
-        }
-      } catch (err) {
-        // Schedule load failed — empty state is shown below
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchSchedule = useCallback(async () => {
+    try {
+      const data = await apiFetch('/api/student/dashboard');
+      setSchedule(Array.isArray(data.classes) ? data.classes : []);
+    } catch {
+      setSchedule([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-    fetchSchedule();
-  }, [user?.id, user?.level, user?.semester]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchSchedule();
+    }, [fetchSchedule])
+  );
 
-  if (loading) return <ActivityIndicator style={{ flex: 1, backgroundColor: theme.background }} color={theme.primary} />;
+  if (loading) {
+    return <ActivityIndicator style={{ flex: 1, backgroundColor: theme.background }} color={theme.primary} />;
+  }
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]} showsVerticalScrollIndicator={false}>
       <Animated.View entering={FadeInDown.duration(600)}>
         <View style={styles.header}>
           <Text style={[styles.title, { color: theme.text }]}>Class Schedule</Text>
-          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>Your weekly timetable</Text>
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+            {schedule.length === 0
+              ? 'Join a class on Overview to see it here'
+              : `${schedule.length} joined class${schedule.length === 1 ? '' : 'es'}`}
+          </Text>
         </View>
 
         {schedule.length === 0 ? (
           <View style={{ padding: 40, alignItems: 'center' }}>
             <Ionicons name="calendar-clear-outline" size={48} color={theme.textSecondary} style={{ marginBottom: 16 }} />
-            <Text style={{ textAlign: 'center', color: theme.textSecondary }}>No classes assigned to your level and semester.</Text>
+            <Text style={{ textAlign: 'center', color: theme.textSecondary, lineHeight: 20 }}>
+              No joined classes yet. Use an invite code on Overview to add a class.
+            </Text>
           </View>
         ) : (
           <View style={styles.timeline}>
             {schedule.map((cls, index) => {
               const friendlyName = cls.name;
               const code = cls.course_code || '';
-              const timeDisplay = cls.start_time ? `${cls.start_time.substring(0,5)} - ${cls.end_time?.substring(0,5)}` : (cls.schedule_time || 'Time TBD');
+              const timeDisplay = cls.start_time
+                ? `${cls.start_time.substring(0, 5)}${cls.end_time ? ` - ${cls.end_time.substring(0, 5)}` : ''}`
+                : cls.schedule_time || 'Time TBD';
 
               return (
-                <Animated.View 
-                  entering={FadeInDown.duration(400).delay(index * 100)} 
-                  key={cls.id} 
+                <Animated.View
+                  entering={FadeInDown.duration(400).delay(index * 100)}
+                  key={cls.id}
                   style={styles.timelineItem}
                 >
                   <View style={styles.timelineLine}>
                     <View style={[styles.timelineDot, { backgroundColor: theme.primary, borderColor: theme.background }]} />
-                    {index !== schedule.length - 1 && <View style={[styles.timelineTrack, { backgroundColor: theme.primaryLight }]} />}
+                    {index !== schedule.length - 1 && (
+                      <View style={[styles.timelineTrack, { backgroundColor: theme.primaryLight }]} />
+                    )}
                   </View>
-                  
+
                   <View style={[styles.classCard, { backgroundColor: theme.backgroundElement }]}>
                     <View style={styles.cardHeader}>
-                       {code ? <Text style={[styles.classCode, { color: theme.primary }]}>{code}</Text> : null}
+                      {code ? <Text style={[styles.classCode, { color: theme.primary }]}>{code}</Text> : null}
                     </View>
                     <Text style={[styles.className, { color: theme.text }]}>{friendlyName}</Text>
-                    
+
                     <View style={styles.divider} />
-                    
+
                     <View style={styles.detailsGrid}>
-                       <View style={styles.detailRow}>
-                         <View style={[styles.iconWrapper, { backgroundColor: '#F1F5F9' }]}>
-                            <Ionicons name="time-outline" size={14} color={theme.textSecondary} />
-                         </View>
-                         <Text style={[styles.detailText, { color: theme.textSecondary }]}>{timeDisplay}</Text>
-                       </View>
-                       
-                       {(cls.lecturer?.name || cls.users?.name) && (
-                         <View style={styles.detailRow}>
-                           <View style={[styles.iconWrapper, { backgroundColor: '#F1F5F9' }]}>
+                      <View style={styles.detailRow}>
+                        <View style={[styles.iconWrapper, { backgroundColor: '#F1F5F9' }]}>
+                          <Ionicons name="time-outline" size={14} color={theme.textSecondary} />
+                        </View>
+                        <Text style={[styles.detailText, { color: theme.textSecondary }]}>{timeDisplay}</Text>
+                      </View>
+
+                      {(cls.lecturer?.name || cls.users?.name) && (
+                        <View style={styles.detailRow}>
+                          <View style={[styles.iconWrapper, { backgroundColor: '#F1F5F9' }]}>
                             <Ionicons name="person-outline" size={14} color={theme.textSecondary} />
-                           </View>
-                           <Text style={[styles.detailText, { color: theme.textSecondary }]}>{cls.lecturer?.name || cls.users?.name}</Text>
-                         </View>
-                       )}
+                          </View>
+                          <Text style={[styles.detailText, { color: theme.textSecondary }]}>
+                            {cls.lecturer?.name || cls.users?.name}
+                          </Text>
+                        </View>
+                      )}
+
+                      {cls.level ? (
+                        <View style={styles.detailRow}>
+                          <View style={[styles.iconWrapper, { backgroundColor: '#F1F5F9' }]}>
+                            <Ionicons name="school-outline" size={14} color={theme.textSecondary} />
+                          </View>
+                          <Text style={[styles.detailText, { color: theme.textSecondary }]}>Level {cls.level}</Text>
+                        </View>
+                      ) : null}
                     </View>
                   </View>
                 </Animated.View>
@@ -100,12 +122,12 @@ export default function ScheduleScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
+  container: {
+    flex: 1,
     padding: Spacing.four,
     paddingTop: Spacing.six,
   },
-  header: { 
+  header: {
     marginBottom: Spacing.six,
   },
   title: {
@@ -118,30 +140,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
-  timeline: { 
+  timeline: {
     paddingLeft: 10,
   },
-  timelineItem: { 
-    flexDirection: 'row', 
+  timelineItem: {
+    flexDirection: 'row',
     marginBottom: 24,
   },
-  timelineLine: { 
-    width: 24, 
-    alignItems: 'center', 
+  timelineLine: {
+    width: 24,
+    alignItems: 'center',
     marginRight: 16,
   },
-  timelineDot: { 
-    width: 14, 
-    height: 14, 
-    borderRadius: 7, 
-    borderWidth: 3, 
+  timelineDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 3,
     zIndex: 10,
     marginTop: 6,
   },
-  timelineTrack: { 
-    position: 'absolute', 
-    top: 20, 
-    bottom: -24, 
+  timelineTrack: {
+    position: 'absolute',
+    top: 20,
+    bottom: -24,
     width: 2,
     borderRadius: 1,
   },
@@ -169,9 +191,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
   },
-  className: { 
-    fontWeight: '800', 
-    fontSize: 18, 
+  className: {
+    fontWeight: '800',
+    fontSize: 18,
     marginBottom: 16,
   },
   divider: {
@@ -182,9 +204,9 @@ const styles = StyleSheet.create({
   detailsGrid: {
     gap: 12,
   },
-  detailRow: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
   iconWrapper: {
@@ -194,8 +216,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  detailText: { 
-    fontSize: 14, 
-    fontWeight: '500' 
-  }
+  detailText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
 });
