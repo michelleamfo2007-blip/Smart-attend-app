@@ -134,27 +134,35 @@ export default function StudentOverviewScreen() {
             activeSessions.map((session) => (
               <TouchableOpacity
                 key={session.id}
-                activeOpacity={0.88}
-                onPress={() => router.push('/(student)/mark-attendance')}
+                activeOpacity={session.alreadyMarked ? 1 : 0.88}
+                onPress={() => {
+                  if (session.alreadyMarked) return;
+                  router.push('/(student)/mark-attendance');
+                }}
+                disabled={session.alreadyMarked}
                 style={{ marginBottom: 12 }}
               >
                 <LinearGradient
-                  colors={session.alreadyMarked ? ['#6ee7b7', '#34d399'] : ['#e01e37', '#9f1239']}
+                  colors={['#e01e37', '#9f1239']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.liveCard}
                 >
                   <View style={styles.liveBadge}>
-                    <View style={[styles.liveDot, session.alreadyMarked && { backgroundColor: '#065f46' }]} />
-                    <Text style={[styles.liveBadgeText, session.alreadyMarked && { color: '#064e3b' }]}>
+                    {session.alreadyMarked ? (
+                      <Ionicons name="checkmark-circle" size={16} color="#4ade80" />
+                    ) : (
+                      <View style={styles.liveDot} />
+                    )}
+                    <Text style={styles.liveBadgeText}>
                       {session.alreadyMarked ? 'MARKED PRESENT' : 'ATTENDANCE OPEN'}
                     </Text>
                   </View>
-                  <Text style={[styles.liveClassName, session.alreadyMarked && { color: '#064e3b' }]}>
+                  <Text style={styles.liveClassName}>
                     {session.class?.course_code ? `${session.class.course_code} · ` : ''}
                     {session.class?.name || 'Class session'}
                   </Text>
-                  <Text style={[styles.liveHint, session.alreadyMarked && { color: '#065f46' }]}>
+                  <Text style={styles.liveHint}>
                     {session.alreadyMarked
                       ? 'You are already checked in for this session.'
                       : 'Tap to open scanner and mark attendance'}
@@ -230,9 +238,6 @@ export default function StudentOverviewScreen() {
              const needsScan = activeSessions.some((s) => !s.alreadyMarked);
              const allMarked =
                activeSessions.length > 0 && activeSessions.every((s) => s.alreadyMarked);
-             const gradientColors = allMarked
-               ? (['#6ee7b7', '#34d399'] as const)
-               : (['#e01e37', '#b91c2c'] as const);
              const title = allMarked
                ? 'Already checked in'
                : needsScan
@@ -243,9 +248,6 @@ export default function StudentOverviewScreen() {
                : needsScan
                  ? 'A session is open — tap to scan'
                  : 'Opens scanner when a session is live';
-             const icon = allMarked ? 'checkmark-circle-outline' : 'qr-code-outline';
-             const softFg = allMarked ? '#064e3b' : '#FFF';
-             const softFgMuted = allMarked ? '#065f46' : 'rgba(255,255,255,0.8)';
 
              return (
                <TouchableOpacity
@@ -257,19 +259,25 @@ export default function StudentOverviewScreen() {
                  disabled={allMarked}
                >
                  <LinearGradient
-                   colors={[...gradientColors]}
+                   colors={['#e01e37', '#b91c2c']}
                    start={{ x: 0, y: 0 }}
                    end={{ x: 1, y: 1 }}
                    style={styles.largeScanButton}
                  >
-                   <Ionicons name={icon as any} size={32} color={softFg} />
+                   <Ionicons
+                     name={allMarked ? 'checkmark-circle' : 'qr-code-outline'}
+                     size={32}
+                     color={allMarked ? '#4ade80' : '#FFF'}
+                   />
                    <View style={styles.scanButtonTextContainer}>
-                     <Text style={[styles.scanButtonTitle, { color: softFg }]}>{title}</Text>
-                     <Text style={[styles.scanButtonSubtitle, { color: softFgMuted }]}>{subtitle}</Text>
+                     <Text style={styles.scanButtonTitle}>{title}</Text>
+                     <Text style={styles.scanButtonSubtitle}>{subtitle}</Text>
                    </View>
-                   {!allMarked ? (
+                   {allMarked ? (
+                     <Ionicons name="checkmark-circle" size={22} color="#4ade80" />
+                   ) : (
                      <Ionicons name="chevron-forward" size={24} color="rgba(255,255,255,0.6)" />
-                   ) : null}
+                   )}
                  </LinearGradient>
                </TouchableOpacity>
              );
@@ -278,27 +286,39 @@ export default function StudentOverviewScreen() {
 
         {/* STATISTICS GRID - Clean Web Style */}
         <Animated.View entering={FadeInDown.duration(500).delay(200)} style={styles.statsGrid}>
-           <View style={[styles.statBox, { backgroundColor: theme.backgroundElement }]}>
+           <TouchableOpacity
+             style={[styles.statBox, { backgroundColor: theme.backgroundElement }]}
+             activeOpacity={0.85}
+             onPress={() => router.push('/(student)/history')}
+           >
               <View style={styles.statIconWrapper}>
                 <Ionicons name="calendar-outline" size={18} color={theme.textSecondary} />
               </View>
               <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Total Sessions</Text>
               <Text style={[styles.statValue, { color: theme.text }]}>{stats.attended}</Text>
-           </View>
-           <View style={[styles.statBox, { backgroundColor: theme.backgroundElement }]}>
+           </TouchableOpacity>
+           <TouchableOpacity
+             style={[styles.statBox, { backgroundColor: theme.backgroundElement }]}
+             activeOpacity={0.85}
+             onPress={() => router.push('/(student)/analytics')}
+           >
               <View style={[styles.statIconWrapper, { backgroundColor: stats.attendanceRate < 75 ? '#fef2f2' : '#f0fdf4' }]}>
                 <Ionicons name="pie-chart-outline" size={18} color={stats.attendanceRate < 75 ? '#ef4444' : '#22c55e'} />
               </View>
               <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Attendance Rate</Text>
               <Text style={[styles.statValue, { color: stats.attendanceRate < 75 ? '#ef4444' : theme.text }]}>{stats.attendanceRate}%</Text>
-           </View>
-           <View style={[styles.statBox, { backgroundColor: theme.backgroundElement }]}>
+           </TouchableOpacity>
+           <TouchableOpacity
+             style={[styles.statBox, { backgroundColor: theme.backgroundElement }]}
+             activeOpacity={0.85}
+             onPress={() => router.push('/(student)/schedule')}
+           >
               <View style={styles.statIconWrapper}>
                 <Ionicons name="book-outline" size={18} color={theme.textSecondary} />
               </View>
               <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Joined Classes</Text>
               <Text style={[styles.statValue, { color: theme.text }]}>{stats.coursesCount}</Text>
-           </View>
+           </TouchableOpacity>
         </Animated.View>
 
         {/* SCHEDULED CLASS (timetable — not the live session) */}
