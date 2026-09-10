@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getAuth } from '@/lib/session';
-import { addBillingPeriod, addTrialDays, getPlan, normalizePlan } from '@/lib/plans';
+import { addBillingPeriod, addTrialPeriod, getPlan, normalizePlan } from '@/lib/plans';
 
 function requireSuperAdmin(auth: Awaited<ReturnType<typeof getAuth>>) {
   return !auth || auth.userRole !== 'ADMIN' || auth.institutionId;
@@ -55,8 +55,8 @@ export async function POST(request: Request) {
     const plan = normalizePlan(subscription_plan || 'starter');
     const planDef = getPlan(plan);
     const cycle = billing_cycle || 'monthly';
-    const onTrial = Boolean(trial_period);
-    const endsAt = onTrial ? addTrialDays(new Date(), 14) : addBillingPeriod(new Date(), cycle);
+    const onTrial = trial_period !== false;
+    const endsAt = onTrial ? addTrialPeriod(new Date()) : addBillingPeriod(new Date(), cycle);
 
     const institution = await prisma.institutions.create({
       data: {

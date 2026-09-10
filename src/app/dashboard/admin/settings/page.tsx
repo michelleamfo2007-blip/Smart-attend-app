@@ -248,7 +248,7 @@ function SettingsPageInner() {
                 {subscription?.plan === 'pro' ? 'Upgrade to Enterprise' : 'Upgrade to Pro'}
               </h3>
               <p style={{ color: '#9ca3af', fontSize: '0.9rem' }}>
-                {subscription?.plan === 'pro' ? 'Custom pricing' : '$99 / month'}
+                {subscription?.plan === 'pro' ? 'Custom pricing' : 'GH₵ 2,500 / month'}
               </p>
             </div>
           </div>

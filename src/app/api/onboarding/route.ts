@@ -3,7 +3,7 @@ import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { signToken } from '@/lib/auth';
 import { getEmailError, normalizeEmail, sendWelcomeEmail } from '@/lib/email';
-import { addTrialDays, getPlan, normalizePlan } from '@/lib/plans';
+import { addTrialPeriod, getPlan, normalizePlan } from '@/lib/plans';
 
 export async function POST(req: Request) {
   try {
@@ -32,8 +32,8 @@ export async function POST(req: Request) {
     const normalizedAdminEmail = normalizeEmail(adminEmail);
     const selectedPlan = normalizePlan(plan || 'starter');
     const planDef = getPlan(selectedPlan);
-    // New schools start on a 14-day trial; paid monthly periods are set after checkout.
-    const subscriptionEndsAt = addTrialDays(new Date(), 14);
+    // Every new school gets a 6-month free trial; paid periods start after checkout/renewal.
+    const subscriptionEndsAt = addTrialPeriod(new Date());
 
     // 2. Check if Admin Email already exists
     const existingUser = await prisma.users.findUnique({

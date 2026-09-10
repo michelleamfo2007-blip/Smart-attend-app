@@ -76,7 +76,17 @@ export function addBillingPeriod(from: Date, billingCycle?: string | null) {
   return end;
 }
 
-export function addTrialDays(from: Date, days = 14) {
+/** All new schools get a 6-month free trial by default. */
+export const TRIAL_MONTHS = 6;
+
+export function addTrialPeriod(from: Date, months = TRIAL_MONTHS) {
+  const end = new Date(from);
+  end.setMonth(end.getMonth() + months);
+  return end;
+}
+
+/** @deprecated Prefer addTrialPeriod (months). Kept for callers that pass day counts. */
+export function addTrialDays(from: Date, days = TRIAL_MONTHS * 30) {
   const end = new Date(from);
   end.setDate(end.getDate() + days);
   return end;

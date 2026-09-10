@@ -79,13 +79,13 @@ export default function PricingPage() {
           <div style={{ background: 'white', borderRadius: '24px', padding: '40px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: '0 0 16px 0' }}>Pro</h3>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', marginBottom: '8px' }}>
-              <span style={{ fontSize: '2.25rem', fontWeight: 800, color: '#111827', whiteSpace: 'nowrap' }}>GH₵ {isYearly ? '14,400' : '1,500'}</span>
+              <span style={{ fontSize: '2.25rem', fontWeight: 800, color: '#111827', whiteSpace: 'nowrap' }}>GH₵ {isYearly ? '24,000' : '2,500'}</span>
               <span style={{ color: '#6b7280', fontWeight: 500 }}>/{isYearly ? 'year' : 'month'}</span>
             </div>
             <p style={{ color: '#6b7280', fontSize: '0.95rem', marginBottom: '32px' }}>Everything you need to manage a growing campus.</p>
             
             <Link href="/onboard?plan=pro" style={{ display: 'block', textAlign: 'center', padding: '12px', background: '#f1f5f9', color: '#111827', borderRadius: '12px', fontWeight: 600, textDecoration: 'none', marginBottom: '32px', transition: 'background 0.2s' }}>
-              Start 2-Month Free Trial
+              Start 6-Month Free Trial
             </Link>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

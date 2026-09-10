@@ -38,7 +38,7 @@ export default function InstitutionForm({
     subscription_plan: institution?.subscription_plan || 'starter',
     status: institution?.status || 'active',
     billing_cycle: institution?.billing_cycle || 'monthly',
-    trial_period: institution?.trial_period || false,
+    trial_period: institution?.trial_period ?? true,
     max_users: institution?.max_users || null,
     api_access: institution?.api_access || false,
     sso: institution?.sso || false,
@@ -184,7 +184,7 @@ export default function InstitutionForm({
                 {/* Pro Plan */}
                 <div className={`${styles.planCard} ${formData.subscription_plan === 'pro' ? styles.planCardActive : ''}`} onClick={() => updateField('subscription_plan', 'pro')}>
                   <span className={styles.planTitle}>Pro</span>
-                  <span className={styles.planPrice}>$99<span style={{ fontSize: '0.9rem', color: '#6b7280', fontWeight: 'normal' }}>/mo</span></span>
+                  <span className={styles.planPrice}>GH₵ 2,500<span style={{ fontSize: '0.9rem', color: '#6b7280', fontWeight: 'normal' }}>/mo</span></span>
                   <div className={styles.planFeature}>✓ 5 Admins</div>
                   <div className={styles.planFeature}>✓ 500 Users</div>
                   <div className={styles.planFeature}>✓ 50GB Storage</div>
@@ -199,7 +199,7 @@ export default function InstitutionForm({
                 </div>
               </div>
 
-              <Switch checked={formData.trial_period || false} onChange={v => updateField('trial_period', v)} label="Enable 14-day Free Trial" />
+              <Switch checked={formData.trial_period || false} onChange={v => updateField('trial_period', v)} label="Enable 6-month Free Trial" />
             </div>
 
             {/* Section 3: Additional Settings */}
