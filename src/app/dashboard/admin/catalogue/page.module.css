@@ -58,6 +58,34 @@
   border-bottom: 1px solid #e2e8f0;
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.deleteBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+  background: #fff;
+  color: #e01e37;
+  cursor: pointer;
+}
+
+.deleteBtn:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+.deleteBtn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
 .collegeTitle {
   display: flex;
   align-items: center;
