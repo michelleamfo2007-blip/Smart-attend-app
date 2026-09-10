@@ -7,39 +7,47 @@ import Link from 'next/link';
 import styles from './page.module.css';
 
 export default function CohortsPage() {
-  const { user } = useUser();
+  const { loading: userLoading } = useUser();
   const [cohorts, setCohorts] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  // Modal state
+  const [error, setError] = useState<string | null>(null);
+
   const [showModal, setShowModal] = useState(false);
   const [newCohortName, setNewCohortName] = useState('');
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (user?.institution_id) {
-      fetchData();
-    }
-  }, [user]);
-
   const fetchData = async () => {
+    setError(null);
     try {
       const [cohortsRes, classesRes] = await Promise.all([
         fetch('/api/admin/cohorts'),
-        fetch('/api/admin/courses')
+        fetch('/api/admin/courses'),
       ]);
       const cohortsData = await cohortsRes.json();
       const classesData = await classesRes.json();
-      setCohorts(cohortsData.cohorts || cohortsData || []);
+
+      if (!cohortsRes.ok) {
+        setError(cohortsData.error || 'Failed to load programs');
+        setCohorts([]);
+      } else {
+        setCohorts(cohortsData.cohorts || cohortsData || []);
+      }
+
       setClasses(classesData.courses || classesData || []);
-    } catch (error) {
-      console.error('Error fetching data:', error);
+    } catch (err) {
+      console.error('Error fetching data:', err);
+      setError('Failed to load programs');
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (userLoading) return;
+    fetchData();
+  }, [userLoading]);
 
   const handleCreateCohort = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,8 +60,8 @@ export default function CohortsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: newCohortName,
-          classIds: selectedClasses
-        })
+          classIds: selectedClasses,
+        }),
       });
 
       if (res.ok) {
@@ -65,8 +73,8 @@ export default function CohortsPage() {
         const errorData = await res.json();
         alert(errorData.error || 'Failed to create cohort');
       }
-    } catch (error) {
-      console.error('Create error:', error);
+    } catch (err) {
+      console.error('Create error:', err);
       alert('An error occurred');
     } finally {
       setIsSubmitting(false);
@@ -74,15 +82,17 @@ export default function CohortsPage() {
   };
 
   const toggleClassSelection = (classId: string) => {
-    setSelectedClasses(prev => 
-      prev.includes(classId) 
-        ? prev.filter(id => id !== classId)
-        : [...prev, classId]
+    setSelectedClasses((prev) =>
+      prev.includes(classId) ? prev.filter((id) => id !== classId) : [...prev, classId]
     );
   };
 
-  if (!user?.institution_id) {
-    return <div className={styles.container}><p>Please select an institution context first.</p></div>;
+  if (userLoading || loading) {
+    return (
+      <div className={styles.container}>
+        <p>Loading programs...</p>
+      </div>
+    );
   }
 
   return (
@@ -90,19 +100,26 @@ export default function CohortsPage() {
       <header className={styles.header}>
         <div>
           <h1 className={styles.title}>Programs & Student Groups</h1>
-          <p className={styles.subtitle}>Group students into programs and automatically enroll them in modules.</p>
+          <p className={styles.subtitle}>
+            Group students into programs and automatically enroll them in modules.
+          </p>
         </div>
         <button className={styles.btnPrimary} onClick={() => setShowModal(true)}>
           Create Program
         </button>
       </header>
 
-      {loading ? (
-        <p>Loading cohorts...</p>
+      {error ? (
+        <p className={styles.empty}>{error}</p>
       ) : (
         <div className={styles.grid}>
-          {cohorts.map(cohort => (
-            <Link href={`/dashboard/admin/cohorts/${cohort.id}`} key={cohort.id} className={styles.card} style={{ textDecoration: 'none', color: 'inherit' }}>
+          {cohorts.map((cohort) => (
+            <Link
+              href={`/dashboard/admin/cohorts/${cohort.id}`}
+              key={cohort.id}
+              className={styles.card}
+              style={{ textDecoration: 'none', color: 'inherit' }}
+            >
               <div className={styles.cardIconWrapper}>
                 <Layers size={24} />
               </div>
@@ -132,8 +149,8 @@ export default function CohortsPage() {
             <form onSubmit={handleCreateCohort}>
               <div className={styles.formGroup}>
                 <label>Program Name (e.g. BSc Computer Science - Level 100)</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={newCohortName}
                   onChange={(e) => setNewCohortName(e.target.value)}
                   className={styles.input}
@@ -144,11 +161,13 @@ export default function CohortsPage() {
 
               <div className={styles.formGroup}>
                 <label>Assign Modules (Auto-Enrollment)</label>
-                <p className={styles.helpText}>Students who join this program will automatically be enrolled in these modules.</p>
+                <p className={styles.helpText}>
+                  Students who join this program will automatically be enrolled in these modules.
+                </p>
                 <div className={styles.classList}>
-                  {classes.map(c => (
+                  {classes.map((c) => (
                     <label key={c.id} className={styles.checkboxLabel}>
-                      <input 
+                      <input
                         type="checkbox"
                         checked={selectedClasses.includes(c.id)}
                         onChange={() => toggleClassSelection(c.id)}
@@ -161,8 +180,14 @@ export default function CohortsPage() {
               </div>
 
               <div className={styles.modalActions}>
-                <button type="button" className={styles.btnSecondary} onClick={() => setShowModal(false)}>Cancel</button>
-                <button type="submit" className={styles.btnPrimary} disabled={isSubmitting || !newCohortName.trim()}>
+                <button type="button" className={styles.btnSecondary} onClick={() => setShowModal(false)}>
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={styles.btnPrimary}
+                  disabled={isSubmitting || !newCohortName.trim()}
+                >
                   {isSubmitting ? 'Creating...' : 'Create Program'}
                 </button>
               </div>
