@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { getAuth } from '@/lib/session';
+import { assertCanAddUsers, SubscriptionError } from '@/lib/subscription';
 
 function getStartOfWeek() {
   const date = new Date();
@@ -141,6 +142,15 @@ export async function POST(req: Request) {
     const existing = await prisma.users.findUnique({ where: { email } });
     if (existing) {
       return NextResponse.json({ error: 'A user with this email already exists.' }, { status: 400 });
+    }
+
+    try {
+      await assertCanAddUsers(auth.institutionId, 1);
+    } catch (err) {
+      if (err instanceof SubscriptionError) {
+        return NextResponse.json({ error: err.message }, { status: err.status });
+      }
+      throw err;
     }
 
     const hashed = await bcrypt.hash(password, 10);

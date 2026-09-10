@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { signToken } from '@/lib/auth';
 import { checkRateLimit } from '@/lib/rateLimit';
+import { assertInstitutionAccess, refreshInstitutionSubscription, SubscriptionError } from '@/lib/subscription';
 
 export async function POST(req: Request) {
   try {
@@ -41,6 +42,22 @@ export async function POST(req: Request) {
 
     if (!isPasswordValid) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+    }
+
+    if (user.institution_id) {
+      if (user.role === 'ADMIN') {
+        // School admins may still sign in after expiry so they can renew.
+        await refreshInstitutionSubscription(user.institution_id);
+      } else {
+        try {
+          await assertInstitutionAccess(user.institution_id);
+        } catch (err) {
+          if (err instanceof SubscriptionError) {
+            return NextResponse.json({ error: err.message }, { status: err.status });
+          }
+          throw err;
+        }
+      }
     }
 
     if (user.role === 'STUDENT' && !device_id) {

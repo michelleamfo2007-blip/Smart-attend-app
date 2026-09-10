@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getAuth } from '@/lib/session';
+import { getPlan, normalizePlan } from '@/lib/plans';
 
 function requireSuperAdmin(auth: Awaited<ReturnType<typeof getAuth>>) {
   return !auth || auth.userRole !== 'ADMIN' || auth.institutionId;
@@ -21,7 +22,7 @@ export async function PUT(
     const {
       name, domain, logo, contact_email, phone_number,
       subscription_plan, status, billing_cycle, trial_period,
-      max_users, api_access, sso, custom_branding, notes,
+      max_users, api_access, sso, custom_branding, notes, subscription_ends_at,
     } = body;
 
     if (domain) {
@@ -36,6 +37,9 @@ export async function PUT(
       }
     }
 
+    const plan = subscription_plan ? normalizePlan(subscription_plan) : undefined;
+    const planDef = plan ? getPlan(plan) : null;
+
     const institution = await prisma.institutions.update({
       where: { id },
       data: {
@@ -44,11 +48,16 @@ export async function PUT(
         logo,
         contact_email,
         phone_number,
-        subscription_plan,
+        ...(plan ? { subscription_plan: plan } : {}),
         status,
         billing_cycle,
         trial_period,
-        max_users: max_users ? parseInt(max_users) : null,
+        max_users: max_users !== undefined && max_users !== '' && max_users !== null
+          ? parseInt(String(max_users), 10)
+          : planDef
+            ? planDef.maxUsers
+            : undefined,
+        ...(subscription_ends_at ? { subscription_ends_at: new Date(subscription_ends_at) } : {}),
         api_access,
         sso,
         custom_branding,

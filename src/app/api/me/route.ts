@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getAuth } from '@/lib/session';
+import { refreshInstitutionSubscription } from '@/lib/subscription';
 
 export async function GET() {
   try {
@@ -22,13 +23,45 @@ export async function GET() {
         student_id: true,
         staff_id: true,
         device_id: true,
-        institution: { select: { id: true, name: true } },
+        institution: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            subscription_plan: true,
+            subscription_ends_at: true,
+          },
+        },
         can_mark_attendance: true,
       },
     });
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    if (user.institution_id) {
+      const institution = await refreshInstitutionSubscription(user.institution_id);
+      if (institution && user.institution) {
+        user.institution.status = institution.status;
+        user.institution.subscription_plan = institution.subscription_plan;
+        user.institution.subscription_ends_at = institution.subscription_ends_at;
+      }
+
+      const blocked =
+        institution &&
+        institution.status !== 'active' &&
+        user.role !== 'ADMIN';
+
+      if (blocked) {
+        return NextResponse.json(
+          {
+            error: 'This school subscription has ended. Renew your plan to continue using SmartAttend.',
+            subscriptionStatus: institution.status,
+          },
+          { status: 403 }
+        );
+      }
     }
 
     return NextResponse.json({ user });

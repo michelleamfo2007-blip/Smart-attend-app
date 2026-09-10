@@ -5,6 +5,18 @@ import styles from '../admin.module.css';
 import { CreditCard, Zap, CheckCircle2, AlertCircle, Key, Copy } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 
+type SubscriptionInfo = {
+  plan: string;
+  planName: string;
+  status: string;
+  billingCycle: string;
+  maxUsers: number | null;
+  userCount: number;
+  userLimitLabel: string;
+  endsAt: string | null;
+  features: string[];
+};
+
 export default function SettingsPage() {
   return (
     <Suspense fallback={<div className={styles.loading}><div className={styles.spinner} /></div>}>
@@ -19,13 +31,17 @@ function SettingsPageInner() {
   const [inviteCode, setInviteCode] = useState('');
   const [savingCode, setSavingCode] = useState(false);
   const [codeMessage, setCodeMessage] = useState('');
+  const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
   const searchParams = useSearchParams();
   const checkoutStatus = searchParams.get('checkout');
 
   useEffect(() => {
     fetch('/api/admin/settings')
       .then((res) => res.json())
-      .then((data) => setInviteCode(data.code || ''))
+      .then((data) => {
+        setInviteCode(data.code || '');
+        if (data.subscription) setSubscription(data.subscription);
+      })
       .catch(() => setInviteCode(''));
   }, []);
 
@@ -85,6 +101,18 @@ function SettingsPageInner() {
     }
   };
 
+  const endsAtLabel = subscription?.endsAt
+    ? new Date(subscription.endsAt).toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })
+    : null;
+
+  const isExpired = subscription?.status === 'expired' || subscription?.status === 'suspended';
+  const planName = subscription?.planName || 'Starter';
+  const userLimitLabel = subscription?.userLimitLabel || 'Up to 50 users';
+
   return (
     <div className={styles.page}>
       <div className={styles.pageHeader}>
@@ -105,6 +133,13 @@ function SettingsPageInner() {
         <div className={`${styles.notification} ${styles.notifError}`}>
           <AlertCircle size={20} />
           <span>Checkout was cancelled. Your plan has not changed.</span>
+        </div>
+      )}
+
+      {isExpired && (
+        <div className={`${styles.notification} ${styles.notifError}`}>
+          <AlertCircle size={20} />
+          <span>Your subscription has ended. Renew below to restore access for your school.</span>
         </div>
       )}
 
@@ -175,12 +210,26 @@ function SettingsPageInner() {
             </div>
             <div>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#111827' }}>Current Plan</h3>
-              <p style={{ color: '#6b7280', fontSize: '0.9rem' }}>You are on the Starter Plan.</p>
+              <p style={{ color: '#6b7280', fontSize: '0.9rem' }}>
+                You are on the {planName} plan
+                {subscription ? ` · ${subscription.status}` : ''}.
+              </p>
             </div>
           </div>
-          <p style={{ fontSize: '0.9rem', color: '#374151', marginBottom: '24px', lineHeight: 1.5 }}>
-            The Starter Plan supports up to 50 users and basic reporting. Upgrade to Pro to unlock unlimited users and advanced analytics.
+          <p style={{ fontSize: '0.9rem', color: '#374151', marginBottom: '12px', lineHeight: 1.5 }}>
+            {planName === 'Starter' && `${userLimitLabel} and basic reporting. Upgrade to Pro for up to 500 users and advanced analytics.`}
+            {planName === 'Pro' && `${userLimitLabel}, advanced analytics, and priority support. Upgrade to Enterprise for unlimited users.`}
+            {planName === 'Enterprise' && 'Unlimited users, SSO, and custom branding.'}
+            {planName === 'Free' && `${userLimitLabel}. Upgrade to unlock more seats and reporting.`}
+            {!['Starter', 'Pro', 'Enterprise', 'Free'].includes(planName) && `${userLimitLabel}.`}
           </p>
+          {subscription && (
+            <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '24px' }}>
+              Seats used: {subscription.userCount}
+              {subscription.maxUsers != null ? ` / ${subscription.maxUsers}` : ' (unlimited)'}
+              {endsAtLabel ? ` · Renews/ends ${endsAtLabel}` : ''}
+            </p>
+          )}
           <button
             disabled={true}
             style={{ width: '100%', padding: '10px', background: '#f3f4f6', color: '#9ca3af', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'not-allowed' }}
@@ -195,22 +244,51 @@ function SettingsPageInner() {
               <Zap size={24} color="#fbbf24" />
             </div>
             <div>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'white' }}>Upgrade to Pro</h3>
-              <p style={{ color: '#9ca3af', fontSize: '0.9rem' }}>$99 / month</p>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'white' }}>
+                {subscription?.plan === 'pro' ? 'Upgrade to Enterprise' : 'Upgrade to Pro'}
+              </h3>
+              <p style={{ color: '#9ca3af', fontSize: '0.9rem' }}>
+                {subscription?.plan === 'pro' ? 'Custom pricing' : '$99 / month'}
+              </p>
             </div>
           </div>
           <ul style={{ fontSize: '0.9rem', color: '#d1d5db', marginBottom: '24px', lineHeight: 1.6, paddingLeft: '20px' }}>
-            <li>Unlimited Users & Admins</li>
-            <li>Priority Email Support</li>
-            <li>Custom Branding</li>
-            <li>50GB Storage</li>
+            {subscription?.plan === 'pro' ? (
+              <>
+                <li>Unlimited users &amp; admins</li>
+                <li>SSO Integration</li>
+                <li>Custom branding</li>
+                <li>Dedicated support</li>
+              </>
+            ) : (
+              <>
+                <li>Up to 500 users</li>
+                <li>Up to 5 admins</li>
+                <li>Advanced analytics</li>
+                <li>Priority email support</li>
+              </>
+            )}
           </ul>
           <button
-            onClick={() => handleUpgrade('pro')}
-            disabled={loading}
-            style={{ width: '100%', padding: '10px', background: '#e01e37', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: loading ? 'wait' : 'pointer', transition: 'background 0.2s' }}
+            onClick={() => {
+              if (subscription?.plan === 'pro') {
+                window.location.href = 'mailto:support@smartattend.app?subject=Enterprise%20upgrade';
+                return;
+              }
+              handleUpgrade('pro');
+            }}
+            disabled={loading || subscription?.plan === 'enterprise'}
+            style={{ width: '100%', padding: '10px', background: '#e01e37', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: loading ? 'wait' : 'pointer', transition: 'background 0.2s', opacity: subscription?.plan === 'enterprise' ? 0.5 : 1 }}
           >
-            {loading ? 'Redirecting to Stripe...' : 'Upgrade Now'}
+            {subscription?.plan === 'enterprise'
+              ? 'On Enterprise'
+              : loading
+                ? 'Redirecting to Stripe...'
+                : subscription?.plan === 'pro'
+                  ? 'Contact Sales'
+                  : isExpired
+                    ? 'Renew / Upgrade Now'
+                    : 'Upgrade Now'}
           </button>
         </div>
       </div>

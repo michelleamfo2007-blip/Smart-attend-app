@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getAuth } from '@/lib/session';
+import { addBillingPeriod, addTrialDays, getPlan, normalizePlan } from '@/lib/plans';
 
 function requireSuperAdmin(auth: Awaited<ReturnType<typeof getAuth>>) {
   return !auth || auth.userRole !== 'ADMIN' || auth.institutionId;
@@ -51,6 +52,12 @@ export async function POST(request: Request) {
       }
     }
 
+    const plan = normalizePlan(subscription_plan || 'starter');
+    const planDef = getPlan(plan);
+    const cycle = billing_cycle || 'monthly';
+    const onTrial = Boolean(trial_period);
+    const endsAt = onTrial ? addTrialDays(new Date(), 14) : addBillingPeriod(new Date(), cycle);
+
     const institution = await prisma.institutions.create({
       data: {
         name,
@@ -58,11 +65,12 @@ export async function POST(request: Request) {
         logo,
         contact_email,
         phone_number,
-        subscription_plan: subscription_plan || 'free',
+        subscription_plan: plan,
         status: status || 'active',
-        billing_cycle: billing_cycle || 'monthly',
-        trial_period: trial_period || false,
-        max_users: max_users ? parseInt(max_users) : null,
+        billing_cycle: cycle,
+        trial_period: onTrial,
+        max_users: max_users ? parseInt(max_users, 10) : planDef.maxUsers,
+        subscription_ends_at: endsAt,
         api_access: api_access || false,
         sso: sso || false,
         custom_branding: custom_branding || false,

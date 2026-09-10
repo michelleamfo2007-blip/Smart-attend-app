@@ -4,9 +4,7 @@ import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'dummy', {
-  apiVersion: '2024-04-10',
-});
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'dummy');
 
 export async function POST(req: Request) {
   try {
@@ -18,18 +16,18 @@ export async function POST(req: Request) {
     }
 
     const decoded = await verifyToken(token);
-    if (!decoded || !decoded.institutionId) {
+    const institutionId = typeof decoded?.institutionId === 'string' ? decoded.institutionId : null;
+    if (!decoded || !institutionId) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
     const body = await req.json();
-    const { plan } = body;
+    const plan = typeof body.plan === 'string' ? body.plan : '';
 
     if (!plan) {
       return NextResponse.json({ error: 'Plan is required' }, { status: 400 });
     }
 
-    // Determine price ID based on plan (these would be actual price IDs in a real setup)
     let priceId = '';
     if (plan === 'pro') {
       priceId = process.env.STRIPE_PRO_PRICE_ID || 'price_123';
@@ -39,10 +37,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
     }
 
-    // Get institution to pass customer email if available
     const institution = await prisma.institutions.findUnique({
-      where: { id: decoded.institutionId }
+      where: { id: institutionId },
     });
+
+    const customerEmail =
+      institution?.contact_email ||
+      (typeof decoded.email === 'string' ? decoded.email : undefined);
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -55,12 +56,18 @@ export async function POST(req: Request) {
       mode: 'subscription',
       success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/admin/settings?checkout=success`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/admin/settings?checkout=cancelled`,
-      customer_email: institution?.contact_email || decoded.email,
-      client_reference_id: decoded.institutionId,
+      customer_email: customerEmail,
+      client_reference_id: institutionId,
       metadata: {
-        institutionId: decoded.institutionId,
-        plan: plan,
-      }
+        institutionId,
+        plan,
+      },
+      subscription_data: {
+        metadata: {
+          institutionId,
+          plan,
+        },
+      },
     });
 
     return NextResponse.json({ url: session.url });

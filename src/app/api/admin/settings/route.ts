@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getAuth } from '@/lib/session';
+import { formatUserLimit, getPlan, resolveMaxUsers } from '@/lib/plans';
+import { refreshInstitutionSubscription } from '@/lib/subscription';
 
 export async function GET() {
   try {
@@ -13,11 +15,35 @@ export async function GET() {
       return NextResponse.json({ code: 'SUPER-ADMIN-N/A' });
     }
 
-    const institution = await prisma.institutions.findUnique({
-      where: { id: auth.institutionId },
+    const institution = await refreshInstitutionSubscription(auth.institutionId);
+    if (!institution) {
+      return NextResponse.json({ error: 'Institution not found' }, { status: 404 });
+    }
+
+    const userCount = await prisma.users.count({
+      where: { institution_id: auth.institutionId },
     });
 
-    return NextResponse.json({ code: institution?.invite_code || 'N/A' });
+    const plan = getPlan(institution.subscription_plan);
+    const maxUsers = resolveMaxUsers(institution);
+
+    return NextResponse.json({
+      code: (await prisma.institutions.findUnique({
+        where: { id: auth.institutionId },
+        select: { invite_code: true },
+      }))?.invite_code || 'N/A',
+      subscription: {
+        plan: plan.id,
+        planName: plan.name,
+        status: institution.status,
+        billingCycle: institution.billing_cycle,
+        maxUsers,
+        userCount,
+        userLimitLabel: formatUserLimit(maxUsers),
+        endsAt: institution.subscription_ends_at,
+        features: plan.features,
+      },
+    });
   } catch (error) {
     console.error('Settings error:', error);
     return NextResponse.json({ error: 'Failed to fetch settings' }, { status: 500 });

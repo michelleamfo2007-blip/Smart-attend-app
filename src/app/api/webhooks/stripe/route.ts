@@ -2,16 +2,19 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import prisma from '@/lib/prisma';
 import { headers } from 'next/headers';
+import {
+  expireInstitutionSubscription,
+  startOrExtendSubscription,
+} from '@/lib/subscription';
+import { getPlan, normalizePlan } from '@/lib/plans';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'dummy', {
-  apiVersion: '2024-04-10',
-});
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'dummy');
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 export async function POST(req: Request) {
   const body = await req.text();
-  const signature = headers().get('stripe-signature') as string;
+  const signature = (await headers()).get('stripe-signature') as string;
 
   let event: Stripe.Event;
 
@@ -22,32 +25,67 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
   }
 
-  // Handle the event
   switch (event.type) {
-    case 'checkout.session.completed':
+    case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
-      
-      const institutionId = session.client_reference_id;
-      const plan = session.metadata?.plan;
+      const institutionId = session.client_reference_id || session.metadata?.institutionId;
+      const plan = normalizePlan(session.metadata?.plan || 'pro');
 
       if (institutionId) {
-        // Update institution in database
+        await startOrExtendSubscription(institutionId, {
+          plan,
+          billingCycle: 'monthly',
+          from: new Date(),
+          setMaxUsers: true,
+        });
+        console.log(`Institution ${institutionId} activated on ${plan} (${getPlan(plan).maxUsers ?? 'unlimited'} seats)`);
+      }
+      break;
+    }
+
+    case 'invoice.paid': {
+      const invoice = event.data.object as Stripe.Invoice;
+      const institutionId = invoice.metadata?.institutionId;
+      if (institutionId) {
+        await startOrExtendSubscription(institutionId, {
+          plan: invoice.metadata?.plan,
+          from: new Date(),
+        });
+      }
+      break;
+    }
+
+    case 'customer.subscription.deleted': {
+      const subscription = event.data.object as Stripe.Subscription;
+      const institutionId = subscription.metadata?.institutionId;
+      if (institutionId) {
+        await expireInstitutionSubscription(institutionId);
+      }
+      break;
+    }
+
+    case 'customer.subscription.updated': {
+      const subscription = event.data.object as Stripe.Subscription;
+      const institutionId = subscription.metadata?.institutionId;
+      if (!institutionId) break;
+
+      if (subscription.status === 'canceled' || subscription.status === 'unpaid' || subscription.status === 'incomplete_expired') {
+        await expireInstitutionSubscription(institutionId);
+      } else if (subscription.status === 'active' || subscription.status === 'trialing') {
+        const periodEndUnix = (subscription as Stripe.Subscription & { current_period_end?: number }).current_period_end;
+        const periodEnd = periodEndUnix ? new Date(periodEndUnix * 1000) : undefined;
+        const plan = subscription.metadata?.plan;
         await prisma.institutions.update({
           where: { id: institutionId },
           data: {
-            subscription_plan: plan || 'pro',
             status: 'active',
+            ...(plan ? { subscription_plan: plan } : {}),
+            ...(periodEnd ? { subscription_ends_at: periodEnd } : {}),
           },
         });
-        console.log(`Successfully updated institution ${institutionId} to plan ${plan}`);
       }
       break;
-
-    case 'customer.subscription.deleted':
-    case 'customer.subscription.updated':
-      // Handle cancellation or update
-      // For a real app, we'd look up the customer and update the institution status
-      break;
+    }
 
     default:
       console.log(`Unhandled event type ${event.type}`);

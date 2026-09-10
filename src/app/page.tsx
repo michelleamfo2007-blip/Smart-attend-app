@@ -151,7 +151,29 @@ export default function Home() {
 
       {/* Footer */}
       <footer className={styles.footer}>
-        <p>&copy; {new Date().getFullYear()} SmartAttend SaaS. All rights reserved.</p>
+        <div className={styles.footerInner}>
+          <div className={styles.footerBrand}>
+            <div className={styles.logo}>
+              <div className={styles.logoIcon}>
+                <svg width="20" height="20" viewBox="0 0 32 32" fill="none">
+                  <path d="M8 16L13 21L24 10" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <span className={styles.logoText}>SmartAttend</span>
+            </div>
+            <p className={styles.footerTagline}>
+              GPS + QR attendance for modern campuses.
+            </p>
+          </div>
+          <nav className={styles.footerNav} aria-label="Footer">
+            <Link href="/pricing">Pricing</Link>
+            <Link href="/login">Log In</Link>
+            <Link href="/onboard?plan=starter">Register School</Link>
+          </nav>
+        </div>
+        <p className={styles.footerCopy}>
+          &copy; {new Date().getFullYear()} SmartAttend. All rights reserved.
+        </p>
       </footer>
     </div>
   );

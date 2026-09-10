@@ -214,6 +214,7 @@ model institutions {
   billing_cycle     String   @default("monthly")
   trial_period      Boolean  @default(false)
   max_users         Int?
+  subscription_ends_at DateTime? @db.Timestamptz
   api_access        Boolean  @default(false)
   sso               Boolean  @default(false)
   custom_branding   Boolean  @default(false)

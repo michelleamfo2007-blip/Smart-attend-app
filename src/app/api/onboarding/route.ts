@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { signToken } from '@/lib/auth';
 import { getEmailError, normalizeEmail, sendWelcomeEmail } from '@/lib/email';
+import { addTrialDays, getPlan, normalizePlan } from '@/lib/plans';
 
 export async function POST(req: Request) {
   try {
@@ -13,34 +14,39 @@ export async function POST(req: Request) {
     } = body;
 
     // 1. Basic Validation
-    if (!institutionName || !contactEmail || !adminName || !adminEmail || !adminPassword) {
+    if (!institutionName || !adminName || !adminEmail || !adminPassword) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
     const contactEmailError = getEmailError(contactEmail);
     if (contactEmailError) {
-      return NextResponse.json({ error: `Contact email: ${contactEmailError}` }, { status: 400 });
+      return NextResponse.json({ error: `School contact email: ${contactEmailError}` }, { status: 400 });
     }
+
     const adminEmailError = getEmailError(adminEmail);
     if (adminEmailError) {
-      return NextResponse.json({ error: adminEmailError }, { status: 400 });
+      return NextResponse.json({ error: `Admin email: ${adminEmailError}` }, { status: 400 });
     }
 
-    const normalizedAdminEmail = normalizeEmail(adminEmail);
     const normalizedContactEmail = normalizeEmail(contactEmail);
+    const normalizedAdminEmail = normalizeEmail(adminEmail);
+    const selectedPlan = normalizePlan(plan || 'starter');
+    const planDef = getPlan(selectedPlan);
+    // New schools start on a 14-day trial; paid monthly periods are set after checkout.
+    const subscriptionEndsAt = addTrialDays(new Date(), 14);
 
-    // 2. Check if admin email is already taken
+    // 2. Check if Admin Email already exists
     const existingUser = await prisma.users.findUnique({
-      where: { email: normalizedAdminEmail },
+      where: { email: normalizedAdminEmail }
     });
     if (existingUser) {
-      return NextResponse.json({ error: 'Admin email is already registered' }, { status: 400 });
+      return NextResponse.json({ error: 'An account with this email already exists' }, { status: 400 });
     }
 
-    // 3. Check if domain is taken (if provided)
+    // 3. Check if Domain already exists (if provided)
     if (domain) {
       const existingInst = await prisma.institutions.findUnique({
-        where: { domain },
+        where: { domain }
       });
       if (existingInst) {
         return NextResponse.json({ error: 'Domain is already registered to another institution' }, { status: 400 });
@@ -52,35 +58,34 @@ export async function POST(req: Request) {
     const generatedInviteCode = `LECTURER-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
     const result = await prisma.$transaction(async (tx) => {
-      // Create Institution
       const newInstitution = await tx.institutions.create({
         data: {
           name: institutionName,
           domain: domain || null,
           contact_email: normalizedContactEmail,
-          subscription_plan: plan || 'starter',
+          subscription_plan: selectedPlan,
           status: 'active',
           billing_cycle: 'monthly',
           trial_period: true,
+          max_users: planDef.maxUsers,
+          subscription_ends_at: subscriptionEndsAt,
           invite_code: generatedInviteCode,
         }
       });
 
-      // Create Admin User (Tenant Admin)
       const newAdmin = await tx.users.create({
         data: {
           name: adminName,
           email: normalizedAdminEmail,
           password: hashedPassword,
-          role: 'ADMIN', // Database requires ADMIN, LECTURER, or STUDENT
-          institution_id: newInstitution.id, // Links them to this specific tenant
+          role: 'ADMIN',
+          institution_id: newInstitution.id,
         }
       });
 
       return { newInstitution, newAdmin };
     });
 
-    // 5. Generate JWT for auto-login
     const token = await signToken({
       userId: result.newAdmin.id,
       email: result.newAdmin.email,
@@ -105,13 +110,12 @@ export async function POST(req: Request) {
       }
     }, { status: 201 });
 
-    // Set auth cookie
     response.cookies.set('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 1 week
+      maxAge: 60 * 60 * 24 * 7,
     });
 
     return response;

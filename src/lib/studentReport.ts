@@ -168,7 +168,6 @@ export function studentReportToCsv(report: StudentReport) {
   lines.push(`Institution,${csvEscape(report.institution?.name || '')}`);
   lines.push(`Student Name,${csvEscape(report.student.name || '')}`);
   lines.push(`Index Number,${csvEscape(report.student.studentId || '')}`);
-  lines.push(`Email,${csvEscape(report.student.email || '')}`);
   lines.push(`Level,${csvEscape(report.student.level || '')}`);
   lines.push(`Semester,${csvEscape(report.student.semester || '')}`);
   lines.push(`Program,${csvEscape(report.student.program || '')}`);
@@ -270,7 +269,6 @@ export function studentReportToPrintHtml(report: StudentReport) {
     <div class="grid">
       <div><strong>Name</strong><br/>${escapeHtml(report.student.name || '—')}</div>
       <div><strong>Index Number</strong><br/>${escapeHtml(report.student.studentId || '—')}</div>
-      <div><strong>Email</strong><br/>${escapeHtml(report.student.email || '—')}</div>
       <div><strong>Level / Semester</strong><br/>${escapeHtml(report.student.level || '—')} / ${escapeHtml(report.student.semester || '—')}</div>
       <div><strong>Program</strong><br/>${escapeHtml(report.student.program || '—')}</div>
       <div><strong>Overall Status</strong><br/>${escapeHtml(report.overall.status)}</div>

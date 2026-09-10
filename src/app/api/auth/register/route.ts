@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { getEmailError, normalizeEmail, sendWelcomeEmail } from '@/lib/email';
+import { assertCanAddUsers, assertInstitutionAccess, SubscriptionError } from '@/lib/subscription';
 
 export async function POST(req: Request) {
   try {
@@ -66,6 +67,14 @@ export async function POST(req: Request) {
         if (!institution) {
           return NextResponse.json({ error: 'Invalid institution code' }, { status: 403 });
         }
+        try {
+          await assertInstitutionAccess(institution.id);
+        } catch (err) {
+          if (err instanceof SubscriptionError) {
+            return NextResponse.json({ error: err.message }, { status: err.status });
+          }
+          throw err;
+        }
         assignedInstitutionId = institution.id;
       }
 
@@ -79,6 +88,14 @@ export async function POST(req: Request) {
           return NextResponse.json({ error: 'Invalid Program Selected' }, { status: 403 });
         }
         assignedInstitutionId = programmeData.department.college.institution_id;
+        try {
+          await assertInstitutionAccess(assignedInstitutionId);
+        } catch (err) {
+          if (err instanceof SubscriptionError) {
+            return NextResponse.json({ error: err.message }, { status: err.status });
+          }
+          throw err;
+        }
       } else if (cohort_id) {
         const cohortData = await prisma.cohorts.findUnique({
           where: { id: cohort_id }
@@ -88,6 +105,14 @@ export async function POST(req: Request) {
           return NextResponse.json({ error: 'Invalid Cohort Selected' }, { status: 403 });
         }
         assignedInstitutionId = cohortData.institution_id;
+        try {
+          await assertInstitutionAccess(assignedInstitutionId);
+        } catch (err) {
+          if (err instanceof SubscriptionError) {
+            return NextResponse.json({ error: err.message }, { status: err.status });
+          }
+          throw err;
+        }
       }
 
       // Check if student_id is already taken at this institution
@@ -121,8 +146,39 @@ export async function POST(req: Request) {
       if (!institution) {
         return NextResponse.json({ error: 'Invalid Institution/Lecturer Invite Code' }, { status: 403 });
       }
+
+      try {
+        await assertInstitutionAccess(institution.id);
+      } catch (err) {
+        if (err instanceof SubscriptionError) {
+          return NextResponse.json({ error: err.message }, { status: err.status });
+        }
+        throw err;
+      }
       
       assignedInstitutionId = institution.id;
+    }
+
+    if (assignedInstitutionId && role === 'STUDENT' && preloadedStudent) {
+      try {
+        await assertInstitutionAccess(assignedInstitutionId);
+      } catch (err) {
+        if (err instanceof SubscriptionError) {
+          return NextResponse.json({ error: err.message }, { status: err.status });
+        }
+        throw err;
+      }
+    }
+
+    if (assignedInstitutionId && !(role === 'STUDENT' && preloadedStudent)) {
+      try {
+        await assertCanAddUsers(assignedInstitutionId, 1);
+      } catch (err) {
+        if (err instanceof SubscriptionError) {
+          return NextResponse.json({ error: err.message }, { status: err.status });
+        }
+        throw err;
+      }
     }
 
     if (normalizedEmail) {

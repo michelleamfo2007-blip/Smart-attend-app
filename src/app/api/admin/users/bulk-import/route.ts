@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { getAuth } from '@/lib/session';
+import { assertCanAddUsers, SubscriptionError } from '@/lib/subscription';
 
 export async function POST(req: Request) {
   try {
@@ -25,6 +26,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const newUserCandidates = users.filter((userData: { email?: string; index_number?: string; role?: string }) => {
+      const role = String(userData.role || '').toUpperCase();
+      return role === 'STUDENT' || role === 'LECTURER';
+    });
+
+    try {
+      await assertCanAddUsers(targetInstitutionId, newUserCandidates.length);
+    } catch (err) {
+      if (err instanceof SubscriptionError) {
+        return NextResponse.json({ error: err.message }, { status: err.status });
+      }
+      throw err;
+    }
+
     let successCount = 0;
     let failedCount = 0;
     const defaultPassword = await bcrypt.hash('Welcome123!', 10);
@@ -46,6 +61,16 @@ export async function POST(req: Request) {
           if (role !== 'STUDENT' && role !== 'LECTURER') {
             failedCount++;
             continue;
+          }
+
+          try {
+            await assertCanAddUsers(targetInstitutionId, 1);
+          } catch (err) {
+            if (err instanceof SubscriptionError) {
+              failedCount++;
+              continue;
+            }
+            throw err;
           }
 
           await prisma.users.create({
