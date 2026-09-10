@@ -26,7 +26,7 @@ export default function Home() {
       <section className={styles.hero}>
         <div className={styles.blob}></div>
         <div className={styles.heroContent}>
-          <span className={styles.badge}>New: Cohort Auto-Enrollment</span>
+          <span className={styles.badge}>GPS + rotating QR</span>
           <h1 className={styles.title}>
             Frictionless GPS Attendance for<br/><span className={styles.highlight}>Modern Campuses</span>
           </h1>
@@ -90,9 +90,9 @@ export default function Home() {
 
           <div className={styles.featureCard}>
             <div className={styles.featureIcon}><Zap size={28} /></div>
-            <h3 className={styles.featureTitle}>Dynamic QR Codes</h3>
+            <h3 className={styles.featureTitle}>Rotating QR Codes</h3>
             <p className={styles.featureDesc}>
-              Lecturers generate a unique QR code for every session that expires automatically. It guarantees attendance is recorded in real-time.
+              The lecturer screen refreshes a new QR every 10 seconds. A screenshot from earlier in the lecture will not check anyone in.
             </p>
           </div>
 
@@ -122,9 +122,9 @@ export default function Home() {
 
           <div className={styles.featureCard}>
             <div className={styles.featureIcon}><BellRing size={28} /></div>
-            <h3 className={styles.featureTitle}>Smart Alerts</h3>
+            <h3 className={styles.featureTitle}>At-risk students</h3>
             <p className={styles.featureDesc}>
-              Automatically notify students when their attendance drops below the required threshold (e.g. 70%), keeping them accountable throughout the semester.
+              Admins can see who is falling behind from the school dashboard, without waiting for end-of-semester reports.
             </p>
           </div>
 
@@ -132,7 +132,7 @@ export default function Home() {
             <div className={styles.featureIcon}><Lock size={28} /></div>
             <h3 className={styles.featureTitle}>Role-based Security</h3>
             <p className={styles.featureDesc}>
-              Enterprise-grade Row Level Security separates Tenant Admins, Lecturers, and Students, ensuring schools can only access their own encrypted data.
+              School admins, lecturers, and students only see their own school. Tenant checks run on every API, not a shared database dump.
             </p>
           </div>
         </div>

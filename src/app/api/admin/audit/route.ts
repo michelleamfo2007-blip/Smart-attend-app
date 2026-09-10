@@ -1,19 +1,25 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/auth';
+import { getAuth } from '@/lib/session';
 
 export async function GET() {
   try {
-    const token = (await cookies()).get('token')?.value;
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    
-    const payload = await verifyToken(token);
-    if (payload?.role !== 'ADMIN') {
+    const auth = await getAuth();
+    if (!auth || auth.userRole !== 'ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    let userIds: string[] | undefined;
+    if (auth.institutionId) {
+      const tenantUsers = await prisma.users.findMany({
+        where: { institution_id: auth.institutionId },
+        select: { id: true },
+      });
+      userIds = tenantUsers.map((user) => user.id);
+    }
+
     const logs = await prisma.audit_logs.findMany({
+      where: userIds ? { user_id: { in: userIds } } : undefined,
       orderBy: { created_at: 'desc' },
       take: 200,
     });

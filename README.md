@@ -1,27 +1,53 @@
-Smart Attendance System 
+# SmartAttend
 
-A Modern, GPS-based smart attendance tracking application built with React Native (Expo) and Supabase. This app eliminates the need for manual roll calls or easily spoofed QR codes by requiring students to be physically present in the classroom to mark their attendance.
+Campus attendance SaaS. Students check in on the **mobile app**. Lecturers and school admins run sessions and the school on the **web dashboard**.
 
-Features 
+## How it works
 
- 1. Role-Based Access Control: Separate interfaces and privileges for Students, Lecturers, and Administrators.
- 2. nSmart GPS Check-in: Uses geolocation to create a 50-meter "geofence" around the lecturer. Students can only check in if their device's GPS proves they are actually in the classroom.
- 3. Automatic Class Matching: Students simply select their Academic Level and Semester during signup, and the app automatically filters and displays only the active sessions relevant to them.
+1. A school signs up on the web. An admin sets up the catalogue, programmes, users, and modules.
+2. A lecturer starts a class session (web or phone). The app records GPS and shows a QR code that rotates every 10 seconds.
+3. A student scans that QR on their phone. They must be within about 50 metres, and the account is bound to one device.
+4. Admins see attendance, at-risk students, and school settings.
 
+## Stack
 
- Real-time Dashboards: 
-  1. Students can view their real-time attendance rate and history.
-  2. Lecturers can view live rosters of who has checked into their sessions.
-  3. Admins can seamlessly create, edit, schedule, and assign classes to specific lecturers.
+| Part | Tech |
+|------|------|
+| Web dashboard | Next.js 16, Prisma, PostgreSQL |
+| Auth | JWT (httpOnly cookie on web, Bearer token on mobile) |
+| Mobile app | Expo (React Native) in `smart-attend-mobile/` |
 
-Tech Stack 
+The mobile app talks only to the Next.js API. It does not use Supabase.
 
-Frontend: React Native, Expo, Expo Router
-Backend & Database: Supabase (PostgreSQL)
-Location Services: `expo-location`, `geolib`
+## Web app
 
-How the Flow Works 
+```bash
+npm install
+npx prisma generate
+npm run dev
+```
 
-1. Admin: Creates a class (e.g., "CS 301") and assigns it to a Lecturer, Level, and Semester.
-2. Lecturer: Walks into the classroom, opens the app, and taps "Start Session". The app saves their exact GPS coordinates to the cloud.
-3. Student: Opens the app and taps "Check In". The app calculates the distance between the Student's GPS and the Lecturer's GPS. If they are within 50 meters, their attendance is officially recorded!
+Requires `DATABASE_URL` and `JWT_SECRET` (or `SUPABASE_JWT_SECRET`) in `.env`. In production, a JWT secret is required.
+
+To send a welcome email after **admin** or **lecturer** signup, also add:
+
+```
+RESEND_API_KEY=re_xxxxxxxx
+EMAIL_FROM=SmartAttend <noreply@yourdomain.com>
+NEXT_PUBLIC_APP_URL=https://www.smartattend.co
+```
+
+Get a free API key at [resend.com](https://resend.com). Until you verify your domain, Resend only delivers to the email on your Resend account.
+
+Open [http://localhost:3000](http://localhost:3000).
+
+## Mobile app
+
+See [`smart-attend-mobile/README.md`](smart-attend-mobile/README.md).
+
+## Roles
+
+- **Student** — mark attendance, history, disputes (mobile)
+- **Lecturer** — start/end sessions, rotating QR, live roster (web or mobile). Claim modules and schedules on the web.
+- **School admin** — users, catalogue, programmes, settings (web)
+- **Super admin** — all institutions (web)

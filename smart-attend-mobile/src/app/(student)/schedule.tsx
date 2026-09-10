@@ -2,32 +2,25 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, Text, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { Spacing, Colors } from '@/constants/theme';
-import { useColorScheme } from 'react-native';
-import { supabase } from '../../lib/supabase';
+import { apiFetch } from '../../lib/api';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 export default function ScheduleScreen() {
   const { user } = useAuth();
-  const scheme = useColorScheme() ?? 'light';
-  const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const theme = Colors.light;
   const [loading, setLoading] = useState(true);
   const [schedule, setSchedule] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchSchedule = async () => {
       try {
-        const { data: matchedClasses } = await supabase
-          .from('classes')
-          .select('id, name, course_code, start_time, end_time, schedule_time, users!lecturer_id(name)')
-          .eq('level', user?.level)
-          .eq('semester', user?.semester);
-
-        if (matchedClasses) {
-          setSchedule(matchedClasses);
+        const data = await apiFetch('/api/student/dashboard');
+        if (data.classes) {
+          setSchedule(data.classes);
         }
       } catch (err) {
-        console.error("Failed to fetch schedule", err);
+        // Schedule load failed — empty state is shown below
       } finally {
         setLoading(false);
       }
@@ -85,12 +78,12 @@ export default function ScheduleScreen() {
                          <Text style={[styles.detailText, { color: theme.textSecondary }]}>{timeDisplay}</Text>
                        </View>
                        
-                       {cls.users?.name && (
+                       {(cls.lecturer?.name || cls.users?.name) && (
                          <View style={styles.detailRow}>
                            <View style={[styles.iconWrapper, { backgroundColor: '#F1F5F9' }]}>
-                              <Ionicons name="person-outline" size={14} color={theme.textSecondary} />
+                            <Ionicons name="person-outline" size={14} color={theme.textSecondary} />
                            </View>
-                           <Text style={[styles.detailText, { color: theme.textSecondary }]}>{cls.users.name}</Text>
+                           <Text style={[styles.detailText, { color: theme.textSecondary }]}>{cls.lecturer?.name || cls.users?.name}</Text>
                          </View>
                        )}
                     </View>

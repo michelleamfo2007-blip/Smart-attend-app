@@ -16,10 +16,19 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const [loginAs, setLoginAs] = useState<'lecturer' | 'admin'>('lecturer');
+  const [justRegistered, setJustRegistered] = useState(false);
+
   useEffect(() => {
     const savedInst = localStorage.getItem('recentInstitutionId');
     if (savedInst) {
       setInstitutionId(savedInst);
+    }
+    if (new URLSearchParams(window.location.search).get('registered') === 'true') {
+      setJustRegistered(true);
+    }
+    if (new URLSearchParams(window.location.search).get('app') === '1') {
+      setError('Students use the SmartAttend mobile app. This website is for lecturers and admins.');
     }
   }, []);
 
@@ -32,7 +41,11 @@ export default function LoginPage() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, institutionId }),
+        body: JSON.stringify({
+          email,
+          password,
+          institutionId: loginAs === 'lecturer' ? institutionId : undefined,
+        }),
       });
 
       const data = await res.json();
@@ -42,11 +55,15 @@ export default function LoginPage() {
         return;
       }
 
-      // Redirect based on role
       const role = data.user.role;
+      if (role === 'STUDENT') {
+        setError('Students sign in on the SmartAttend mobile app, not the website.');
+        return;
+      }
       if (role === 'ADMIN') router.push('/dashboard/admin');
+      else if (role === 'STAFF') router.push('/dashboard/staff');
       else if (role === 'LECTURER') router.push('/dashboard/lecturer');
-      else router.push('/dashboard/student');
+      else setError('This account cannot access the web dashboard.');
 
     } catch {
       setError('Something went wrong. Please try again.');
@@ -71,8 +88,9 @@ export default function LoginPage() {
           </div>
 
           <div className={styles.heroText}>
-            <h1>Track Attendance,<br />Smarter.</h1>
-            <p>GPS-verified attendance for modern classrooms. Simple for students, powerful for lecturers.</p>
+            <p className={styles.staffEyebrow}>Web dashboard</p>
+            <h1>For lecturers<br />and admins.</h1>
+            <p>Start sessions, watch the live roster, and run your school from the web. Students sign in on the mobile app.</p>
           </div>
 
           <div className={styles.features}>
@@ -108,18 +126,24 @@ export default function LoginPage() {
       {/* Right Panel – Login Form */}
       <div className={styles.rightPanel}>
         <div className={styles.formCard}>
-          <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: '#64748b', textDecoration: 'none', marginBottom: '2rem', fontSize: '0.875rem', fontWeight: '500' }}>
+          <Link href="/" className={styles.backLink}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M19 12H5M12 19l-7-7 7-7"/>
             </svg>
             Back to Home
           </Link>
           <div className={styles.formHeader}>
+            <span className={styles.staffBadge}>Staff portal</span>
             <h2>Welcome back</h2>
-            <p>Sign in to your SmartAttend account</p>
+            <p>{loginAs === 'admin' ? 'Sign in with your admin email' : 'Select your school, then sign in'}</p>
           </div>
 
           <form onSubmit={handleSubmit} className={styles.form} id="login-form">
+            {justRegistered && (
+              <div className="alert" style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', borderRadius: 10, padding: '12px 14px' }} role="status">
+                Account created. Check your email for a welcome message from SmartAttend, then sign in.
+              </div>
+            )}
             {error && (
               <div className={`alert alert-error ${styles.errorAlert}`} role="alert">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -129,16 +153,36 @@ export default function LoginPage() {
               </div>
             )}
 
-            <div className="input-group" style={{ marginBottom: '1rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                <span style={{ fontSize: '0.875rem', color: '#64748b' }}>For Students & Lecturers (Admins can skip)</span>
-              </div>
-              <InstitutionSelector 
-                onSelect={(id) => setInstitutionId(id)}
-                selectedId={institutionId}
-              />
+            <div className={styles.roleSwitch} role="tablist" aria-label="Sign in as">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={loginAs === 'lecturer'}
+                className={`${styles.roleTab} ${loginAs === 'lecturer' ? styles.roleTabActive : ''}`}
+                onClick={() => setLoginAs('lecturer')}
+              >
+                Lecturer / Staff
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={loginAs === 'admin'}
+                className={`${styles.roleTab} ${loginAs === 'admin' ? styles.roleTabActive : ''}`}
+                onClick={() => setLoginAs('admin')}
+              >
+                Admin
+              </button>
             </div>
 
+            {loginAs === 'lecturer' && (
+              <InstitutionSelector
+                onSelect={(id) => setInstitutionId(id)}
+                selectedId={institutionId}
+                label="Your school"
+              />
+            )}
+
+            <div className={styles.fieldRow}>
             <div className="input-group">
               <label htmlFor="email" className="input-label">Email address</label>
               <div className={styles.inputWrapper}>
@@ -197,6 +241,7 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
+            </div>
 
             <div className={styles.formMeta}>
               <label className={styles.rememberMe}>
@@ -223,17 +268,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className={styles.divider}>
-            <span>Don&apos;t have an account?</span>
-          </div>
-
-          <Link href="/register" id="register-link" className={`btn btn-outline ${styles.registerBtn}`}>
-            Create an account
-          </Link>
-
-          <p className={styles.roleHint}>
-            Available for <strong>Students</strong>, <strong>Lecturers</strong> & <strong>Admins</strong>
-          </p>
         </div>
       </div>
     </div>

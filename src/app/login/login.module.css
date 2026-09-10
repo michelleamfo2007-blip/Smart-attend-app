@@ -65,6 +65,20 @@
   margin-bottom: 16px;
 }
 
+.staffEyebrow {
+  display: inline-block;
+  margin: 0 0 14px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff !important;
+  font-size: 0.72rem !important;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .heroText p {
   font-size: 1.05rem;
   color: rgba(255, 255, 255, 0.75);
@@ -142,40 +156,69 @@
 
 /* ─── Right Panel ─── */
 .rightPanel {
-  width: 520px;
+  width: min(640px, 46vw);
+  min-width: 480px;
   flex-shrink: 0;
   background: #f9fafb;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 48px 40px;
+  padding: 32px 36px;
 }
 
 .formCard {
   width: 100%;
-  max-width: 400px;
+  max-width: 560px;
   background: #ffffff;
   border-radius: 20px;
   box-shadow: 0 4px 40px rgba(0, 0, 0, 0.08);
   border: 1px solid #f0f0f0;
-  padding: 40px;
+  padding: 28px 32px 24px;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #64748b;
+  text-decoration: none;
+  margin-bottom: 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.backLink:hover {
+  color: #e01e37;
 }
 
 .formHeader {
-  margin-bottom: 32px;
-  text-align: center;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.staffBadge {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: #fff1f2;
+  color: #e01e37;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .formHeader h2 {
-  font-size: 1.75rem;
+  font-size: 1.55rem;
   font-weight: 800;
   color: #111827;
   letter-spacing: -0.5px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .formHeader p {
-  font-size: 0.9rem;
+  font-size: 0.86rem;
   color: #6b7280;
 }
 
@@ -183,7 +226,13 @@
 .form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 14px;
+}
+
+.fieldRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
 }
 
 .errorAlert {
@@ -241,6 +290,39 @@
   color: #e01e37;
 }
 
+/* Role switch */
+.roleSwitch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  padding: 4px;
+  background: #f1f5f9;
+  border-radius: 14px;
+  margin: 0;
+}
+
+.roleTab {
+  height: 38px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.88rem;
+  font-weight: 700;
+  border-radius: 11px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.roleTab:hover {
+  color: #0f172a;
+}
+
+.roleTabActive {
+  background: #ffffff;
+  color: #e01e37;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
 /* Form Meta */
 .formMeta {
   display: flex;
@@ -281,9 +363,9 @@
 /* Submit button */
 .submitBtn {
   width: 100%;
-  height: 48px;
-  font-size: 1rem;
-  margin-top: 4px;
+  height: 44px;
+  font-size: 0.95rem;
+  margin-top: 2px;
   border-radius: 12px;
   letter-spacing: 0.1px;
 }
@@ -303,51 +385,6 @@
   to { transform: rotate(360deg); }
 }
 
-/* Divider */
-.divider {
-  text-align: center;
-  margin: 24px 0 16px;
-  position: relative;
-}
-
-.divider::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: #e5e7eb;
-}
-
-.divider span {
-  position: relative;
-  background: #ffffff;
-  padding: 0 12px;
-  font-size: 0.8rem;
-  color: #9ca3af;
-}
-
-/* Register button */
-.registerBtn {
-  width: 100%;
-  height: 46px;
-  border-radius: 12px;
-  font-size: 0.95rem;
-}
-
-/* Role hint */
-.roleHint {
-  text-align: center;
-  margin-top: 20px;
-  font-size: 0.78rem;
-  color: #9ca3af;
-}
-
-.roleHint strong {
-  color: #6b7280;
-}
-
 /* ─── Responsive ─── */
 @media (max-width: 900px) {
   .page {
@@ -355,18 +392,31 @@
   }
 
   .leftPanel {
-    padding: 40px 32px;
+    padding: 28px 24px 24px;
     width: 100%;
     flex: none;
     min-height: auto;
+  }
+
+  .logoArea {
+    margin-bottom: 20px;
   }
 
   .leftContent {
     max-width: 100%;
   }
 
+  .heroText {
+    margin-bottom: 0;
+  }
+
   .heroText h1 {
-    font-size: 2rem;
+    font-size: 1.7rem;
+    margin-bottom: 8px;
+  }
+
+  .heroText p:last-child {
+    display: none;
   }
 
   .features {
@@ -375,8 +425,22 @@
 
   .rightPanel {
     width: 100%;
-    padding: 40px 24px;
+    min-width: 0;
+    padding: 0 16px 40px;
     flex: none;
+    background: #f9fafb;
+    margin-top: -20px;
+    position: relative;
+    z-index: 2;
+  }
+
+  .formCard {
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
+    max-width: none;
+  }
+
+  .fieldRow {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -118,7 +118,7 @@ export default function AdminClassesPage() {
           <div className={styles.tableHeader} style={{ gridTemplateColumns: '2.5fr 1.5fr 0.8fr 1.5fr 1fr', gap: '1rem' }}>
             <span>Module Name</span>
             <span>Lecturer</span>
-            <span>Info</span>
+            <span>Level</span>
             <span>Analytics</span>
             <span>Current Status</span>
           </div>
@@ -134,11 +134,8 @@ export default function AdminClassesPage() {
               >
                 <span><strong>{c.name}</strong></span>
                 <span>{c.lecturer?.name || 'Unknown'}</span>
-                <span>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>{c.level}</span>
-                    <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{c.semester}</span>
-                  </div>
+                <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#111827' }}>
+                  {c.level || '—'}
                 </span>
                 <span>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>

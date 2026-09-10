@@ -1,29 +1,27 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/auth';
+import { getAuth } from '@/lib/session';
 
 export async function GET() {
   try {
-    const token = (await cookies()).get('token')?.value;
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const payload = await verifyToken(token);
-    const institutionId = payload?.institutionId as string;
-    const userId = payload?.userId as string;
+    const auth = await getAuth();
+    const institutionId = auth?.institutionId;
+    const userId = auth?.userId;
 
-    if (!userId || !institutionId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const courses = await prisma.classes.findMany({
       where: {
         lecturer_id: userId,
-        institution_id: institutionId,
+        ...(institutionId ? { institution_id: institutionId } : {}),
       },
       include: {
         sessions: {
           where: { lecturer_id: userId, status: 'active' },
           take: 1,
         },
-        records: true, // Use records as a proxy for enrollments
+        records: true,
+        _count: { select: { enrollments: true } },
       }
     });
 
@@ -36,11 +34,9 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const token = (await cookies()).get('token')?.value;
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const payload = await verifyToken(token);
-    const institutionId = payload?.institutionId as string;
-    const userId = payload?.userId as string;
+    const auth = await getAuth();
+    const institutionId = auth?.institutionId;
+    const userId = auth?.userId;
 
     if (!userId || !institutionId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -80,21 +76,6 @@ export async function POST(req: Request) {
         institution_id: institutionId,
       }
     });
-
-    // Auto-enroll existing students matching level and semester within the same institution
-    const matchingStudents = await prisma.users.findMany({
-      where: { role: 'STUDENT', level: moduleItem.level, semester, institution_id: institutionId }
-    });
-
-    if (matchingStudents.length > 0) {
-      await prisma.enrollments.createMany({
-        data: matchingStudents.map(student => ({
-          student_id: student.id,
-          class_id: newClass.id
-        })),
-        skipDuplicates: true
-      });
-    }
 
     return NextResponse.json({ course: newClass }, { status: 201 });
   } catch (error) {

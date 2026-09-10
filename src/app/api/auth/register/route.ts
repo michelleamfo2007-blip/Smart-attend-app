@@ -1,24 +1,62 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { getEmailError, normalizeEmail, sendWelcomeEmail } from '@/lib/email';
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { email, password, name, role, inviteCode, cohort_id, student_id, institution_id, device_id, programme_id, level, semester, selected_courses } = body;
+    const {
+      email, password, name: rawName, first_name, firstName, last_name, lastName,
+      role, inviteCode, cohort_id, student_id, institution_id, device_id,
+      programme_id, level, semester, selected_courses,
+    } = body;
 
-    // Basic Validation
-    if (!password || !name) {
-      return NextResponse.json({ error: 'Name and Password are required' }, { status: 400 });
+    const givenName = String(first_name || firstName || '').trim();
+    const familyName = String(last_name || lastName || '').trim();
+    const name = String(rawName || '').trim() || [givenName, familyName].filter(Boolean).join(' ');
+
+    if (!password) {
+      return NextResponse.json({ error: 'Password is required' }, { status: 400 });
     }
 
+    if (role === 'STUDENT') {
+      if (!givenName || !familyName) {
+        return NextResponse.json({ error: 'First name and last name are required' }, { status: 400 });
+      }
+      if (!device_id) {
+        return NextResponse.json(
+          { error: 'Students can only sign up in the SmartAttend mobile app.' },
+          { status: 400 }
+        );
+      }
+    } else if (!name) {
+      return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+    }
+
+    const staffSignup = role === 'LECTURER' || role === 'ADMIN';
+    let normalizedEmail: string | undefined;
+
+    if (staffSignup) {
+      const emailError = getEmailError(email);
+      if (emailError) {
+        return NextResponse.json({ error: emailError }, { status: 400 });
+      }
+      normalizedEmail = normalizeEmail(email);
+    }
+    // Students do not use email — identity is student_id / index number only.
+
     let assignedInstitutionId = institution_id;
+    let preloadedStudent = null;
 
     if (role === 'STUDENT') {
       // For pre-loaded students, we only technically require student_id and an institution code to look them up.
       // If manual registration without pre-loading is allowed, we would require cohort_id/programme_id.
       if (!student_id) {
-        return NextResponse.json({ error: 'Index Number is required for students' }, { status: 400 });
+        return NextResponse.json({ error: 'Student ID is required' }, { status: 400 });
+      }
+      if (!inviteCode) {
+        return NextResponse.json({ error: 'Institution code is required' }, { status: 400 });
       }
 
       if (inviteCode && !programme_id && !cohort_id) {
@@ -26,7 +64,7 @@ export async function POST(req: Request) {
           where: { invite_code: inviteCode } 
         });
         if (!institution) {
-          return NextResponse.json({ error: 'Invalid Institution Invite Code' }, { status: 403 });
+          return NextResponse.json({ error: 'Invalid institution code' }, { status: 403 });
         }
         assignedInstitutionId = institution.id;
       }
@@ -57,7 +95,6 @@ export async function POST(req: Request) {
         where: { student_id, institution_id: assignedInstitutionId }
       });
       
-      let preloadedStudent = null;
       if (existingStudentId) {
         if (existingStudentId.password) {
           return NextResponse.json({ error: 'This Index Number is already registered.' }, { status: 400 });
@@ -73,8 +110,8 @@ export async function POST(req: Request) {
       }
 
     } else if (role === 'LECTURER') {
-      if (!email || !inviteCode) {
-        return NextResponse.json({ error: 'Email and Invite code are required for lecturers' }, { status: 400 });
+      if (!inviteCode) {
+        return NextResponse.json({ error: 'Invite code is required for lecturers' }, { status: 400 });
       }
       
       const institution = await prisma.institutions.findUnique({ 
@@ -88,13 +125,12 @@ export async function POST(req: Request) {
       assignedInstitutionId = institution.id;
     }
 
-    // Check if email exists (only if email was provided)
-    if (email) {
+    if (normalizedEmail) {
       const existingUser = await prisma.users.findUnique({
-        where: { email },
+        where: { email: normalizedEmail },
       });
 
-      if (existingUser) {
+      if (existingUser && existingUser.id !== preloadedStudent?.id) {
         return NextResponse.json({ error: 'User with this email already exists' }, { status: 400 });
       }
     }
@@ -121,7 +157,11 @@ export async function POST(req: Request) {
           name, // Update name in case they fixed a typo
           password: hashedPassword,
           device_id: device_id || undefined,
-          email: email || undefined
+          email: normalizedEmail || undefined,
+          programme_id: programme_id || undefined,
+          cohort_id: cohort_id || undefined,
+          level: level || undefined,
+          semester: semester || undefined,
         },
         select: {
           id: true, email: true, name: true, role: true, student_id: true,
@@ -132,7 +172,7 @@ export async function POST(req: Request) {
       // CREATE NEW ACCOUNT
       user = await prisma.users.create({
         data: {
-          email: email || undefined,
+          email: normalizedEmail || undefined,
           name,
           password: hashedPassword,
           role: role || 'STUDENT',
@@ -151,10 +191,9 @@ export async function POST(req: Request) {
       });
     }
 
-    // Magic Auto-Enrollment
+    // Explicit enrollments only (selected courses / cohort). Students otherwise Join Class in the app.
     if (user.role === 'STUDENT') {
       if (selected_courses && Array.isArray(selected_courses) && selected_courses.length > 0) {
-        // Enroll in selected catalogue courses
         await prisma.enrollments.createMany({
           data: selected_courses.map((courseId: string) => ({
             student_id: user.id,
@@ -163,7 +202,6 @@ export async function POST(req: Request) {
           skipDuplicates: true
         });
       } else if (user.cohort_id) {
-        // Fallback to old cohort auto-enrollment
         const cohortClasses = await prisma.cohort_classes.findMany({
           where: { cohort_id: user.cohort_id }
         });
@@ -178,6 +216,22 @@ export async function POST(req: Request) {
           });
         }
       }
+    }
+
+    const institution = user.institution_id
+      ? await prisma.institutions.findUnique({
+          where: { id: user.institution_id },
+          select: { name: true },
+        })
+      : null;
+
+    if (user.role === 'ADMIN' || user.role === 'LECTURER') {
+      await sendWelcomeEmail({
+        to: user.email,
+        name: user.name,
+        role: user.role,
+        institutionName: institution?.name,
+      });
     }
 
     const { signToken } = await import('@/lib/auth');

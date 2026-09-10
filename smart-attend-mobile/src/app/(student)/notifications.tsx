@@ -1,15 +1,31 @@
-import React from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Spacing } from '@/constants/theme';
-import { useColorScheme } from 'react-native';
-import { Colors } from '@/constants/theme';
+import { Spacing, Colors } from '@/constants/theme';
+import { apiFetch } from '../../lib/api';
+
+const theme = Colors.light;
 
 export default function NotificationsScreen() {
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
-  const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const [loading, setLoading] = useState(true);
+  const [notifications, setNotifications] = useState<any[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await apiFetch('/api/student/notifications');
+        setNotifications(data.notifications || []);
+      } catch (err) {
+        console.error('Failed to load notifications', err);
+        setNotifications([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -21,18 +37,36 @@ export default function NotificationsScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={[styles.listContainer, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-           <View style={[styles.listItem, { borderBottomColor: theme.border, borderBottomWidth: 1 }]}>
-              <Ionicons name="notifications" size={20} color={theme.primary} />
-              <Text style={[styles.listItemText, { color: theme.text }]}>Attendance marked successfully</Text>
-           </View>
-           <View style={[styles.listItem, { borderBottomColor: theme.border, borderBottomWidth: 0 }]}>
-              <Ionicons name="alert-circle" size={20} color="#F59E0B" />
-              <Text style={[styles.listItemText, { color: theme.text }]}>Keep up the good work! You are on track.</Text>
-           </View>
-        </View>
-      </ScrollView>
+      {loading ? (
+        <ActivityIndicator style={{ marginTop: 40 }} color={theme.primary} />
+      ) : (
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {notifications.length === 0 ? (
+            <View style={styles.empty}>
+              <Ionicons name="notifications-off-outline" size={36} color={theme.textSecondary} />
+              <Text style={[styles.emptyTitle, { color: theme.text }]}>No notifications yet</Text>
+              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+                Attendance reminders and dispute updates will show up here.
+              </Text>
+            </View>
+          ) : (
+            <View style={[styles.listContainer, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+              {notifications.map((item, index) => (
+                <View
+                  key={item.id || index}
+                  style={[
+                    styles.listItem,
+                    { borderBottomColor: theme.border, borderBottomWidth: index === notifications.length - 1 ? 0 : 1 },
+                  ]}
+                >
+                  <Ionicons name="notifications" size={20} color={theme.primary} />
+                  <Text style={[styles.listItemText, { color: theme.text }]}>{item.title || item.message}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -46,7 +80,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.four,
-    paddingTop: 60,
+    paddingTop: Spacing.six,
     paddingBottom: Spacing.four,
     borderBottomWidth: 1,
   },
@@ -60,23 +94,37 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   content: {
-    flex: 1,
     padding: Spacing.four,
   },
+  empty: {
+    alignItems: 'center',
+    paddingTop: 64,
+    gap: 8,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 8,
+  },
+  emptyText: {
+    fontSize: 14,
+    textAlign: 'center',
+    maxWidth: 260,
+    lineHeight: 20,
+  },
   listContainer: {
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
     overflow: 'hidden',
   },
   listItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
     gap: 12,
+    padding: Spacing.four,
   },
   listItemText: {
-    fontSize: 15,
-    fontWeight: '500',
     flex: 1,
+    fontSize: 15,
   },
 });

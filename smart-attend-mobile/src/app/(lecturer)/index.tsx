@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, Colors } from '@/constants/theme';
-import { supabase } from '../../lib/supabase';
+import { apiFetch } from '../../lib/api';
 import Animated, { FadeIn, FadeInDown, FadeInUp, Layout } from 'react-native-reanimated';
 import { SymbolView } from 'expo-symbols';
 import { scheduleClassReminder } from '../../hooks/usePushNotifications';
@@ -33,41 +33,29 @@ export default function LecturerOverviewScreen() {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      // Fetch Stats
-      const { count: coursesCount } = await supabase.from('classes').select('*', { count: 'exact', head: true }).eq('lecturer_id', user?.id);
-      const { count: studentsCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'STUDENT');
-      setStats({ courses: coursesCount || 0, students: studentsCount || 0 });
+      const [coursesData, sessionsData] = await Promise.all([
+        apiFetch('/api/lecturer/courses'),
+        apiFetch('/api/lecturer/sessions'),
+      ]);
 
-      // Fetch Active Sessions
-      const { data: sessions, error } = await supabase
-        .from('attendance_sessions')
-        .select(`
-          id,
-          created_at,
-          classes (name)
-        `)
-        .eq('lecturer_id', user?.id)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
-        
-      if (error) throw error;
-      setActiveSessions(sessions || []);
+      const classesData = coursesData.courses || [];
+      const sessions = (sessionsData.sessions || []).filter((session: any) => session.status === 'active');
+      const enrolledStudents = classesData.reduce(
+        (total: number, course: any) => total + (course._count?.enrollments || 0),
+        0
+      );
 
-      // Fetch My Classes for Invite Codes & Schedule
-      const { data: classesData, error: classesError } = await supabase
-        .from('classes')
-        .select('id, name, invite_code, start_time, end_time')
-        .eq('lecturer_id', user?.id);
-      
-      if (!classesError && classesData) {
-        setMyClasses(classesData);
-        // Schedule push notifications for any class that has a start_time
-        classesData.forEach(c => {
-          if (c.start_time) {
-            scheduleClassReminder(c.name, c.start_time);
-          }
-        });
-      }
+      setStats({ courses: classesData.length, students: enrolledStudents });
+      setActiveSessions(sessions.map((session: any) => ({
+        ...session,
+        classes: session.class || session.classes,
+      })));
+      setMyClasses(classesData);
+      classesData.forEach((c: any) => {
+        if (c.start_time) {
+          scheduleClassReminder(c.name, c.start_time);
+        }
+      });
     } catch (err) {
       console.error("Failed to fetch dashboard data", err);
     } finally {
@@ -78,12 +66,7 @@ export default function LecturerOverviewScreen() {
   const handleEndSession = async (sessionId: string) => {
     setEndingSessionId(sessionId);
     try {
-      const { error } = await supabase
-        .from('attendance_sessions')
-        .update({ status: 'closed' })
-        .eq('id', sessionId);
-        
-      if (error) throw error;
+      await apiFetch(`/api/lecturer/sessions/${sessionId}`, { method: 'PATCH' });
       
       // Remove from list visually
       setActiveSessions(prev => prev.filter(s => s.id !== sessionId));
@@ -124,17 +107,11 @@ export default function LecturerOverviewScreen() {
   const handleRegenerateCode = async (classId: string) => {
     setGeneratingCodeId(classId);
     try {
-      // Generate random 6 character code
-      const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-      
-      const { error } = await supabase
-        .from('classes')
-        .update({ invite_code: newCode })
-        .eq('id', classId);
-
-      if (error) throw error;
-
-      setMyClasses(prev => prev.map(c => c.id === classId ? { ...c, invite_code: newCode } : c));
+      const data = await apiFetch(`/api/lecturer/courses/${classId}`, { method: 'PATCH' });
+      const newCode = data.course?.invite_code;
+      if (newCode) {
+        setMyClasses(prev => prev.map(c => c.id === classId ? { ...c, invite_code: newCode } : c));
+      }
       
       if (Platform.OS === 'web') {
         window.alert(`New invite code generated: ${newCode}`);
@@ -204,7 +181,7 @@ export default function LecturerOverviewScreen() {
             ) : (
               activeSessions.map((session, index) => {
                 const isEnding = endingSessionId === session.id;
-                const className = session.classes?.name || 'Unknown Class';
+                const className = session.classes?.name || session.class?.name || 'Unknown Class';
                 return (
                   <Animated.View 
                     key={session.id}
@@ -224,6 +201,14 @@ export default function LecturerOverviewScreen() {
                         </ThemedText>
                       </View>
                       
+                      <View style={{ alignItems: 'flex-end', gap: 8 }}>
+                      <TouchableOpacity
+                        style={[styles.showQrBtn, { borderColor: theme.primary }]}
+                        onPress={() => router.push('/(lecturer)/start-session')}
+                      >
+                        <SymbolView name="qrcode" size={16} tintColor={theme.primary} />
+                        <Text style={[styles.showQrBtnText, { color: theme.primary }]}>QR</Text>
+                      </TouchableOpacity>
                       <TouchableOpacity 
                         style={[styles.endBtn, isEnding && { opacity: 0.7 }]}
                         onPress={() => confirmEndSession(session.id, className)}
@@ -238,6 +223,7 @@ export default function LecturerOverviewScreen() {
                           </>
                         )}
                       </TouchableOpacity>
+                      </View>
                     </View>
                   </Animated.View>
                 )
@@ -381,6 +367,17 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   endBtnText: { color: 'white', fontWeight: 'bold', fontSize: 14 },
+  showQrBtn: {
+    flexDirection: 'row',
+    backgroundColor: 'transparent',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1.5,
+  },
+  showQrBtnText: { fontWeight: 'bold', fontSize: 13 },
 
   statsContainer: { flexDirection: 'row', gap: Spacing.four, marginBottom: Spacing.six },
   statCard: {

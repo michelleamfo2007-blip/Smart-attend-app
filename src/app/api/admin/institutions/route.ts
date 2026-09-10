@@ -1,20 +1,15 @@
 import { NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { cookies } from 'next/headers';
+import { getAuth } from '@/lib/session';
+
+function requireSuperAdmin(auth: Awaited<ReturnType<typeof getAuth>>) {
+  return !auth || auth.userRole !== 'ADMIN' || auth.institutionId;
+}
 
 export async function GET() {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token')?.value;
-
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const payload = await verifyToken(token);
-    // Only Super Admins (ADMIN role + NO institutionId) can manage all institutions
-    if (!payload || payload.userRole !== 'ADMIN' || payload.institutionId) {
+    const auth = await getAuth();
+    if (requireSuperAdmin(auth)) {
       return NextResponse.json({ error: 'Forbidden: Super Admins only' }, { status: 403 });
     }
 
@@ -31,31 +26,22 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token')?.value;
-
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const payload = await verifyToken(token);
-    // Only Super Admins (ADMIN role + NO institutionId) can create institutions manually
-    if (!payload || payload.userRole !== 'ADMIN' || payload.institutionId) {
+    const auth = await getAuth();
+    if (requireSuperAdmin(auth)) {
       return NextResponse.json({ error: 'Forbidden: Super Admins only' }, { status: 403 });
     }
 
     const body = await request.json();
-    const { 
+    const {
       name, domain, logo, contact_email, phone_number,
-      subscription_plan, status, billing_cycle, trial_period, 
-      max_users, api_access, sso, custom_branding, notes 
+      subscription_plan, status, billing_cycle, trial_period,
+      max_users, api_access, sso, custom_branding, notes,
     } = body;
 
     if (!name) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
 
-    // Check if domain already exists
     if (domain) {
       const existing = await prisma.institutions.findUnique({
         where: { domain },

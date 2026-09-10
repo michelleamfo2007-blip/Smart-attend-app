@@ -1,34 +1,29 @@
 import { NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { cookies } from 'next/headers';
+import { getAuth } from '@/lib/session';
+
+function requireSuperAdmin(auth: Awaited<ReturnType<typeof getAuth>>) {
+  return !auth || auth.userRole !== 'ADMIN' || auth.institutionId;
+}
 
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token')?.value;
-
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const payload = await verifyToken(token);
-    if (!payload || payload.userRole !== 'ADMIN' || payload.institutionId) {
+    const auth = await getAuth();
+    if (requireSuperAdmin(auth)) {
       return NextResponse.json({ error: 'Forbidden: Super Admins only' }, { status: 403 });
     }
 
     const { id } = await params;
     const body = await request.json();
-    const { 
+    const {
       name, domain, logo, contact_email, phone_number,
-      subscription_plan, status, billing_cycle, trial_period, 
-      max_users, api_access, sso, custom_branding, notes 
+      subscription_plan, status, billing_cycle, trial_period,
+      max_users, api_access, sso, custom_branding, notes,
     } = body;
 
-    // Check if domain exists and is different from current
     if (domain) {
       const existing = await prisma.institutions.findFirst({
         where: {
@@ -69,19 +64,12 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token')?.value;
-
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const payload = await verifyToken(token);
-    if (!payload || payload.userRole !== 'ADMIN' || payload.institutionId) {
+    const auth = await getAuth();
+    if (requireSuperAdmin(auth)) {
       return NextResponse.json({ error: 'Forbidden: Super Admins only' }, { status: 403 });
     }
 

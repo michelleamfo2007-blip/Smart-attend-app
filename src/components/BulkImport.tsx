@@ -6,17 +6,17 @@ import styles from './BulkImport.module.css';
 
 interface BulkImportProps {
   onImportComplete: () => void;
-  institutionId: string;
+  institutionId?: string | null;
 }
 
 interface ParsedUser {
   name: string;
-  email: string;
+  email?: string;
   role: string;
-  level?: string;
-  semester?: string;
-  index_number?: string;
-  program_id?: string;
+  level?: string | null;
+  semester?: string | null;
+  index_number?: string | null;
+  program_id?: string | null;
 }
 
 export default function BulkImport({ onImportComplete, institutionId }: BulkImportProps) {
@@ -33,27 +33,41 @@ export default function BulkImport({ onImportComplete, institutionId }: BulkImpo
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
-        const parsed = results.data as any[];
+        const parsed = results.data as Record<string, string>[];
         const validData: ParsedUser[] = [];
         const validationErrors: string[] = [];
 
         parsed.forEach((row, index) => {
-          if (!row.email || !row.name || !row.role) {
-            validationErrors.push(`Row ${index + 1}: Missing required fields (email, name, role)`);
+          const name = (row.name || '').trim();
+          const email = (row.email || '').trim();
+          const role = (row.role || '').trim().toUpperCase();
+          const indexNumber = (row.index_number || '').trim();
+
+          if (!name || !role) {
+            validationErrors.push(`Row ${index + 1}: Name and role are required`);
             return;
           }
-          if (!['student', 'lecturer'].includes(row.role.toLowerCase())) {
-            validationErrors.push(`Row ${index + 1}: Role must be 'student' or 'lecturer'`);
+          if (!['STUDENT', 'LECTURER'].includes(role)) {
+            validationErrors.push(`Row ${index + 1}: Role must be student or lecturer`);
             return;
           }
+          if (role === 'LECTURER' && !email) {
+            validationErrors.push(`Row ${index + 1}: Lecturers need an email`);
+            return;
+          }
+          if (role === 'STUDENT' && !indexNumber) {
+            validationErrors.push(`Row ${index + 1}: Students need an index number`);
+            return;
+          }
+
           validData.push({
-            name: row.name,
-            email: row.email,
-            role: row.role.toUpperCase(),
-            level: row.level || null,
-            semester: row.semester || null,
-            index_number: row.index_number || null,
-            program_id: row.program_id || null
+            name,
+            email: role === 'STUDENT' ? undefined : email || undefined,
+            role,
+            level: row.level?.trim() || null,
+            semester: row.semester?.trim() || null,
+            index_number: indexNumber || null,
+            program_id: row.program_id?.trim() || null,
           });
         });
 
@@ -83,12 +97,12 @@ export default function BulkImport({ onImportComplete, institutionId }: BulkImpo
       if (!res.ok) {
         setErrors([responseData.error || 'Failed to import users']);
       } else {
-        alert(`Successfully imported ${responseData.count} users!`);
+        alert(`Successfully imported ${responseData.count} users. Lecturers can sign in with Welcome123!. Students without a password still need to register.`);
         setData([]);
         if (fileInputRef.current) fileInputRef.current.value = '';
         onImportComplete();
       }
-    } catch (err) {
+    } catch {
       setErrors(['An unexpected error occurred during import.']);
     } finally {
       setLoading(false);
@@ -96,7 +110,10 @@ export default function BulkImport({ onImportComplete, institutionId }: BulkImpo
   };
 
   const downloadTemplate = () => {
-    const template = "name,email,role,level,semester,index_number,program_id\nJohn Doe,john@example.edu,student,100,1,10293847,PROGRAM-UUID-HERE\nJane Smith,jane@example.edu,lecturer,,,,";
+    const template =
+      'name,email,role,level,semester,index_number,program_id\n' +
+      'John Doe,,student,100,1,10293847,\n' +
+      'Jane Smith,jane@example.edu,lecturer,,,,\n';
     const blob = new Blob([template], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -112,20 +129,20 @@ export default function BulkImport({ onImportComplete, institutionId }: BulkImpo
     <div className={styles.container}>
       <div className={styles.header}>
         <h3>Bulk Import Users</h3>
-        <button className="btn btn-outline" onClick={downloadTemplate}>
+        <button className="btn btn-outline" onClick={downloadTemplate} type="button">
           Download Template
         </button>
       </div>
 
       <div className={styles.uploadZone}>
-        <input 
-          type="file" 
-          accept=".csv" 
-          onChange={handleFileUpload} 
+        <input
+          type="file"
+          accept=".csv"
+          onChange={handleFileUpload}
           ref={fileInputRef}
           className={styles.fileInput}
         />
-        <p>Drag and drop a CSV file here, or click to browse.</p>
+        <p>Students need name + index number only (no email). Lecturers need name + email.</p>
       </div>
 
       {errors.length > 0 && (
@@ -155,7 +172,7 @@ export default function BulkImport({ onImportComplete, institutionId }: BulkImpo
                 {data.slice(0, 5).map((row, i) => (
                   <tr key={i}>
                     <td>{row.name}</td>
-                    <td>{row.email}</td>
+                    <td>{row.email || '-'}</td>
                     <td>{row.role}</td>
                     <td>{row.index_number || '-'}</td>
                     <td>{row.program_id ? '✓' : '-'}</td>
@@ -165,11 +182,12 @@ export default function BulkImport({ onImportComplete, institutionId }: BulkImpo
             </table>
           </div>
           {data.length > 5 && <p className={styles.moreText}>...and {data.length - 5} more</p>}
-          
-          <button 
-            className="btn btn-primary" 
-            onClick={handleImport} 
+
+          <button
+            className="btn btn-primary"
+            onClick={handleImport}
             disabled={loading}
+            type="button"
             style={{ marginTop: '1rem', width: '100%' }}
           >
             {loading ? 'Importing...' : 'Confirm Import'}

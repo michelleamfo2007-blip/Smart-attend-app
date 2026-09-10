@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, Colors } from '@/constants/theme';
-import { supabase } from '../../lib/supabase';
+import { apiFetch } from '../../lib/api';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SymbolView } from 'expo-symbols';
 
@@ -21,33 +21,14 @@ export default function AdminOverviewScreen() {
 
   const fetchStats = async () => {
     try {
-      const { count: usersCount } = await supabase.from('users').select('*', { count: 'exact', head: true });
-      const { count: lecturersCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'LECTURER');
-      const { count: studentsCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'STUDENT');
-      const { count: classesCount } = await supabase.from('classes').select('*', { count: 'exact', head: true });
-      
-      setStats({ 
-        users: usersCount || 0, 
-        classes: classesCount || 0,
-        lecturers: lecturersCount || 0,
-        students: studentsCount || 0
+      const data = await apiFetch('/api/admin/dashboard');
+      setStats({
+        users: data.stats?.users || 0,
+        classes: data.stats?.classes || 0,
+        lecturers: data.stats?.lecturers || 0,
+        students: data.stats?.students || 0,
       });
-
-      // Calculate At-Risk Students (Attendance < 75%)
-      const { data: allStudents } = await supabase.from('users').select('id, name').eq('role', 'STUDENT');
-      const { data: allRecords } = await supabase.from('attendance_records').select('student_id');
-      const { count: totalSessions } = await supabase.from('attendance_sessions').select('*', { count: 'exact', head: true });
-      
-      if (allStudents && allRecords && totalSessions && totalSessions > 0) {
-         const studentAttendance = allStudents.map(student => {
-            const attendedCount = allRecords.filter(r => r.student_id === student.id).length;
-            const rate = (attendedCount / totalSessions) * 100;
-            return { ...student, rate, attendedCount };
-         });
-         
-         const atRisk = studentAttendance.filter(s => s.rate < 75 && totalSessions >= 3); // Only flag if at least 3 sessions have occurred
-         setAtRiskStudents(atRisk);
-      }
+      setAtRiskStudents(data.atRiskStudents || []);
 
     } catch (error) {
       console.error('Error fetching stats:', error);

@@ -14,6 +14,8 @@ interface TimelineEvent {
   className: string;
   date: string;
   status: 'Present' | 'Absent';
+  method?: string | null;
+  markedBy?: string | null;
 }
 
 interface StudentAnalytics {
@@ -52,6 +54,8 @@ export default function UserDetailsPage() {
   const [data, setData] = useState<StudentAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [resetPassword, setResetPassword] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
 
   const fetchUser = useCallback(async () => {
     if (!params?.id) return;
@@ -93,6 +97,25 @@ export default function UserDetailsPage() {
 
   const status = analytics ? getStatusColor(analytics.overall.percentage) : null;
 
+  const handleResetPassword = async () => {
+    if (!confirm(`Reset the password for ${user.name}? A temporary password will be shown once.`)) return;
+    setResetting(true);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}/reset-password`, { method: 'POST' });
+      const json = await res.json();
+      if (res.ok && json.temporaryPassword) {
+        setResetPassword(json.temporaryPassword);
+      } else {
+        alert(json.error || 'Failed to reset password.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error resetting password.');
+    } finally {
+      setResetting(false);
+    }
+  };
+
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -133,6 +156,19 @@ export default function UserDetailsPage() {
                   </span>
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={handleResetPassword}
+                disabled={resetting}
+                style={{ marginTop: '16px', width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #d1d5db', background: 'white', fontWeight: 600, cursor: 'pointer' }}
+              >
+                {resetting ? 'Resetting...' : 'Reset Password'}
+              </button>
+              {resetPassword && (
+                <p style={{ marginTop: '12px', fontSize: '13px', color: '#334155' }}>
+                  Temporary password: <strong style={{ fontFamily: 'monospace' }}>{resetPassword}</strong>
+                </p>
+              )}
             </div>
 
             <div className={styles.sectionCard} style={{ marginTop: '24px' }}>
@@ -312,6 +348,8 @@ export default function UserDetailsPage() {
                             <strong style={{ color: event.status === 'Present' ? '#10b981' : '#ef4444' }}>
                               {event.status}
                             </strong>
+                            {event.status === 'Present' && event.method ? ` • ${String(event.method).replace(/_/g, ' ')}` : ''}
+                            {event.markedBy ? ` • ${event.markedBy}` : ''}
                           </p>
                         </div>
                       </div>
@@ -330,9 +368,24 @@ export default function UserDetailsPage() {
             <h2 className={styles.sectionTitle}>Staff Profile</h2>
           </div>
           <p style={{ color: '#64748b', padding: '12px 0' }}>
-            Detailed analytics are only available for Student accounts. 
+            Detailed analytics are only available for Student accounts.
             This user is registered as <strong>{user.role}</strong>.
           </p>
+          {user.role !== 'ADMIN' && (
+            <button
+              type="button"
+              onClick={handleResetPassword}
+              disabled={resetting}
+              style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid #d1d5db', background: 'white', fontWeight: 600, cursor: 'pointer' }}
+            >
+              {resetting ? 'Resetting...' : 'Reset Password'}
+            </button>
+          )}
+          {resetPassword && (
+            <p style={{ marginTop: '12px', fontSize: '13px', color: '#334155' }}>
+              Temporary password: <strong style={{ fontFamily: 'monospace' }}>{resetPassword}</strong>
+            </p>
+          )}
         </div>
       )}
     </div>

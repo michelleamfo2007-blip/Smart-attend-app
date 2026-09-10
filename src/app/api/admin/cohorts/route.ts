@@ -1,26 +1,25 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/auth';
+import { getAuth } from '@/lib/session';
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
-    const token = (await cookies()).get('token')?.value;
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const payload = await verifyToken(token);
-    const institutionId = payload?.institutionId as string;
-    if (!institutionId) {
+    const auth = await getAuth();
+    if (!auth || auth.userRole !== 'ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!auth.institutionId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const cohorts = await prisma.cohorts.findMany({
-      where: { institution_id: institutionId },
+      where: { institution_id: auth.institutionId },
       include: {
         _count: {
-          select: { users: true, cohort_classes: true }
-        }
+          select: { users: true, cohort_classes: true },
+        },
       },
-      orderBy: { created_at: 'desc' }
+      orderBy: { created_at: 'desc' },
     });
 
     return NextResponse.json(cohorts);
@@ -32,11 +31,11 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const token = (await cookies()).get('token')?.value;
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const payload = await verifyToken(token);
-    const institutionId = payload?.institutionId as string;
-    if (!institutionId) {
+    const auth = await getAuth();
+    if (!auth || auth.userRole !== 'ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!auth.institutionId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -47,21 +46,34 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Cohort name is required' }, { status: 400 });
     }
 
-    // Create Cohort and the class mappings in a transaction
+    const uniqueClassIds = Array.isArray(classIds)
+      ? [...new Set(classIds.filter((id: unknown) => typeof id === 'string'))]
+      : [];
+
+    if (uniqueClassIds.length > 0) {
+      const ownedClasses = await prisma.classes.findMany({
+        where: { id: { in: uniqueClassIds }, institution_id: auth.institutionId },
+        select: { id: true },
+      });
+      if (ownedClasses.length !== uniqueClassIds.length) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
     const cohort = await prisma.$transaction(async (tx) => {
       const newCohort = await tx.cohorts.create({
         data: {
           name,
-          institution_id: institutionId,
-        }
+          institution_id: auth.institutionId!,
+        },
       });
 
-      if (classIds && Array.isArray(classIds) && classIds.length > 0) {
+      if (uniqueClassIds.length > 0) {
         await tx.cohort_classes.createMany({
-          data: classIds.map(cid => ({
+          data: uniqueClassIds.map((cid) => ({
             cohort_id: newCohort.id,
-            class_id: cid
-          }))
+            class_id: cid,
+          })),
         });
       }
 

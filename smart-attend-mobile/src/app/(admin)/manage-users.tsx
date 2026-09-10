@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, Text, FlatList, ActivityIndicator } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, Colors } from '@/constants/theme';
 import { useColorScheme } from 'react-native';
 import { User } from '../../context/AuthContext';
-import { supabase } from '../../lib/supabase';
+import { apiFetch } from '../../lib/api';
 
 export default function ManageUsersScreen() {
   const scheme = useColorScheme() ?? 'light';
@@ -17,14 +16,9 @@ export default function ManageUsersScreen() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const { data, error } = await supabase
-          .from('users')
-          .select('*')
-          .neq('role', 'ADMIN');
-        
-        if (data && !error) {
-          setUsers(data);
-        }
+        const data = await apiFetch('/api/admin/users');
+        const users = (data.users || []).filter((u: User) => u.role !== 'ADMIN');
+        setUsers(users);
       } catch (err) {
         console.error("Failed to fetch users", err);
       } finally {

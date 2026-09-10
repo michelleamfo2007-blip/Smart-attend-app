@@ -1,25 +1,26 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-import { Spacing } from '@/constants/theme';
-import { supabase } from '../../lib/supabase';
-import { ThemedText } from '@/components/themed-text';
+import { Spacing, Colors } from '@/constants/theme';
+import { apiFetch } from '../../lib/api';
 
-const PColors = {
-  background: '#0F172A',
-  card: '#1E293B',
-  primary: '#6366F1',
-  text: '#FFFFFF',
-  textSecondary: '#94A3B8',
-  border: 'rgba(255,255,255,0.1)'
-};
+const theme = Colors.light;
 
 export default function EditProfileScreen() {
   const router = useRouter();
-  const { user } = useAuth();
-  
+  const { user, updateUser } = useAuth();
+
   const [name, setName] = useState(user?.name || '');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,76 +29,102 @@ export default function EditProfileScreen() {
     setLoading(true);
     try {
       if (user?.id) {
-        const { error } = await supabase
-          .from('users')
-          .update({ name })
-          .eq('id', user.id);
+        const data = await apiFetch('/api/me', {
+          method: 'PATCH',
+          body: JSON.stringify({ name }),
+        });
+        if (data.user?.name) {
+          await updateUser({ name: data.user.name });
+        }
 
-        if (error) throw error;
-        
-        Alert.alert("Success", "Profile updated successfully!");
+        Alert.alert('Success', 'Profile updated successfully!');
         router.back();
       }
     } catch (err: any) {
-      Alert.alert("Error", err.message || "Failed to update profile.");
+      Alert.alert('Error', err.message || 'Failed to update profile.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={PColors.text} />
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
         </TouchableOpacity>
-        <ThemedText type="subtitle" style={styles.title}>Edit Profile</ThemedText>
+        <Text style={[styles.title, { color: theme.text }]}>Edit Profile</Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentInner}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.formGroup}>
-          <ThemedText type="smallBold" style={styles.label}>Full Name</ThemedText>
+          <Text style={[styles.label, { color: theme.textSecondary }]}>Full Name</Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                backgroundColor: theme.backgroundSelected,
+                color: theme.text,
+                borderColor: theme.border,
+              },
+            ]}
             value={name}
             onChangeText={setName}
             placeholder="Enter your name"
-            placeholderTextColor={PColors.textSecondary}
+            placeholderTextColor={theme.textSecondary}
           />
         </View>
 
         <View style={styles.formGroup}>
-          <ThemedText type="smallBold" style={styles.label}>Student ID (Read-only)</ThemedText>
+          <Text style={[styles.label, { color: theme.textSecondary }]}>Student ID (Read-only)</Text>
           <TextInput
-            style={[styles.input, styles.inputDisabled]}
-            value={user?.id}
+            style={[
+              styles.input,
+              styles.inputDisabled,
+              {
+                backgroundColor: theme.backgroundSelected,
+                color: theme.textSecondary,
+                borderColor: theme.border,
+              },
+            ]}
+            value={user?.student_id || user?.id || ''}
             editable={false}
           />
         </View>
 
         <View style={styles.formGroup}>
-          <ThemedText type="smallBold" style={styles.label}>Phone Number</ThemedText>
+          <Text style={[styles.label, { color: theme.textSecondary }]}>Phone Number</Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                backgroundColor: theme.backgroundSelected,
+                color: theme.text,
+                borderColor: theme.border,
+              },
+            ]}
             value={phone}
             onChangeText={setPhone}
             placeholder="+233 XX XXX XXXX"
-            placeholderTextColor={PColors.textSecondary}
+            placeholderTextColor={theme.textSecondary}
             keyboardType="phone-pad"
           />
         </View>
 
-        <TouchableOpacity 
-          style={styles.saveButton} 
+        <TouchableOpacity
+          style={[styles.saveButton, { backgroundColor: theme.primary }]}
           onPress={handleSave}
           disabled={loading}
         >
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <ThemedText type="defaultSemiBold" style={styles.saveButtonText}>Save Changes</ThemedText>
+            <Text style={styles.saveButtonText}>Save Changes</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -108,18 +135,14 @@ export default function EditProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: PColors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.four,
-    paddingTop: 60,
+    paddingTop: Spacing.six,
     paddingBottom: Spacing.four,
-    backgroundColor: PColors.card,
-    borderBottomWidth: 1,
-    borderBottomColor: PColors.border,
   },
   backButton: {
     width: 40,
@@ -127,35 +150,34 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    color: PColors.text,
+    fontSize: 18,
+    fontWeight: '700',
   },
   content: {
     flex: 1,
+  },
+  contentInner: {
     padding: Spacing.four,
+    paddingTop: Spacing.two,
   },
   formGroup: {
     marginBottom: Spacing.five,
   },
   label: {
-    color: PColors.textSecondary,
+    fontSize: 13,
+    fontWeight: '700',
     marginBottom: Spacing.two,
   },
   input: {
-    backgroundColor: PColors.card,
     borderRadius: 12,
     padding: Spacing.four,
-    color: PColors.text,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: PColors.border,
-    fontFamily: 'Inter_400Regular',
   },
   inputDisabled: {
-    opacity: 0.7,
-    backgroundColor: 'rgba(30, 41, 59, 0.5)',
+    opacity: 0.85,
   },
   saveButton: {
-    backgroundColor: PColors.primary,
     padding: Spacing.four,
     borderRadius: 12,
     alignItems: 'center',
@@ -163,5 +185,7 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     color: '#FFFFFF',
-  }
+    fontSize: 16,
+    fontWeight: '700',
+  },
 });

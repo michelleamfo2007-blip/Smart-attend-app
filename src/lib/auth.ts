@@ -1,16 +1,24 @@
 import { SignJWT, jwtVerify } from 'jose';
 
-// In Supabase, the JWT secret must be exactly the one configured in the Supabase project
-const secretKey = process.env.SUPABASE_JWT_SECRET || process.env.JWT_SECRET || 'fallback-secret-for-development-only';
+const envSecret = process.env.SUPABASE_JWT_SECRET || process.env.JWT_SECRET;
+
+if (!envSecret && process.env.NODE_ENV === 'production') {
+  throw new Error('JWT_SECRET or SUPABASE_JWT_SECRET must be set in production');
+}
+
+if (!envSecret) {
+  console.warn('JWT_SECRET is not set. Using an insecure development fallback.');
+}
+
+const secretKey = envSecret || 'fallback-secret-for-development-only';
 const encodedKey = new TextEncoder().encode(secretKey);
 
 export async function signToken(payload: any) {
-  // Map our custom payload to a Supabase-compatible JWT payload
   const supabasePayload = {
     ...payload,
-    userRole: payload.role, // Save our custom role here so it's not overwritten
-    sub: payload.userId, // Required by Supabase for auth.uid()
-    role: 'authenticated', // Required for RLS
+    userRole: payload.role,
+    sub: payload.userId,
+    role: 'authenticated',
     app_metadata: {
       institution_id: payload.institutionId,
     }

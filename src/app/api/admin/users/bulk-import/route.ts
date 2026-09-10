@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
-import { verifyToken } from '@/lib/auth';
+import { getAuth } from '@/lib/session';
 
 export async function POST(req: Request) {
   try {
-    const authHeader = req.headers.get('cookie') || req.headers.get('authorization');
-    // Basic auth check placeholder - adapt to your actual auth check
-    if (!authHeader) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await getAuth();
+    if (!auth || auth.userRole !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const { users, institutionId } = await req.json();
@@ -17,54 +16,84 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid or empty user data' }, { status: 400 });
     }
 
-    if (!institutionId) {
+    const targetInstitutionId = auth.institutionId || institutionId;
+    if (!targetInstitutionId) {
       return NextResponse.json({ error: 'Institution ID is required' }, { status: 400 });
     }
 
-    // Process in a transaction or individual creates
-    // For large imports, createMany is better but we might want to hash passwords
-    // Let's create users individually to handle password hashing
-    
+    if (auth.institutionId && institutionId && institutionId !== auth.institutionId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     let successCount = 0;
+    let failedCount = 0;
     const defaultPassword = await bcrypt.hash('Welcome123!', 10);
 
     for (const userData of users) {
-      // Check if user exists by email or index number
-      let existing = null;
-      if (userData.email) {
-        existing = await prisma.users.findUnique({ where: { email: userData.email } });
-      }
-      if (!existing && userData.index_number) {
-        existing = await prisma.users.findFirst({ 
-          where: { student_id: userData.index_number, institution_id: institutionId } 
-        });
-      }
+      try {
+        let existing = null;
+        if (userData.email) {
+          existing = await prisma.users.findUnique({ where: { email: userData.email } });
+        }
+        if (!existing && userData.index_number) {
+          existing = await prisma.users.findFirst({
+            where: { student_id: userData.index_number, institution_id: targetInstitutionId },
+          });
+        }
 
-      if (!existing) {
-        await prisma.users.create({
-          data: {
-            name: userData.name,
-            email: userData.email || undefined,
-            role: userData.role,
-            institution_id: institutionId,
-            level: userData.level || null,
-            semester: userData.semester || null,
-            student_id: userData.index_number || null,
-            cohort_id: userData.program_id || null,
-            // Pre-loaded students don't get a password until they register on the app
-            password: userData.role === 'STUDENT' ? null : defaultPassword, 
+        if (!existing) {
+          const role = String(userData.role || '').toUpperCase();
+          if (role !== 'STUDENT' && role !== 'LECTURER') {
+            failedCount++;
+            continue;
           }
-        });
-        successCount++;
+
+          await prisma.users.create({
+            data: {
+              name: userData.name,
+              email: role === 'STUDENT' ? undefined : userData.email || undefined,
+              role,
+              institution_id: targetInstitutionId,
+              level: userData.level || null,
+              semester: userData.semester || null,
+              student_id: userData.index_number || null,
+              cohort_id: userData.cohort_id || userData.program_id || null,
+              password: role === 'STUDENT' ? null : defaultPassword,
+            },
+          });
+          successCount++;
+        }
+      } catch (error) {
+        console.error('Failed to import user', userData, error);
+        failedCount++;
       }
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      count: successCount,
-      message: `Successfully imported ${successCount} users. Existing emails were skipped.`
+    await prisma.import_history.create({
+      data: {
+        institution_id: targetInstitutionId,
+        uploaded_by: auth.userId,
+        file_name: 'bulk-import',
+        import_type: 'users',
+        success_count: successCount,
+        failed_count: failedCount,
+      },
+    }).catch(() => undefined);
+
+    await prisma.audit_logs.create({
+      data: {
+        user_id: auth.userId,
+        action: 'BULK_IMPORT_USERS',
+        details: `Imported ${successCount} users (${failedCount} failed)`,
+        ip_address: req.headers.get('x-forwarded-for') || 'unknown',
+      },
     });
 
+    return NextResponse.json({
+      success: true,
+      count: successCount,
+      message: `Successfully imported ${successCount} users. Existing emails were skipped.`,
+    });
   } catch (error: any) {
     console.error('Bulk import error:', error);
     return NextResponse.json({ error: 'Failed to process bulk import' }, { status: 500 });

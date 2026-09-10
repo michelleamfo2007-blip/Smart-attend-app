@@ -52,6 +52,10 @@ export default function RegisterPage() {
     setError('');
     if (!name.trim()) { setError('Please enter your full name.'); return; }
     if (!email.trim()) { setError('Please enter your email.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError('Enter a valid email address you can access.');
+      return;
+    }
     if (!inviteCode.trim()) {
       setError('Please enter the Institution Invite Code.');
       return;
@@ -118,8 +122,8 @@ export default function RegisterPage() {
           </div>
 
           <div className={styles.heroText}>
-            <h1>Join SmartAttend Today</h1>
-            <p>Create your account and start managing attendance the smart way — GPS-verified, real-time, and effortless.</p>
+            <h1>Join as a lecturer</h1>
+            <p>Create your lecturer account and start taking attendance the smart way — GPS-verified, real-time, and effortless. Students use the mobile app.</p>
           </div>
 
           {/* Steps indicator */}
@@ -229,6 +233,9 @@ export default function RegisterPage() {
                     autoComplete="email"
                   />
                 </div>
+                <p style={{ margin: '6px 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+                  Use a real inbox. We’ll send a welcome email after you sign up.
+                </p>
               </div>
 
               <div className="input-group">
@@ -421,6 +428,9 @@ export default function RegisterPage() {
           <div className={styles.loginPrompt}>
             Already have an account?{' '}
             <Link href="/login" id="go-to-login-link" className={styles.loginLink}>Sign in</Link>
+            <p style={{ marginTop: 12, fontSize: '0.85rem', color: '#64748b' }}>
+              Students sign up in the SmartAttend mobile app, not here.
+            </p>
           </div>
         </div>
       </div>

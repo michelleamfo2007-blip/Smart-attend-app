@@ -6,9 +6,10 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'STUDENT' | 'LECTURER' | 'ADMIN';
+  role: 'STUDENT' | 'LECTURER' | 'ADMIN' | 'STAFF';
   createdAt: string;
   institution_id?: string | null;
+  can_mark_attendance?: boolean;
 }
 
 export function useUser() {

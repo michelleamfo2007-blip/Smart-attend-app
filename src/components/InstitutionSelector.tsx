@@ -13,9 +13,11 @@ interface InstitutionSelectorProps {
   onSelect: (institutionId: string) => void;
   selectedId?: string;
   error?: string;
+  label?: string;
+  hint?: string;
 }
 
-export default function InstitutionSelector({ onSelect, selectedId, error }: InstitutionSelectorProps) {
+export default function InstitutionSelector({ onSelect, selectedId, error, label = 'Your school', hint }: InstitutionSelectorProps) {
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -80,7 +82,8 @@ export default function InstitutionSelector({ onSelect, selectedId, error }: Ins
 
   return (
     <div className={styles.container} ref={dropdownRef}>
-      <label className="input-label">Institution</label>
+      <label className="input-label">{label}</label>
+      {hint ? <p className={styles.hint}>{hint}</p> : null}
       <div 
         className={`${styles.selector} ${error ? styles.error : ''}`}
         onClick={() => setIsOpen(!isOpen)}

@@ -13,19 +13,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Too many login attempts. Please try again later.' }, { status: 429 });
     }
 
-    const { email, student_id, password } = await req.json();
+    const { email, student_id, password, device_id, institutionId } = await req.json();
 
     if ((!email && !student_id) || !password) {
       return NextResponse.json({ error: 'Missing login credentials or password' }, { status: 400 });
     }
 
-    // Find user by either email or student_id
+    const identityFilters = [];
+    if (email) identityFilters.push({ email });
+    if (student_id) identityFilters.push({ student_id });
+
     const user = await prisma.users.findFirst({
       where: {
-        OR: [
-          { email: email || undefined },
-          { student_id: student_id || undefined }
-        ]
+        AND: [
+          { OR: identityFilters },
+          ...(institutionId ? [{ institution_id: institutionId as string }] : []),
+        ],
       }
     });
 
@@ -38,6 +41,44 @@ export async function POST(req: Request) {
 
     if (!isPasswordValid) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+    }
+
+    if (user.role === 'STUDENT' && !device_id) {
+      return NextResponse.json(
+        { error: 'Students sign in on the SmartAttend mobile app, not the website.' },
+        { status: 403 }
+      );
+    }
+
+    if (device_id && user.role === 'STUDENT') {
+      const otherOwner = await prisma.users.findFirst({
+        where: {
+          device_id,
+          id: { not: user.id },
+        },
+        select: { id: true },
+      });
+
+      if (otherOwner) {
+        return NextResponse.json(
+          { error: 'This phone is already registered to another user. You cannot use the same phone for multiple accounts.' },
+          { status: 403 }
+        );
+      }
+
+      if (user.needs_device_reset || !user.device_id) {
+        await prisma.users.update({
+          where: { id: user.id },
+          data: { device_id, needs_device_reset: false },
+        });
+        user.device_id = device_id;
+        user.needs_device_reset = false;
+      } else if (user.device_id !== device_id) {
+        return NextResponse.json(
+          { error: 'This account is registered on another device. Please contact an administrator if you got a new phone.' },
+          { status: 403 }
+        );
+      }
     }
 
     // Generate JWT
@@ -59,7 +100,8 @@ export async function POST(req: Request) {
         semester: user.semester,
         device_id: user.device_id,
         student_id: user.student_id,
-        cohort_id: user.cohort_id
+        cohort_id: user.cohort_id,
+        can_mark_attendance: user.can_mark_attendance,
       },
       token: token // Return token for mobile clients
     });

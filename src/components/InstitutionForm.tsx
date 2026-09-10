@@ -18,6 +18,7 @@ export interface Institution {
   sso?: boolean;
   custom_branding?: boolean;
   notes?: string;
+  created_at?: string;
 }
 
 export default function InstitutionForm({ 

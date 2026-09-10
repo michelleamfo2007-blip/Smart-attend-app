@@ -1,92 +1,72 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, Text, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
-import { useColorScheme } from 'react-native';
-import { supabase } from '../../lib/supabase';
-import { SymbolView } from 'expo-symbols';
+import { apiFetch } from '../../lib/api';
+import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 
+const theme = Colors.light;
+
 export default function AnalyticsScreen() {
   const { user } = useAuth();
-  const scheme = useColorScheme() ?? 'light';
-  const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const router = useRouter();
-  
+
   const [loading, setLoading] = useState(true);
-  const [moduleStats, setModuleStats] = useState<any[]>([]);
   const [overall, setOverall] = useState({ expected: 0, attended: 0, missed: 0, rate: 0 });
   const [missedSessions, setMissedSessions] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
-        const { data: matchedClasses } = await supabase
-          .from('classes')
-          .select('id, name')
-          .eq('level', user?.level)
-          .eq('semester', user?.semester);
+        const data = await apiFetch('/api/student/dashboard');
+        const matchedClasses = data.classes || [];
+        const allSessions = data.sessions || [];
+        const myRecords = data.records || [];
 
-        if (!matchedClasses || matchedClasses.length === 0) {
+        if (!matchedClasses.length) {
           setLoading(false);
           return;
         }
 
-        const classIds = matchedClasses.map(c => c.id);
-
-        const { data: allSessions } = await supabase
-          .from('attendance_sessions')
-          .select('id, class_id, created_at')
-          .in('class_id', classIds)
-          .order('created_at', { ascending: false });
-
-        const { data: myRecords } = await supabase
-          .from('attendance_records')
-          .select('session_id')
-          .eq('student_id', user?.id);
-
-        const attendedSessionIds = new Set(myRecords?.map(r => r.session_id) || []);
+        const attendedSessionIds = new Set(myRecords.map((r: any) => r.session_id));
 
         let totalExpected = 0;
         let totalAttended = 0;
         const missed: any[] = [];
 
-        const stats = matchedClasses.map(cls => {
-          const classSessions = allSessions?.filter(s => s.class_id === cls.id) || [];
+        matchedClasses.forEach((cls: any) => {
+          const classSessions = allSessions?.filter((s: any) => s.class_id === cls.id) || [];
           const totalSessions = classSessions.length;
-          const attendedCount = classSessions.filter(s => attendedSessionIds.has(s.id)).length;
-          
+          const attendedCount = classSessions.filter((s: any) => attendedSessionIds.has(s.id)).length;
+
           totalExpected += totalSessions;
           totalAttended += attendedCount;
 
-          classSessions.forEach(s => {
+          classSessions.forEach((s: any) => {
             if (!attendedSessionIds.has(s.id)) {
               missed.push({
                 ...s,
-                className: cls.name.split('_')[0]
+                className: cls.name.split('_')[0],
               });
             }
           });
-
-          return {
-            id: cls.id,
-            name: cls.name.split('_')[0],
-            total: totalSessions,
-            attended: attendedCount,
-            rate: totalSessions === 0 ? 100 : Math.round((attendedCount / totalSessions) * 100),
-          };
         });
 
         const totalMissed = totalExpected - totalAttended;
-        const overallRate = totalExpected === 0 ? 100 : Math.round((totalAttended / totalExpected) * 100);
+        const overallRate =
+          totalExpected === 0 ? 100 : Math.round((totalAttended / totalExpected) * 100);
 
-        setModuleStats(stats);
-        setOverall({ expected: totalExpected, attended: totalAttended, missed: totalMissed, rate: overallRate });
+        setOverall({
+          expected: totalExpected,
+          attended: totalAttended,
+          missed: totalMissed,
+          rate: overallRate,
+        });
         setMissedSessions(missed);
       } catch (err) {
-        console.error("Failed to fetch analytics", err);
+        console.error('Failed to fetch analytics', err);
       } finally {
         setLoading(false);
       }
@@ -95,33 +75,61 @@ export default function AnalyticsScreen() {
     fetchAnalytics();
   }, [user?.id, user?.level, user?.semester]);
 
-  if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
+  if (loading) {
+    return (
+      <ActivityIndicator style={{ flex: 1, backgroundColor: theme.background }} color={theme.primary} />
+    );
+  }
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: theme.background }]}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+    >
       <Animated.View entering={FadeInDown.duration(600)}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 12, marginTop: 4 }}>
-            <SymbolView name="chevron.left" size={24} tintColor={theme.text} />
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={24} color={theme.text} />
           </TouchableOpacity>
-          <View>
-            <ThemedText type="title">Performance Analytics</ThemedText>
-            <ThemedText themeColor="textSecondary">Your overall attendance summary</ThemedText>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.title, { color: theme.text }]}>Performance Analytics</Text>
+            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+              Your overall attendance summary
+            </Text>
           </View>
         </View>
 
-        {/* Overall Performance Card */}
-        <View style={[styles.overallCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+        <View
+          style={[
+            styles.overallCard,
+            { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+          ]}
+        >
           <View style={styles.overallRow}>
-            
-            {/* Circular Ring (Simulated with views for React Native) */}
             <View style={styles.progressRingContainer}>
-              <View style={[styles.progressRing, { borderColor: overall.rate >= 85 ? '#10b981' : '#ef4444' }]}>
-                <ThemedText style={{ fontSize: 28, fontWeight: '800' }}>{overall.rate}%</ThemedText>
-                <View style={[styles.zoneBadge, { backgroundColor: overall.rate >= 85 ? '#dcfce7' : '#fee2e2' }]}>
-                   <Text style={{ fontSize: 10, fontWeight: 'bold', color: overall.rate >= 85 ? '#166534' : '#991b1b' }}>
-                     {overall.rate >= 85 ? 'SAFE ZONE' : 'AT RISK'}
-                   </Text>
+              <View
+                style={[
+                  styles.progressRing,
+                  { borderColor: overall.rate >= 85 ? '#10b981' : '#ef4444' },
+                ]}
+              >
+                <Text style={[styles.rateText, { color: theme.text }]}>{overall.rate}%</Text>
+                <View
+                  style={[
+                    styles.zoneBadge,
+                    { backgroundColor: overall.rate >= 85 ? '#dcfce7' : '#fee2e2' },
+                  ]}
+                >
+                  <Text
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 'bold',
+                      color: overall.rate >= 85 ? '#166534' : '#991b1b',
+                    }}
+                  >
+                    {overall.rate >= 85 ? 'SAFE ZONE' : 'AT RISK'}
+                  </Text>
                 </View>
               </View>
             </View>
@@ -143,47 +151,58 @@ export default function AnalyticsScreen() {
           </View>
         </View>
 
-        {/* Missed Sessions Section */}
-        <ThemedText style={[styles.sectionTitle, { marginTop: 32 }]}>ACTION REQUIRED</ThemedText>
-        <ThemedText type="subtitle" style={{ marginBottom: 16 }}>Missed Sessions</ThemedText>
-        
+        <Text style={styles.sectionTitle}>ACTION REQUIRED</Text>
+        <Text style={[styles.sectionHeading, { color: theme.text }]}>Missed Sessions</Text>
+
         {missedSessions.length === 0 ? (
-          <ThemedText style={{ textAlign: 'center', marginTop: 20 }} themeColor="textSecondary">No missed sessions! Great job!</ThemedText>
+          <Text style={{ textAlign: 'center', marginTop: 20, color: theme.textSecondary }}>
+            No missed sessions! Great job!
+          </Text>
         ) : (
           <View style={styles.list}>
             {missedSessions.map((session, index) => (
-              <Animated.View 
-                entering={FadeInDown.duration(400).delay(index * 100)} 
-                key={session.id} 
-                style={[styles.missedCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
+              <Animated.View
+                entering={FadeInDown.duration(400).delay(index * 100)}
+                key={session.id}
+                style={[
+                  styles.missedCard,
+                  { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+                ]}
               >
-                {/* Red left border accent */}
                 <View style={styles.cardAccent} />
-                
+
                 <View style={styles.missedHeader}>
                   <View style={styles.unexcusedBadge}>
-                    <SymbolView name="exclamationmark.triangle.fill" size={10} tintColor="#ef4444" />
+                    <Ionicons name="warning" size={10} color="#ef4444" />
                     <Text style={styles.unexcusedText}>UNEXCUSED ABSENCE</Text>
                   </View>
                   <Text style={{ fontSize: 12, color: theme.textSecondary }}>
-                    {new Date(session.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </Text>
-                </View>
-                
-                <ThemedText style={styles.className}>{session.className}</ThemedText>
-                
-                <View style={styles.dateRow}>
-                  <SymbolView name="calendar" size={14} tintColor={theme.textSecondary} />
-                  <Text style={{ color: theme.textSecondary, fontSize: 13, marginLeft: 6 }}>
-                    {new Date(session.created_at).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: '2-digit', day: '2-digit' })}
+                    {new Date(session.created_at).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
                   </Text>
                 </View>
 
-                <TouchableOpacity 
+                <Text style={[styles.className, { color: theme.text }]}>{session.className}</Text>
+
+                <View style={styles.dateRow}>
+                  <Ionicons name="calendar-outline" size={14} color={theme.textSecondary} />
+                  <Text style={{ color: theme.textSecondary, fontSize: 13, marginLeft: 6 }}>
+                    {new Date(session.created_at).toLocaleDateString(undefined, {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit',
+                    })}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
                   style={styles.submitReasonBtn}
                   onPress={() => router.push('/(student)/disputes')}
                 >
-                  <SymbolView name="doc.text.fill" size={16} tintColor="#b45309" />
+                  <Ionicons name="document-text" size={16} color="#b45309" />
                   <Text style={styles.submitReasonText}>SUBMIT REASON</Text>
                 </TouchableOpacity>
               </Animated.View>
@@ -197,8 +216,22 @@ export default function AnalyticsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: Spacing.four },
-  header: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: Spacing.six, marginTop: Spacing.two },
+  container: { flex: 1 },
+  content: { padding: Spacing.four, paddingTop: Spacing.six },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.six,
+    gap: 8,
+  },
+  backButton: {
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  title: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5, marginBottom: 4 },
+  subtitle: { fontSize: 14, fontWeight: '500' },
   overallCard: {
     padding: Spacing.six,
     borderRadius: 24,
@@ -224,6 +257,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  rateText: { fontSize: 28, fontWeight: '800' },
   zoneBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -251,7 +285,14 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#0f172a',
   },
-  sectionTitle: { fontSize: 12, fontWeight: '700', letterSpacing: 1, color: '#94a3b8', marginBottom: 4 },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
+    color: '#94a3b8',
+    marginBottom: 4,
+  },
+  sectionHeading: { fontSize: 20, fontWeight: '700', marginBottom: 16 },
   list: { gap: Spacing.four },
   missedCard: {
     padding: Spacing.four,
@@ -312,5 +353,5 @@ const styles = StyleSheet.create({
     color: '#b45309',
     fontWeight: '800',
     fontSize: 14,
-  }
+  },
 });

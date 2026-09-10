@@ -1,6 +1,6 @@
 generator client {
   provider = "prisma-client-js"
-  engineType = "library"
+  engineType = "binary"
 }
 
 datasource db {
@@ -26,6 +26,7 @@ model users {
   cohort_id      String?  @db.Uuid
   programme_id   String?  @db.Uuid
   needs_device_reset Boolean @default(false)
+  can_mark_attendance Boolean @default(false)
   
   programme_rel         programmes?            @relation(fields: [programme_id], references: [id], onDelete: SetNull)
   institution           institutions?          @relation(fields: [institution_id], references: [id], onDelete: Cascade)
@@ -34,6 +35,7 @@ model users {
   attendance_sessions   attendance_sessions[]  @relation("session_lecturer")
   enrollments           enrollments[]
   records               attendance_records[]
+  marked_records        attendance_records[]   @relation("attendance_marker")
   imports               import_history[]
 }
 
@@ -89,6 +91,20 @@ model classrooms {
 
   institution    institutions @relation(fields: [institution_id], references: [id], onDelete: Cascade)
   classes        classes[]
+  kiosks         classroom_kiosks[]
+}
+
+model classroom_kiosks {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  institution_id String   @db.Uuid
+  classroom_id   String   @db.Uuid
+  name           String
+  access_token   String   @unique
+  enabled        Boolean  @default(true)
+  created_at     DateTime @default(now()) @db.Timestamptz
+
+  institution    institutions @relation(fields: [institution_id], references: [id], onDelete: Cascade)
+  classroom      classrooms   @relation(fields: [classroom_id], references: [id], onDelete: Cascade)
 }
 
 model cohorts {
@@ -138,10 +154,13 @@ model attendance_records {
   student_name String?
   timestamp    DateTime @db.Timestamptz
   location     String?
+  method       String?  @default("dynamic_qr")
+  marked_by_id String?  @db.Uuid
 
   class        classes             @relation(fields: [class_id], references: [id], onDelete: Cascade)
   student      users               @relation(fields: [student_id], references: [id], onDelete: Cascade)
   session      attendance_sessions @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  marked_by    users?              @relation("attendance_marker", fields: [marked_by_id], references: [id], onDelete: SetNull)
 
   @@unique([student_id, session_id])
 }
@@ -209,6 +228,7 @@ model institutions {
   cohorts           cohorts[]
   imports           import_history[]
   colleges          colleges[]
+  kiosks            classroom_kiosks[]
 }
 
 model colleges {

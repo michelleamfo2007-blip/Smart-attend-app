@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getAuth, isCrossTenant } from '@/lib/session';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await getAuth();
+    if (!auth || auth.userRole !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const { id } = await params;
 
     // Validate UUID format to prevent Prisma throwing on "undefined" or invalid UUIDs
@@ -26,7 +32,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
           }
         },
         records: {
-          select: { session_id: true, timestamp: true }
+          select: { session_id: true, timestamp: true, method: true, marked_by: { select: { name: true } } }
         }
       }
     });
@@ -35,12 +41,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    if (isCrossTenant(auth, user.institution_id)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     if (user.role !== 'STUDENT') {
       // For lecturers or admins, just return the user details without attendance math
       return NextResponse.json({ user });
     }
 
     const attendedSessionIds = new Set((user.records || []).map((r: any) => r.session_id));
+    const recordBySession = new Map((user.records || []).map((r: any) => [r.session_id, r]));
     
     const timeline: any[] = [];
 
@@ -62,7 +73,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
           sessionId: s.id,
           className: classData?.name || 'Unknown Class',
           date: s.created_at,
-          status: attended ? 'Present' : 'Absent'
+          status: attended ? 'Present' : 'Absent',
+          method: attended ? (recordBySession.get(s.id)?.method || 'dynamic_qr') : null,
+          markedBy: attended ? (recordBySession.get(s.id)?.marked_by?.name || null) : null,
         });
       });
 
@@ -100,6 +113,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         role: user.role,
         level: user.level,
         semester: user.semester,
+        can_mark_attendance: user.can_mark_attendance,
       },
       analytics: {
         classes: classesAnalytics,
@@ -114,6 +128,50 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     });
   } catch (error: any) {
     console.error('Failed to fetch user details:', error);
+    return NextResponse.json({ error: error.message || String(error) }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const auth = await getAuth();
+    if (!auth || auth.userRole !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { id } = await params;
+    const target = await prisma.users.findUnique({
+      where: { id },
+      select: { id: true, role: true, institution_id: true },
+    });
+    if (!target) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+    if (isCrossTenant(auth, target.institution_id)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (target.role === 'STUDENT') {
+      return NextResponse.json({ error: 'Students cannot be granted attendance officer access.' }, { status: 400 });
+    }
+
+    const body = await req.json();
+    const user = await prisma.users.update({
+      where: { id },
+      data: {
+        can_mark_attendance: Boolean(body.can_mark_attendance),
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        can_mark_attendance: true,
+      },
+    });
+
+    return NextResponse.json({ user });
+  } catch (error: any) {
+    console.error('Failed to update user:', error);
     return NextResponse.json({ error: error.message || String(error) }, { status: 500 });
   }
 }

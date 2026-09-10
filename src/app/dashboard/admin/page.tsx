@@ -53,7 +53,13 @@ export default function AdminDashboard() {
     <div className={styles.page}>
       <div className={styles.pageHeader}>
         <div>
-          <h1 className={styles.pageTitle}>Good Morning, {user?.name?.split(' ')[0]}</h1>
+          <h1 className={styles.pageTitle}>
+            {(() => {
+              const hour = new Date().getHours();
+              const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+              return `${greeting}, ${user?.name?.split(' ')[0] || 'Admin'}`;
+            })()}
+          </h1>
           <p className={styles.pageSubtitle}>Manage users and classes</p>
         </div>
 

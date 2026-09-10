@@ -1,36 +1,44 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/auth';
+import { getAuth, isCrossTenant } from '@/lib/session';
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const token = (await cookies()).get('token')?.value;
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    
-    const payload = await verifyToken(token);
-    if (payload?.role !== 'ADMIN') {
+    const auth = await getAuth();
+    if (!auth || auth.userRole !== 'ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const { id } = await params;
-    
+
+    const target = await prisma.users.findUnique({
+      where: { id },
+      select: { id: true, name: true, email: true, institution_id: true },
+    });
+
+    if (!target) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    if (isCrossTenant(auth, target.institution_id)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const user = await prisma.users.update({
       where: { id },
       data: {
         device_id: null,
-        needs_device_reset: true
-      }
+        needs_device_reset: true,
+      },
     });
 
-    // Audit log
     await prisma.audit_logs.create({
       data: {
-        user_id: payload.userId as string,
+        user_id: auth.userId,
         action: 'DEVICE_RESET',
         details: `Admin reset device binding for user ${user.name || user.email} (${id})`,
-        ip_address: req.headers.get('x-forwarded-for') || 'unknown'
-      }
+        ip_address: req.headers.get('x-forwarded-for') || 'unknown',
+      },
     });
 
     return NextResponse.json({ success: true });

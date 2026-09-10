@@ -4,23 +4,22 @@ import { useAuth } from '../../context/AuthContext';
 import { Spacing, Colors } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { supabase } from '../../lib/supabase';
+import { apiFetch } from '../../lib/api';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useColorScheme } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
-  const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const theme = Colors.light;
   
   const [stats, setStats] = useState({
     present: 0,
     absent: 0,
-    late: 0, 
+    late: 0,
     rate: 100,
     courses: 0,
-    classesToday: 3, 
+    classesToday: 0, 
   });
   const [loading, setLoading] = useState(true);
   const [institutionName, setInstitutionName] = useState('');
@@ -28,37 +27,14 @@ export default function ProfileScreen() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        if (user?.institution_id) {
-          const { data: instData } = await supabase.from('institutions').select('name').eq('id', user.institution_id).maybeSingle();
-          if (instData?.name) {
-            setInstitutionName(instData.name);
-          }
+        const data = await apiFetch('/api/student/dashboard');
+        if (data.institutionName) {
+          setInstitutionName(data.institutionName);
         }
 
-        const { data: myRecords } = await supabase
-          .from('attendance_records')
-          .select('id')
-          .eq('student_id', user?.id);
-
-        const attendedCount = myRecords ? myRecords.length : 0;
-
-        const { data: matchedClasses } = await supabase
-          .from('classes')
-          .select('id')
-          .eq('level', user?.level)
-          .eq('semester', user?.semester);
-
-        let totalSessionsCount = 0;
-        if (matchedClasses && matchedClasses.length > 0) {
-          const classIds = matchedClasses.map(c => c.id);
-          const { data: allSessions } = await supabase
-            .from('attendance_sessions')
-            .select('id')
-            .in('class_id', classIds);
-            
-          totalSessionsCount = allSessions ? allSessions.length : 0;
-        }
-
+        const attendedCount = (data.records || []).length;
+        const matchedClasses = data.classes || [];
+        const totalSessionsCount = (data.sessions || []).length;
         const total = Math.max(totalSessionsCount, attendedCount);
         const absentCount = Math.max(0, total - attendedCount);
         const rate = total === 0 ? 100 : Math.round((attendedCount / total) * 100);
@@ -68,7 +44,7 @@ export default function ProfileScreen() {
           present: attendedCount,
           absent: absentCount,
           rate: rate,
-          courses: matchedClasses ? matchedClasses.length : 0,
+          courses: matchedClasses.length,
         }));
       } catch (err) {
         console.error("Failed to fetch profile stats", err);
@@ -86,7 +62,7 @@ export default function ProfileScreen() {
       <View style={styles.headerTop}>
         <View style={{ width: 24 }} /> 
         <Text style={[styles.headerTitle, { color: theme.text }]}>Profile</Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push('/(student)/edit-profile')}>
           <Ionicons name="settings-outline" size={24} color={theme.textSecondary} />
         </TouchableOpacity>
       </View>
@@ -115,6 +91,25 @@ export default function ProfileScreen() {
           <Text style={styles.verifiedText}>Verified</Text>
         </View>
       </LinearGradient>
+
+      {user?.id ? (
+        <View style={[styles.card, { backgroundColor: theme.backgroundElement, alignItems: 'center', padding: 20, marginBottom: Spacing.six }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text, marginBottom: 12 }]}>Student QR</Text>
+          <View style={{ backgroundColor: '#fff', padding: 12, borderRadius: 16 }}>
+            <QRCode
+              value={JSON.stringify({
+                type: 'smartattend_student',
+                id: user.id,
+                student_id: user.student_id,
+              })}
+              size={160}
+            />
+          </View>
+          <Text style={{ color: theme.textSecondary, marginTop: 12, textAlign: 'center', fontSize: 13 }}>
+            Show this to an attendance officer if you do not have a phone for class check-in.
+          </Text>
+        </View>
+      ) : null}
 
       {/* QUICK ACTIONS */}
       <View style={styles.quickActionsGrid}>
@@ -149,7 +144,7 @@ export default function ProfileScreen() {
         <View style={styles.infoRow}>
           <Ionicons name="id-card-outline" size={20} color={theme.textSecondary} />
           <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Student ID</Text>
-          <Text style={[styles.infoValue, { color: theme.text }]}>{user?.id?.substring(0, 8).toUpperCase()}</Text>
+          <Text style={[styles.infoValue, { color: theme.text }]}>{user?.student_id || 'Not set'}</Text>
         </View>
         <View style={[styles.infoDivider, { backgroundColor: theme.border }]} />
         <View style={styles.infoRow}>
@@ -157,25 +152,13 @@ export default function ProfileScreen() {
           <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Institution</Text>
           <Text style={[styles.infoValue, { color: theme.text }]}>{institutionName || 'N/A'}</Text>
         </View>
-        <View style={[styles.infoDivider, { backgroundColor: theme.border }]} />
-        <View style={styles.infoRow}>
-          <Ionicons name="mail-outline" size={20} color={theme.textSecondary} />
-          <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Email</Text>
-          <Text style={[styles.infoValue, { color: theme.text }]}>{user?.name?.split(' ')[0].toLowerCase()}@gmail.com</Text>
-        </View>
       </View>
 
       <Text style={[styles.sectionTitle, { color: theme.text }]}>Settings</Text>
       <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
-        <TouchableOpacity style={styles.settingsRow}>
+        <TouchableOpacity style={styles.settingsRow} onPress={() => router.push('/(student)/notifications')}>
           <Ionicons name="notifications-outline" size={20} color={theme.textSecondary} />
           <Text style={[styles.settingsText, { color: theme.text }]}>Notifications</Text>
-          <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
-        </TouchableOpacity>
-        <View style={[styles.infoDivider, { backgroundColor: theme.border }]} />
-        <TouchableOpacity style={styles.settingsRow}>
-          <Ionicons name="lock-closed-outline" size={20} color={theme.textSecondary} />
-          <Text style={[styles.settingsText, { color: theme.text }]}>Security & Password</Text>
           <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
         </TouchableOpacity>
       </View>

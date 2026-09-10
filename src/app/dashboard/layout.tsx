@@ -9,7 +9,6 @@ import styles from './layout.module.css';
 const NAV_LINKS = {
   STUDENT: [
     { href: '/dashboard/student', label: 'Overview', icon: HomeIcon },
-    { href: '/dashboard/student#history', label: 'My Attendance', icon: CheckIcon },
   ],
   LECTURER: [
     { href: '/dashboard/lecturer', label: 'Overview', icon: HomeIcon },
@@ -17,13 +16,19 @@ const NAV_LINKS = {
     { href: '/dashboard/lecturer/schedule', label: 'Schedule', icon: CalendarIcon },
     { href: '/dashboard/lecturer/sessions', label: 'Sessions', icon: CalendarIcon },
   ],
+  STAFF: [
+    { href: '/dashboard/staff', label: 'Scan Attendance', icon: ScanIcon },
+  ],
   ADMIN: [
     { href: '/dashboard/admin', label: 'Overview', icon: HomeIcon },
     { href: '/dashboard/admin/institutions', label: 'Institutions', icon: BuildingIcon },
     { href: '/dashboard/admin/users', label: 'Users', icon: UsersIcon },
     { href: '/dashboard/admin/catalogue', label: 'Catalogue', icon: BookIcon },
     { href: '/dashboard/admin/classes', label: 'Modules', icon: BookIcon },
+    { href: '/dashboard/admin/classrooms', label: 'Classrooms', icon: MonitorIcon },
     { href: '/dashboard/admin/cohorts', label: 'Programs', icon: UsersIcon },
+    { href: '/dashboard/admin/audit', label: 'Audit Logs', icon: ShieldIcon },
+    { href: '/dashboard/admin/settings', label: 'Settings', icon: GearIcon },
   ],
 };
 
@@ -38,6 +43,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!loading && !user) {
       router.push('/login');
     }
+    if (!loading && user?.role === 'STUDENT') {
+      router.replace('/login?app=1');
+    }
   }, [user, loading, router]);
 
   const handleLogout = async () => {
@@ -46,7 +54,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push('/login');
   };
 
-  if (loading || !user) {
+  if (loading || !user || user.role === 'STUDENT') {
     return (
       <div className={styles.loadingScreen}>
         <div className={styles.loadingLogo}>
@@ -58,17 +66,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
-  let links = [...(NAV_LINKS[user.role] || [])];
-  // Customizations for ADMIN role
+  let links = [...(NAV_LINKS[user.role as keyof typeof NAV_LINKS] || [])];
   if (user.role === 'ADMIN') {
-    // Hide the global Institutions tab for Tenant Admins
     if (user.institution_id) {
       links = links.filter(l => l.label !== 'Institutions');
+      links.splice(1, 0, { href: '/dashboard/staff', label: 'Staff Scanner', icon: ScanIcon });
     }
   }
+  if (user.role === 'LECTURER' && user.can_mark_attendance) {
+    links.push({ href: '/dashboard/staff', label: 'Staff Scanner', icon: ScanIcon });
+  }
 
-  const roleColor = { STUDENT: '#3b82f6', LECTURER: '#8b5cf6', ADMIN: '#e01e37' }[user.role as 'STUDENT' | 'LECTURER' | 'ADMIN'];
-  let roleLabel = { STUDENT: 'Student', LECTURER: 'Lecturer', ADMIN: 'Admin' }[user.role as 'STUDENT' | 'LECTURER' | 'ADMIN'];
+  const roleColor = { STUDENT: '#3b82f6', LECTURER: '#8b5cf6', ADMIN: '#e01e37', STAFF: '#0f766e' }[user.role] || '#e01e37';
+  let roleLabel = { STUDENT: 'Student', LECTURER: 'Lecturer', ADMIN: 'Admin', STAFF: 'Attendance Officer' }[user.role] || 'Staff';
   
   if (user.role === 'ADMIN') {
     roleLabel = user.institution_id ? 'School Admin' : 'Super Admin';
@@ -101,7 +111,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Nav links */}
         <nav className={styles.nav}>
           {links.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href;
+            const active = href === '/dashboard/admin' || href === '/dashboard/lecturer' || href === '/dashboard/student' || href === '/dashboard/staff'
+              ? pathname === href
+              : pathname === href || pathname.startsWith(`${href}/`);
             return (
               <Link
                 key={href}
@@ -181,13 +193,6 @@ function HomeIcon({ active }: { active: boolean }) {
     </svg>
   );
 }
-function CheckIcon({ active }: { active: boolean }) {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? '#e01e37' : 'currentColor'} strokeWidth="2">
-      <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
-    </svg>
-  );
-}
 function CalendarIcon({ active }: { active: boolean }) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? '#e01e37' : 'currentColor'} strokeWidth="2">
@@ -227,6 +232,38 @@ function BuildingIcon({ active }: { active: boolean }) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? '#e01e37' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="9" y1="22" x2="9" y2="2"/><line x1="15" y1="22" x2="15" y2="2"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="7" x2="9" y2="7"/><line x1="4" y1="17" x2="9" y2="17"/><line x1="15" y1="7" x2="20" y2="7"/><line x1="15" y1="17" x2="20" y2="17"/>
+    </svg>
+  );
+}
+function ShieldIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? '#e01e37' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    </svg>
+  );
+}
+function ScanIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? '#e01e37' : 'currentColor'} strokeWidth="2">
+      <path d="M4 7V4h3M17 4h3v3M4 17v3h3M17 20h3v-3"/>
+      <rect x="7" y="7" width="10" height="10" rx="1"/>
+    </svg>
+  );
+}
+function MonitorIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? '#e01e37' : 'currentColor'} strokeWidth="2">
+      <rect x="2" y="3" width="20" height="14" rx="2"/>
+      <line x1="8" y1="21" x2="16" y2="21"/>
+      <line x1="12" y1="17" x2="12" y2="21"/>
+    </svg>
+  );
+}
+function GearIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={active ? '#e01e37' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
     </svg>
   );
 }

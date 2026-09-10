@@ -1,22 +1,17 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/auth';
+import { getAuth } from '@/lib/session';
 
 export async function GET() {
   try {
-    const token = (await cookies()).get('token')?.value;
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const payload = await verifyToken(token);
-    const institutionId = payload?.institutionId as string;
-    const userId = payload?.userId as string;
+    const auth = await getAuth();
+    if (!auth?.userId || auth.userRole !== 'LECTURER' || !auth.institutionId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    if (!userId || !institutionId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    // Fetch catalogue modules (classes where lecturer is null)
     const catalogue = await prisma.classes.findMany({
       where: {
-        institution_id: institutionId,
+        institution_id: auth.institutionId,
         lecturer_id: null,
       },
       include: {
@@ -24,15 +19,15 @@ export async function GET() {
           include: {
             department: {
               include: {
-                college: true
-              }
-            }
-          }
-        }
+                college: true,
+              },
+            },
+          },
+        },
       },
       orderBy: {
-        name: 'asc'
-      }
+        name: 'asc',
+      },
     });
 
     return NextResponse.json({ catalogue });

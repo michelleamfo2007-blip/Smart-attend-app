@@ -1,28 +1,24 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/auth';
+import { getAuth } from '@/lib/session';
 
 export async function GET() {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token')?.value;
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const payload = await verifyToken(token);
-    if (!payload || payload.userRole !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const auth = await getAuth();
+    if (!auth || auth.userRole !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-    const whereClause = payload.institutionId ? { institution_id: payload.institutionId as string } : {};
+    const whereClause = auth.institutionId ? { institution_id: auth.institutionId } : {};
 
     const courses = await prisma.classes.findMany({
       where: whereClause,
       include: {
-        lecturer: true,
-        records: true, 
-        sessions: { orderBy: { created_at: 'desc' } }, 
+        lecturer: { select: { id: true, name: true, email: true } },
+        records: true,
+        sessions: { orderBy: { created_at: 'desc' } },
         _count: {
-          select: { sessions: true }
-        }
-      }
+          select: { sessions: true },
+        },
+      },
     });
     return NextResponse.json({ courses });
   } catch (error) {
@@ -33,25 +29,26 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token')?.value;
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const payload = await verifyToken(token);
-    if (!payload || payload.userRole !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const auth = await getAuth();
+    if (!auth || auth.userRole !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-    const { name, lecturer_id, level, semester, schedule_time } = await req.json();
+    const { name, lecturer_id, level, semester, schedule_time, invite_code } = await req.json();
     if (!name) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
 
     const course = await prisma.classes.create({
-      data: { 
-        name, 
-        lecturer_id: lecturer_id || null, 
-        level, 
-        semester, 
+      data: {
+        name,
+        lecturer_id: lecturer_id || null,
+        level,
+        semester,
         schedule_time,
-        institution_id: payload.institutionId as string | null
+        invite_code: invite_code || Math.random().toString(36).substring(2, 8).toUpperCase(),
+        institution_id: auth.institutionId,
+      },
+      include: {
+        lecturer: { select: { id: true, name: true, email: true } },
       },
     });
 

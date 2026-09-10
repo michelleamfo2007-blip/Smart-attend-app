@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/auth';
+import bcrypt from 'bcryptjs';
+import { getAuth } from '@/lib/session';
 
 function getStartOfWeek() {
   const date = new Date();
@@ -14,13 +14,10 @@ function getStartOfWeek() {
 
 export async function GET() {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token')?.value;
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const payload = await verifyToken(token);
-    if (!payload || payload.userRole !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const auth = await getAuth();
+    if (!auth || auth.userRole !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-    const whereClause = payload.institutionId ? { institution_id: payload.institutionId as string } : {};
+    const whereClause = auth.institutionId ? { institution_id: auth.institutionId } : {};
 
     const rawUsers = await prisma.users.findMany({
       where: whereClause,
@@ -31,6 +28,9 @@ export async function GET() {
         role: true,
         level: true,
         semester: true,
+        device_id: true,
+        needs_device_reset: true,
+        can_mark_attendance: true,
         _count: {
           select: {
             classes_lectured: true, 
@@ -43,7 +43,10 @@ export async function GET() {
     const startOfWeek = getStartOfWeek();
 
     // 1. Calculate Required Sessions per (Level + Semester)
+    const classScope = auth.institutionId ? { class: { institution_id: auth.institutionId } } : {};
+
     const allSessions = await prisma.attendance_sessions.findMany({
+      where: classScope,
       include: { class: { select: { level: true, semester: true } } }
     });
 
@@ -66,6 +69,7 @@ export async function GET() {
 
     // 2. Fetch Check-ins per student
     const allRecords = await prisma.attendance_records.findMany({
+      where: classScope,
       select: { student_id: true, timestamp: true }
     });
 
@@ -115,3 +119,54 @@ export async function GET() {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
+export async function POST(req: Request) {
+  try {
+    const auth = await getAuth();
+    if (!auth || auth.userRole !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!auth.institutionId) {
+      return NextResponse.json({ error: 'Tenant admins create staff for their school.' }, { status: 400 });
+    }
+
+    const body = await req.json();
+    const name = typeof body.name === 'string' ? body.name.trim() : '';
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+    const password = typeof body.password === 'string' ? body.password : '';
+    if (!name || !email || password.length < 6) {
+      return NextResponse.json({ error: 'Name, email, and a password of at least 6 characters are required.' }, { status: 400 });
+    }
+
+    const existing = await prisma.users.findUnique({ where: { email } });
+    if (existing) {
+      return NextResponse.json({ error: 'A user with this email already exists.' }, { status: 400 });
+    }
+
+    const hashed = await bcrypt.hash(password, 10);
+    const user = await prisma.users.create({
+      data: {
+        name,
+        email,
+        password: hashed,
+        role: 'STAFF',
+        institution_id: auth.institutionId,
+        can_mark_attendance: true,
+        staff_id: typeof body.staff_id === 'string' ? body.staff_id.trim() : null,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        can_mark_attendance: true,
+      },
+    });
+
+    return NextResponse.json({ user }, { status: 201 });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+

@@ -5,7 +5,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, Colors } from '@/constants/theme';
 import { useColorScheme } from 'react-native';
-import { supabase } from '../../lib/supabase';
+import { apiFetch } from '../../lib/api';
 import { SymbolView } from 'expo-symbols';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
@@ -25,40 +25,8 @@ export default function LecturerDisputesScreen() {
   const fetchDisputes = async () => {
     try {
       setLoading(true);
-      // First get the lecturer's classes
-      const { data: myClasses } = await supabase
-        .from('classes')
-        .select('id')
-        .eq('lecturer_id', user?.id);
-
-      if (!myClasses || myClasses.length === 0) {
-        setDisputes([]);
-        setLoading(false);
-        return;
-      }
-
-      const classIds = myClasses.map(c => c.id);
-
-      // Fetch disputes for those classes
-      const { data: allDisputes } = await supabase
-        .from('attendance_disputes')
-        .select(`
-          *,
-          classes(name),
-          users!student_id(name, email)
-        `)
-        .in('class_id', classIds)
-        .order('created_at', { ascending: false });
-
-      if (allDisputes) {
-        // Sort so 'pending' is at the top
-        const sorted = allDisputes.sort((a, b) => {
-          if (a.status === 'pending' && b.status !== 'pending') return -1;
-          if (a.status !== 'pending' && b.status === 'pending') return 1;
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        });
-        setDisputes(sorted);
-      }
+      const data = await apiFetch('/api/lecturer/disputes');
+      setDisputes(data.disputes || []);
     } catch (error) {
       console.error(error);
     } finally {
@@ -89,30 +57,10 @@ export default function LecturerDisputesScreen() {
 
     setProcessingId(dispute.id);
     try {
-      if (action === 'approve') {
-        // Insert attendance record
-        const { error: insertError } = await supabase
-          .from('attendance_records')
-          .insert({
-            student_id: dispute.student_id,
-            class_id: dispute.class_id,
-            session_id: dispute.session_id,
-            timestamp: new Date().toISOString()
-          });
-
-        // Ignore error if it's a unique constraint violation (already present)
-        if (insertError && !insertError.message.includes('unique constraint')) {
-          throw insertError;
-        }
-      }
-
-      // Update dispute status
-      const { error: updateError } = await supabase
-        .from('attendance_disputes')
-        .update({ status: action === 'approve' ? 'approved' : 'rejected' })
-        .eq('id', dispute.id);
-
-      if (updateError) throw updateError;
+      await apiFetch(`/api/lecturer/disputes/${dispute.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ action }),
+      });
 
       if (Platform.OS === 'web') {
         window.alert(`Dispute ${action}d successfully.`);
@@ -168,8 +116,8 @@ export default function LecturerDisputesScreen() {
                  >
                    <View style={styles.disputeHeader}>
                      <View>
-                       <ThemedText style={{ fontWeight: 'bold', fontSize: 16 }}>{dispute.users?.name || 'Unknown Student'}</ThemedText>
-                       <ThemedText themeColor="textSecondary" style={{ fontSize: 12 }}>{dispute.classes?.name?.split('_')[0] || 'Unknown Class'}</ThemedText>
+                       <ThemedText style={{ fontWeight: 'bold', fontSize: 16 }}>{dispute.student?.name || dispute.users?.name || 'Unknown Student'}</ThemedText>
+                       <ThemedText themeColor="textSecondary" style={{ fontSize: 12 }}>{dispute.class?.name?.split('_')[0] || dispute.classes?.name?.split('_')[0] || 'Unknown Class'}</ThemedText>
                      </View>
                      <View style={[styles.statusBadge, { backgroundColor: `${statusColor}20` }]}>
                        <Text style={{ color: statusColor, fontSize: 11, fontWeight: 'bold', textTransform: 'uppercase' }}>

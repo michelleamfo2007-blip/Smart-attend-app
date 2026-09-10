@@ -5,7 +5,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing, Colors } from '@/constants/theme';
 import { useColorScheme } from 'react-native';
 import { User } from '../../context/AuthContext';
-import { supabase } from '../../lib/supabase';
+import { apiFetch } from '../../lib/api';
 
 export default function ManageClassesScreen() {
   const scheme = useColorScheme() ?? 'light';
@@ -30,30 +30,25 @@ export default function ManageClassesScreen() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const { data: existingClasses } = await supabase
-        .from('classes')
-        .select(`id, name, lecturer_id, level, semester, schedule_time, invite_code, users (name)`);
-      
-      const { data: existingUsers } = await supabase
-        .from('users')
-        .select('*')
-        .eq('role', 'LECTURER');
-      
-      if (existingClasses) {
-        setClasses(existingClasses.map(c => ({
-          id: c.id,
-          name: c.name,
-          lecturerId: c.lecturer_id,
-          lecturerName: (c.users as any)?.name || 'Unknown',
-          level: c.level,
-          semester: c.semester,
-          scheduleTime: c.schedule_time,
-          inviteCode: c.invite_code
-        })));
-      }
-      if (existingUsers) {
-        setLecturers(existingUsers);
-      }
+      const [classesData, usersData] = await Promise.all([
+        apiFetch('/api/admin/courses'),
+        apiFetch('/api/admin/users'),
+      ]);
+
+      const existingClasses = classesData.courses || [];
+      const existingUsers = (usersData.users || []).filter((u: User) => u.role === 'LECTURER');
+
+      setClasses(existingClasses.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        lecturerId: c.lecturer_id,
+        lecturerName: c.lecturer?.name || 'Unknown',
+        level: c.level,
+        semester: c.semester,
+        scheduleTime: c.schedule_time,
+        inviteCode: c.invite_code
+      })));
+      setLecturers(existingUsers);
     } catch (err) {
       console.error("Failed to fetch data", err);
     } finally {
@@ -88,8 +83,7 @@ export default function ManageClassesScreen() {
       { text: "Cancel", style: "cancel" },
       { text: "Delete", style: "destructive", onPress: async () => {
           try {
-            const { error } = await supabase.from('classes').delete().eq('id', id);
-            if (error) throw error;
+            await apiFetch(`/api/admin/courses/${id}`, { method: 'DELETE' });
             setClasses(classes.filter(c => c.id !== id));
           } catch (err) {
             Alert.alert("Error", "Failed to delete class.");
@@ -109,19 +103,17 @@ export default function ManageClassesScreen() {
     try {
       if (editingClassId) {
         // Update existing class
-        const { error } = await supabase
-          .from('classes')
-          .update({
+        await apiFetch(`/api/admin/courses/${editingClassId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
             name: newClassName,
             lecturer_id: selectedLecturerId,
             level,
             semester,
             schedule_time: scheduleTime,
             invite_code: inviteCode || null
-          })
-          .eq('id', editingClassId);
-
-        if (error) throw error;
+          }),
+        });
 
         setClasses(classes.map(c => c.id === editingClassId ? {
           ...c,
@@ -136,26 +128,26 @@ export default function ManageClassesScreen() {
 
       } else {
         // Insert new class
-        const { data: insertedClass, error } = await supabase
-          .from('classes')
-          .insert({
+        const data = await apiFetch('/api/admin/courses', {
+          method: 'POST',
+          body: JSON.stringify({
             name: newClassName,
             lecturer_id: selectedLecturerId,
             level,
             semester,
             schedule_time: scheduleTime,
             invite_code: inviteCode || Math.random().toString(36).substring(2, 8).toUpperCase()
-          })
-          .select(`id, name, lecturer_id, level, semester, schedule_time, invite_code, users (name)`)
-          .single();
+          }),
+        });
 
-        if (error || !insertedClass) throw error;
+        const insertedClass = data.course;
+        if (!insertedClass) throw new Error('Failed to create class');
 
         const formattedClass = {
           id: insertedClass.id,
           name: insertedClass.name,
           lecturerId: insertedClass.lecturer_id,
-          lecturerName: (insertedClass.users as any)?.name || lecturer?.name || 'Unknown',
+          lecturerName: insertedClass.lecturer?.name || lecturer?.name || 'Unknown',
           level: insertedClass.level,
           semester: insertedClass.semester,
           scheduleTime: insertedClass.schedule_time,

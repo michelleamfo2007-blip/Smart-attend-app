@@ -121,7 +121,7 @@ export default function AdminInstitutions() {
                 <td>{inst.contact_email || 'N/A'}</td>
                 <td><span className={styles.badge}>{inst.subscription_plan}</span></td>
                 <td>{getStatusBadge(inst.status)}</td>
-                <td>{new Date(inst.created_at).toLocaleDateString()}</td>
+                <td>{inst.created_at ? new Date(inst.created_at).toLocaleDateString() : '—'}</td>
                 <td style={{ textAlign: 'right' }}>
                   <div className={styles.dropdownContainer} style={{ display: 'inline-block' }}>
                     <button className={styles.actionBtnOutline} style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '0.8rem', background: 'white', border: '1px solid #cbd5e1', cursor: 'pointer' }} onClick={() => {

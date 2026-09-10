@@ -3,9 +3,10 @@ import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 import styles from './page.module.css';
-import { BookOpen, School, Building2, GraduationCap } from 'lucide-react';
+import { School } from 'lucide-react';
 import ImportCatalogueClient from './ImportCatalogueClient';
 import CatalogueList from './CatalogueList';
+import AddCollegeButton from './AddCollegeButton';
 
 export default async function CataloguePage() {
   const cookieStore = await cookies();
@@ -37,7 +38,10 @@ export default async function CataloguePage() {
           <h1 className={styles.title}>University Course Catalogue</h1>
           <p className={styles.subtitle}>Manage your institution&apos;s curriculum hierarchy and courses.</p>
         </div>
-        <ImportCatalogueClient />
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <AddCollegeButton />
+          <ImportCatalogueClient />
+        </div>
       </div>
 
       {colleges.length === 0 ? (
@@ -45,6 +49,9 @@ export default async function CataloguePage() {
           <div className={styles.emptyIcon}><School size={48} /></div>
           <h3>No Catalogue Data Found</h3>
           <p>Start by adding your first College or School to build your curriculum hierarchy.</p>
+          <div style={{ marginTop: '1.5rem' }}>
+            <AddCollegeButton variant="empty" />
+          </div>
         </div>
       ) : (
         <CatalogueList colleges={colleges} />

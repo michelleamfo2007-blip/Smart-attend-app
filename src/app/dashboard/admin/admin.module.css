@@ -65,6 +65,7 @@
 .roleBadge { padding: 3px 10px; border-radius: 99px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.3px; }
 .roleSTUDENT { background: #eff6ff; color: #1d4ed8; }
 .roleLECTURER { background: #fdf4ff; color: #7e22ce; }
+.roleSTAFF { background: #f0fdfa; color: #0f766e; }
 .roleADMIN { background: #fff0f2; color: #e01e37; }
 
 .courseCode { display: inline-flex; padding: 4px 10px; background: #fff0f2; color: #e01e37; font-size: 0.75rem; font-weight: 700; border-radius: 6px; }

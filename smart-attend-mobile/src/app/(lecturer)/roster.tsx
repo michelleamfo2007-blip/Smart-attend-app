@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, View, Text, SectionList, ActivityIndicator, RefreshControl } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, Colors } from '@/constants/theme';
 import { useColorScheme, TouchableOpacity } from 'react-native';
-import { supabase } from '../../lib/supabase';
+import { useFocusEffect } from 'expo-router';
+import { apiFetch } from '../../lib/api';
 import { exportAttendanceToPDF } from '../../lib/export';
 import { SymbolView } from 'expo-symbols';
 
@@ -19,44 +20,31 @@ export default function RosterScreen() {
 
   const fetchRoster = async () => {
     try {
-      const { data: classes } = await supabase
-        .from('classes')
-        .select('id, name')
-        .eq('lecturer_id', user?.id);
+      const data = await apiFetch('/api/lecturer/sessions');
+      const sessions = data.sessions || [];
+      const attendanceRecords = sessions.flatMap((session: any) =>
+        (session.records || []).map((record: any) => ({
+          ...record,
+          users: record.student || record.users,
+          classes: session.class || record.classes,
+        }))
+      );
 
-      if (classes && classes.length > 0) {
-        const classIds = classes.map(c => c.id);
-        const { data: attendanceRecords, error } = await supabase
-          .from('attendance_records')
-          .select(`
-            id,
-            timestamp,
-            users ( name ),
-            classes ( name )
-          `)
-          .in('class_id', classIds)
-          .order('timestamp', { ascending: false });
+      const groups: { [key: string]: any[] } = {};
+      attendanceRecords.forEach((record: any) => {
+        const className = record.classes?.name || 'Unknown Class';
+        const dateStr = new Date(record.timestamp).toLocaleDateString();
+        const groupKey = `${className}  |  ${dateStr}`;
+        if (!groups[groupKey]) groups[groupKey] = [];
+        groups[groupKey].push(record);
+      });
 
-        if (attendanceRecords && !error) {
-          // Group by "ClassName - Date"
-          const groups: { [key: string]: any[] } = {};
-          attendanceRecords.forEach(record => {
-            const className = (record as any).classes?.name || 'Unknown Class';
-            const dateStr = new Date(record.timestamp).toLocaleDateString();
-            const groupKey = `${className}  |  ${dateStr}`;
-            
-            if (!groups[groupKey]) groups[groupKey] = [];
-            groups[groupKey].push(record);
-          });
+      const sections = Object.keys(groups).map(key => ({
+        title: key,
+        data: groups[key]
+      }));
 
-          const sections = Object.keys(groups).map(key => ({
-            title: key,
-            data: groups[key]
-          }));
-
-          setGroupedRecords(sections);
-        }
-      }
+      setGroupedRecords(sections);
     } catch (err) {
       console.error("Failed to fetch roster", err);
     } finally {
@@ -65,9 +53,11 @@ export default function RosterScreen() {
     }
   };
 
-  useEffect(() => {
-    fetchRoster();
-  }, [user?.id]);
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchRoster();
+    }, [user?.id])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -76,7 +66,7 @@ export default function RosterScreen() {
 
   const renderItem = ({ item }: { item: any }) => {
     const time = new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const studentName = item.users?.name || item.student_name || 'Unknown Student';
+    const studentName = item.student?.name || item.users?.name || item.student_name || 'Unknown Student';
     return (
       <View style={[styles.recordCard, { backgroundColor: theme.backgroundElement, borderColor: theme.backgroundSelected }]}>
         <View style={styles.recordHeader}>

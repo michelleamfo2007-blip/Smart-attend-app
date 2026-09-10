@@ -108,6 +108,7 @@ function OnboardForm() {
                 type="email" required className={styles.input} placeholder="hello@acme.edu"
                 value={formData.contactEmail} onChange={e => updateField('contactEmail', e.target.value)}
               />
+              <p style={{ margin: '6px 0 0', fontSize: '0.8rem', color: '#64748b' }}>Must be an inbox your school can access.</p>
             </div>
           </div>
 
@@ -129,6 +130,7 @@ function OnboardForm() {
                 type="email" required className={styles.input} placeholder="john@acme.edu"
                 value={formData.adminEmail} onChange={e => updateField('adminEmail', e.target.value)}
               />
+              <p style={{ margin: '6px 0 0', fontSize: '0.8rem', color: '#64748b' }}>We’ll send a welcome email here after you finish setup.</p>
             </div>
 
             <div className={styles.inputGroup}>

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { signToken } from '@/lib/auth';
+import { getEmailError, normalizeEmail, sendWelcomeEmail } from '@/lib/email';
 
 export async function POST(req: Request) {
   try {
@@ -16,9 +17,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    const contactEmailError = getEmailError(contactEmail);
+    if (contactEmailError) {
+      return NextResponse.json({ error: `Contact email: ${contactEmailError}` }, { status: 400 });
+    }
+    const adminEmailError = getEmailError(adminEmail);
+    if (adminEmailError) {
+      return NextResponse.json({ error: adminEmailError }, { status: 400 });
+    }
+
+    const normalizedAdminEmail = normalizeEmail(adminEmail);
+    const normalizedContactEmail = normalizeEmail(contactEmail);
+
     // 2. Check if admin email is already taken
     const existingUser = await prisma.users.findUnique({
-      where: { email: adminEmail },
+      where: { email: normalizedAdminEmail },
     });
     if (existingUser) {
       return NextResponse.json({ error: 'Admin email is already registered' }, { status: 400 });
@@ -44,7 +57,7 @@ export async function POST(req: Request) {
         data: {
           name: institutionName,
           domain: domain || null,
-          contact_email: contactEmail,
+          contact_email: normalizedContactEmail,
           subscription_plan: plan || 'starter',
           status: 'active',
           billing_cycle: 'monthly',
@@ -57,7 +70,7 @@ export async function POST(req: Request) {
       const newAdmin = await tx.users.create({
         data: {
           name: adminName,
-          email: adminEmail,
+          email: normalizedAdminEmail,
           password: hashedPassword,
           role: 'ADMIN', // Database requires ADMIN, LECTURER, or STUDENT
           institution_id: newInstitution.id, // Links them to this specific tenant
@@ -73,6 +86,13 @@ export async function POST(req: Request) {
       email: result.newAdmin.email,
       role: result.newAdmin.role,
       institutionId: result.newInstitution.id,
+    });
+
+    await sendWelcomeEmail({
+      to: result.newAdmin.email,
+      name: result.newAdmin.name,
+      role: result.newAdmin.role,
+      institutionName: result.newInstitution.name,
     });
 
     const response = NextResponse.json({

@@ -11,7 +11,7 @@ export default function StudentDashboard() {
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>Good day, {user?.name?.split(' ')[0]} 👋</h1>
-          <p className={styles.pageSubtitle}>Web Access Disabled</p>
+          <p className={styles.pageSubtitle}>Use the mobile app to mark attendance</p>
         </div>
       </div>
       
@@ -21,7 +21,7 @@ export default function StudentDashboard() {
         <p style={{ fontSize: '1rem', color: '#374151', maxWidth: '500px', margin: '0 auto', lineHeight: '1.6' }}>
           This web portal is restricted to Lecturers and Administrators. 
           <br /><br />
-          Please download and use the <strong>Smart Attend Mobile App</strong> to scan QR codes, mark your attendance, and view your classes.
+          Please download and use the <strong>SmartAttend mobile app</strong> with this same account to scan QR codes, mark attendance, and view your classes.
         </p>
       </div>
     </div>

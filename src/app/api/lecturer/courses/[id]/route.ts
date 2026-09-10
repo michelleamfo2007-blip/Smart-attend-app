@@ -1,21 +1,21 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { headers } from 'next/headers';
+import { getAuth, isCrossTenant } from '@/lib/session';
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const headersList = await headers();
-    const userId = headersList.get('x-user-id');
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await getAuth();
+    if (!auth?.userId || auth.userRole !== 'LECTURER') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const { id } = await params;
-    
-    // Ensure the lecturer owns this class
+
     const course = await prisma.classes.findUnique({
       where: { id },
     });
 
-    if (!course || course.lecturer_id !== userId) {
+    if (!course || course.lecturer_id !== auth.userId || isCrossTenant(auth, course.institution_id)) {
       return NextResponse.json({ error: 'Course not found or unauthorized' }, { status: 404 });
     }
 

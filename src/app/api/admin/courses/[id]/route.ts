@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getAuth, isCrossTenant } from '@/lib/session';
 
 function getStartOfWeek() {
   const date = new Date();
@@ -10,9 +11,14 @@ function getStartOfWeek() {
   return monday;
 }
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = params;
+    const auth = await getAuth();
+    if (!auth || auth.userRole !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { id } = await params;
     const startOfWeek = getStartOfWeek();
 
     const course = await prisma.classes.findUnique({
@@ -31,6 +37,10 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
     if (!course) {
       return NextResponse.json({ error: 'Class not found' }, { status: 404 });
+    }
+
+    if (isCrossTenant(auth, course.institution_id)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // 1. Calculate class session counts
@@ -79,6 +89,89 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       students: studentsWithAnalytics 
     });
 
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+async function requireAdminCourse(id: string) {
+  const auth = await getAuth();
+  if (!auth || auth.userRole !== 'ADMIN') {
+    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
+  }
+
+  const course = await prisma.classes.findUnique({ where: { id } });
+  if (!course) {
+    return { error: NextResponse.json({ error: 'Class not found' }, { status: 404 }) };
+  }
+  if (isCrossTenant(auth, course.institution_id)) {
+    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
+  }
+
+  return { auth, course };
+}
+
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const access = await requireAdminCourse(id);
+    if (access.error) return access.error;
+    if (!access.auth) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+    const body = await req.json();
+
+    if (body.lecturer_id) {
+      const lecturer = await prisma.users.findUnique({
+        where: { id: body.lecturer_id },
+        select: { role: true, institution_id: true },
+      });
+      if (!lecturer || lecturer.role !== 'LECTURER' || isCrossTenant(access.auth, lecturer.institution_id)) {
+        return NextResponse.json({ error: 'Invalid lecturer' }, { status: 400 });
+      }
+    }
+
+    if (body.classroom_id) {
+      const classroom = await prisma.classrooms.findUnique({
+        where: { id: body.classroom_id },
+        select: { institution_id: true },
+      });
+      if (!classroom || isCrossTenant(access.auth, classroom.institution_id)) {
+        return NextResponse.json({ error: 'Invalid classroom' }, { status: 400 });
+      }
+    }
+
+    const updated = await prisma.classes.update({
+      where: { id },
+      data: {
+        ...(body.name !== undefined && { name: body.name }),
+        ...(body.lecturer_id !== undefined && { lecturer_id: body.lecturer_id || null }),
+        ...(body.level !== undefined && { level: body.level }),
+        ...(body.semester !== undefined && { semester: body.semester }),
+        ...(body.schedule_time !== undefined && { schedule_time: body.schedule_time }),
+        ...(body.invite_code !== undefined && { invite_code: body.invite_code || undefined }),
+        ...(body.classroom_id !== undefined && { classroom_id: body.classroom_id || null }),
+      },
+      include: {
+        lecturer: { select: { id: true, name: true, email: true } },
+      },
+    });
+
+    return NextResponse.json({ course: updated });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const access = await requireAdminCourse(id);
+    if (access.error) return access.error;
+
+    await prisma.classes.delete({ where: { id } });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

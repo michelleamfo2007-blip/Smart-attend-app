@@ -4,16 +4,14 @@ import { useAuth } from '../../context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, Colors } from '@/constants/theme';
-import { useColorScheme } from 'react-native';
-import { supabase } from '../../lib/supabase';
+import { apiFetch } from '../../lib/api';
 import { SymbolView } from 'expo-symbols';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 
 export default function DisputesScreen() {
   const { user } = useAuth();
-  const scheme = useColorScheme() ?? 'light';
-  const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const theme = Colors.light;
   const router = useRouter();
   
   const [loading, setLoading] = useState(true);
@@ -33,24 +31,15 @@ export default function DisputesScreen() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      // Fetch user's disputes
-      const { data: myDisputes } = await supabase
-        .from('attendance_disputes')
-        .select('*, classes(name)')
-        .eq('student_id', user?.id)
-        .order('created_at', { ascending: false });
-      
-      setDisputes(myDisputes || []);
+      const [disputeData, dashboard] = await Promise.all([
+        apiFetch('/api/student/disputes'),
+        apiFetch('/api/student/dashboard'),
+      ]);
 
-      // Fetch classes they are enrolled in for the dropdown
-      const { data: myClasses } = await supabase
-        .from('classes')
-        .select('id, name')
-        .eq('level', user?.level)
-        .eq('semester', user?.semester);
-      
-      setClasses(myClasses || []);
-      if (myClasses && myClasses.length > 0) {
+      setDisputes(disputeData.disputes || []);
+      const myClasses = dashboard.classes || [];
+      setClasses(myClasses);
+      if (myClasses.length > 0) {
         setSelectedClass(myClasses[0]);
       }
     } catch (error) {
@@ -68,32 +57,13 @@ export default function DisputesScreen() {
 
     setSubmitting(true);
     try {
-      // Find the most recent session for this class to link the dispute to.
-      // In a more robust app, the user would select the exact date/session.
-      const { data: recentSessions } = await supabase
-        .from('attendance_sessions')
-        .select('id')
-        .eq('class_id', selectedClass.id)
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (!recentSessions || recentSessions.length === 0) {
-        Alert.alert("Error", "No attendance sessions have been created for this class yet, so you cannot dispute attendance.");
-        setSubmitting(false);
-        return;
-      }
-
-      const { error } = await supabase
-        .from('attendance_disputes')
-        .insert({
-          student_id: user?.id,
-          class_id: selectedClass.id,
-          session_id: recentSessions[0].id,
+      await apiFetch('/api/student/disputes', {
+        method: 'POST',
+        body: JSON.stringify({
+          classId: selectedClass.id,
           reason: reason.trim(),
-          status: 'pending'
-        });
-
-      if (error) throw error;
+        }),
+      });
 
       if (Platform.OS === 'web') {
          window.alert("Dispute submitted successfully.");
@@ -186,7 +156,7 @@ export default function DisputesScreen() {
              return (
                <View key={dispute.id} style={[styles.disputeCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
                  <View style={styles.disputeHeader}>
-                   <ThemedText style={{ fontWeight: 'bold' }}>{dispute.classes?.name?.split('_')[0] || 'Unknown Class'}</ThemedText>
+                   <ThemedText style={{ fontWeight: 'bold' }}>{dispute.class?.name?.split('_')[0] || dispute.classes?.name?.split('_')[0] || 'Unknown Class'}</ThemedText>
                    <View style={[styles.statusBadge, { backgroundColor: `${statusColor}20` }]}>
                      <Text style={{ color: statusColor, fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase' }}>
                        {dispute.status}
@@ -209,8 +179,8 @@ export default function DisputesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: Spacing.four },
-  header: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: Spacing.six, marginTop: Spacing.two },
+  container: { flex: 1, padding: Spacing.four, paddingTop: Spacing.six },
+  header: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: Spacing.six },
   newRequestBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, borderRadius: 12, marginBottom: Spacing.six },
   newRequestText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
   formContainer: { padding: Spacing.four, borderRadius: 12, borderWidth: 1, marginBottom: Spacing.six },

@@ -1,20 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, ActivityIndicator, TouchableOpacity, ScrollView, Platform } from 'react-native';
-import { useRouter } from 'expo-router';
+import React, { useState, useCallback } from 'react';
+import { StyleSheet, View, Text, ActivityIndicator, TouchableOpacity, ScrollView, Platform, TextInput, Alert } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { Spacing } from '@/constants/theme';
-import { supabase } from '../../lib/supabase';
+import { apiFetch } from '../../lib/api';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { useColorScheme } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function StudentOverviewScreen() {
   const { user } = useAuth();
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
-  const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const theme = Colors.light;
 
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -24,9 +22,10 @@ export default function StudentOverviewScreen() {
     coursesCount: 0,
   });
   const [nextClass, setNextClass] = useState<any>(null);
-  const [todaysClasses, setTodaysClasses] = useState<any[]>([]);
+  const [activeSessions, setActiveSessions] = useState<any[]>([]);
   const [recentAttendance, setRecentAttendance] = useState<any[]>([]);
-  const [timeRemaining, setTimeRemaining] = useState<string>('Calculated soon...');
+  const [joinCode, setJoinCode] = useState('');
+  const [joining, setJoining] = useState(false);
 
   // Greeting logic
   const currentHour = new Date().getHours();
@@ -38,96 +37,69 @@ export default function StudentOverviewScreen() {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' 
   });
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const { data: myRecords } = await supabase
-          .from('attendance_records')
-          .select('id, timestamp, class_id')
-          .eq('student_id', user?.id)
-          .order('timestamp', { ascending: false });
+  const fetchData = useCallback(async () => {
+    try {
+      const data = await apiFetch('/api/student/dashboard');
+      const myRecords = data.records || [];
+      const matchedClasses = data.classes || [];
+      const allSessions = data.sessions || [];
+      const live = data.activeSessions || [];
 
-        const attendedCount = myRecords ? myRecords.length : 0;
-        setRecentAttendance((myRecords || []).slice(0, 3)); 
+      const attendedCount = myRecords.length;
+      setRecentAttendance(myRecords.slice(0, 3));
+      setActiveSessions(live);
 
-        const { data: matchedClasses } = await supabase
-          .from('classes')
-          .select('id, name, schedule_time, start_time, end_time, course_code')
-          .eq('level', user?.level)
-          .eq('semester', user?.semester);
+      const totalSessionsCount = allSessions.length;
+      const upcoming = matchedClasses[0] || null;
+      const total = Math.max(totalSessionsCount, attendedCount);
+      const rate = total === 0 ? 100 : Math.round((attendedCount / total) * 100);
 
-        let totalSessionsCount = 0;
-        let todays: any[] = [];
-        let upcoming: any = null;
+      setStats({
+        attended: attendedCount,
+        totalSessions: totalSessionsCount,
+        attendanceRate: rate,
+        coursesCount: matchedClasses.length,
+      });
 
-        if (matchedClasses && matchedClasses.length > 0) {
-          const classIds = matchedClasses.map(c => c.id);
-          const { data: allSessions } = await supabase
-            .from('attendance_sessions')
-            .select('id')
-            .in('class_id', classIds);
-            
-          totalSessionsCount = allSessions ? allSessions.length : 0;
-          
-          todays = matchedClasses.slice(0, 2);
-          upcoming = matchedClasses[0];
-        }
+      setNextClass(upcoming);
+    } catch (err) {
+      // keep empty overview if dashboard fails
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-        const total = Math.max(totalSessionsCount, attendedCount);
-        const rate = total === 0 ? 100 : Math.round((attendedCount / total) * 100);
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+      const refresh = setInterval(fetchData, 15000);
+      return () => clearInterval(refresh);
+    }, [fetchData])
+  );
 
-        setStats({
-          attended: attendedCount,
-          totalSessions: totalSessionsCount,
-          attendanceRate: rate,
-          coursesCount: matchedClasses ? matchedClasses.length : 0,
-        });
+  const handleJoinClass = async () => {
+    const code = joinCode.trim().toUpperCase();
+    if (!code) {
+      Alert.alert('Join Class', 'Enter the class invite code from your lecturer.');
+      return;
+    }
 
-        setTodaysClasses(todays);
-        setNextClass(upcoming);
-        
-      } catch (err) {
-        console.error("Failed to fetch overview data", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (!nextClass || !nextClass.start_time) return;
-
-    const updateCountdown = () => {
-      const now = new Date();
-      const [hours, minutes] = nextClass.start_time.split(':').map(Number);
-      const classTime = new Date();
-      classTime.setHours(hours, minutes, 0, 0);
-
-      const diffMs = classTime.getTime() - now.getTime();
-      
-      if (diffMs < 0) {
-        setTimeRemaining('In progress or completed');
-        return;
-      }
-
-      const diffMins = Math.floor(diffMs / 60000);
-      const diffHours = Math.floor(diffMins / 60);
-
-      if (diffHours > 0) {
-        const remainingMins = diffMins % 60;
-        setTimeRemaining(`Starts in ${diffHours}h ${remainingMins}m`);
-      } else {
-        setTimeRemaining(`Starts in ${diffMins} mins`);
-      }
-    };
-
-    updateCountdown(); 
-    const intervalId = setInterval(updateCountdown, 60000); 
-
-    return () => clearInterval(intervalId);
-  }, [nextClass]);
+    setJoining(true);
+    try {
+      const data = await apiFetch('/api/student/courses/join', {
+        method: 'POST',
+        body: JSON.stringify({ inviteCode: code }),
+      });
+      setJoinCode('');
+      Alert.alert('Joined', data.message || 'You joined the class.');
+      setLoading(true);
+      await fetchData();
+    } catch (err: any) {
+      Alert.alert('Could not join', err.message || 'Invalid class code.');
+    } finally {
+      setJoining(false);
+    }
+  };
 
   if (loading) {
     return <ActivityIndicator style={{ flex: 1, backgroundColor: theme.background }} color={theme.primary} />;
@@ -155,8 +127,94 @@ export default function StudentOverviewScreen() {
           </View>
         </Animated.View>
 
-        {/* LARGE SCAN BUTTON - Premium Pill Style */}
-        <Animated.View entering={FadeInDown.duration(500).delay(100)} style={{ marginBottom: Spacing.six }}>
+        {/* LIVE ATTENDANCE SESSION */}
+        <Animated.View entering={FadeInDown.duration(500).delay(80)} style={{ marginBottom: Spacing.five }}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Live now</Text>
+          {activeSessions.length > 0 ? (
+            activeSessions.map((session) => (
+              <TouchableOpacity
+                key={session.id}
+                activeOpacity={0.88}
+                onPress={() => router.push('/(student)/mark-attendance')}
+                style={{ marginBottom: 12 }}
+              >
+                <LinearGradient
+                  colors={session.alreadyMarked ? ['#15803d', '#166534'] : ['#e01e37', '#9f1239']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.liveCard}
+                >
+                  <View style={styles.liveBadge}>
+                    <View style={styles.liveDot} />
+                    <Text style={styles.liveBadgeText}>
+                      {session.alreadyMarked ? 'MARKED PRESENT' : 'ATTENDANCE OPEN'}
+                    </Text>
+                  </View>
+                  <Text style={styles.liveClassName}>
+                    {session.class?.course_code ? `${session.class.course_code} · ` : ''}
+                    {session.class?.name || 'Class session'}
+                  </Text>
+                  <Text style={styles.liveHint}>
+                    {session.alreadyMarked
+                      ? 'You are already checked in for this session.'
+                      : 'Tap to open scanner and mark attendance'}
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            ))
+          ) : (
+            <View style={[styles.emptyLiveCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+              <Ionicons name="radio-outline" size={22} color={theme.textSecondary} />
+              <Text style={[styles.emptyLiveTitle, { color: theme.text }]}>No live attendance session</Text>
+              <Text style={[styles.emptyLiveText, { color: theme.textSecondary }]}>
+                When your lecturer starts a session for a class you joined, it will show up here so you can scan.
+              </Text>
+            </View>
+          )}
+        </Animated.View>
+
+        {/* JOIN CLASS */}
+        <Animated.View entering={FadeInDown.duration(500).delay(100)} style={{ marginBottom: Spacing.five }}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Join Class</Text>
+          <View style={[styles.joinCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+            <Text style={[styles.joinHint, { color: theme.textSecondary }]}>
+              Enter the invite code your lecturer shared to add that class.
+            </Text>
+            <View style={styles.joinRow}>
+              <TextInput
+                style={[
+                  styles.joinInput,
+                  {
+                    backgroundColor: theme.backgroundSelected,
+                    color: theme.text,
+                    borderColor: theme.border,
+                  },
+                ]}
+                placeholder="e.g. A1B2C3"
+                placeholderTextColor={theme.textSecondary}
+                value={joinCode}
+                onChangeText={setJoinCode}
+                autoCapitalize="characters"
+                autoCorrect={false}
+              />
+              <TouchableOpacity
+                style={[styles.joinButton, { backgroundColor: theme.primary, opacity: joining ? 0.7 : 1 }]}
+                onPress={handleJoinClass}
+                disabled={joining}
+                activeOpacity={0.85}
+              >
+                {joining ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.joinButtonText}>Join</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* LARGE SCAN BUTTON */}
+        <Animated.View entering={FadeInDown.duration(500).delay(120)} style={{ marginBottom: Spacing.six }}>
            <TouchableOpacity onPress={() => router.push('/(student)/mark-attendance')} activeOpacity={0.85}>
              <LinearGradient 
                 colors={['#e01e37', '#b91c2c']} 
@@ -166,7 +224,9 @@ export default function StudentOverviewScreen() {
                <Ionicons name="qr-code-outline" size={32} color="#FFF" />
                <View style={styles.scanButtonTextContainer}>
                   <Text style={styles.scanButtonTitle}>Scan QR Code</Text>
-                  <Text style={styles.scanButtonSubtitle}>Tap to mark attendance instantly</Text>
+                  <Text style={styles.scanButtonSubtitle}>
+                    {activeSessions.length > 0 ? 'A session is open — tap to scan' : 'Opens scanner when a session is live'}
+                  </Text>
                </View>
                <Ionicons name="chevron-forward" size={24} color="rgba(255,255,255,0.6)" />
              </LinearGradient>
@@ -193,25 +253,22 @@ export default function StudentOverviewScreen() {
               <View style={styles.statIconWrapper}>
                 <Ionicons name="book-outline" size={18} color={theme.textSecondary} />
               </View>
-              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Active Courses</Text>
+              <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Joined Classes</Text>
               <Text style={[styles.statValue, { color: theme.text }]}>{stats.coursesCount}</Text>
            </View>
         </Animated.View>
 
-        {/* NEXT CLASS HERO CARD - Web Dashboard Style with subtle shadow */}
+        {/* SCHEDULED CLASS (timetable — not the live session) */}
         {nextClass && (
           <Animated.View entering={FadeInDown.duration(500).delay(300)} style={{ marginBottom: Spacing.six }}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Up Next</Text>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Joined class</Text>
             <View style={[styles.nextClassCard, { backgroundColor: theme.backgroundElement }]}>
               <View style={styles.nextClassTopBanner} />
               <View style={styles.nextClassContent}>
                 <View style={styles.nextClassHeader}>
-                  <View>
+                  <View style={{ flex: 1 }}>
                     <Text style={[styles.nextClassCode, { color: theme.primary }]}>{nextClass.course_code || 'Course'}</Text>
                     <Text style={[styles.nextClassName, { color: theme.text }]}>{nextClass.name}</Text>
-                  </View>
-                  <View style={styles.countdownBadge}>
-                    <Text style={[styles.countdownText, { color: theme.primary }]}>{timeRemaining}</Text>
                   </View>
                 </View>
                 
@@ -221,14 +278,19 @@ export default function StudentOverviewScreen() {
                   <View style={styles.nextClassDetailItem}>
                     <Ionicons name="time-outline" size={16} color={theme.textSecondary} />
                     <Text style={[styles.nextClassDetailText, { color: theme.textSecondary }]}>
-                      {nextClass.start_time ? `${nextClass.start_time.substring(0,5)} - ${nextClass.end_time?.substring(0,5)}` : (nextClass.schedule_time || '09:00 - 12:00')}
+                      Timetable: {nextClass.start_time ? `${nextClass.start_time.substring(0,5)} - ${nextClass.end_time?.substring(0,5)}` : (nextClass.schedule_time || 'Not set')}
                     </Text>
                   </View>
                   <View style={styles.nextClassDetailItem}>
-                    <Ionicons name="location-outline" size={16} color={theme.textSecondary} />
-                    <Text style={[styles.nextClassDetailText, { color: theme.textSecondary }]}>Main Campus</Text>
+                    <Ionicons name="school-outline" size={16} color={theme.textSecondary} />
+                    <Text style={[styles.nextClassDetailText, { color: theme.textSecondary }]}>
+                      {nextClass.classroom?.name || (nextClass.level ? `Level ${nextClass.level}` : 'Joined class')}
+                    </Text>
                   </View>
                 </View>
+                <Text style={[styles.scheduleNote, { color: theme.textSecondary }]}>
+                  Timetable time is just the weekly schedule. Use Live now above when the lecturer starts attendance.
+                </Text>
               </View>
             </View>
           </Animated.View>
@@ -318,6 +380,103 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 12,
+    letterSpacing: -0.3,
+  },
+  joinCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+  },
+  joinHint: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  joinRow: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+  },
+  joinInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  joinButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    minWidth: 84,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  joinButtonText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 15,
+  },
+  liveCard: {
+    borderRadius: 18,
+    padding: 18,
+    gap: 8,
+  },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#fff',
+  },
+  liveBadgeText: {
+    color: 'rgba(255,255,255,0.95)',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+  liveClassName: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  liveHint: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  emptyLiveCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+    gap: 6,
+  },
+  emptyLiveTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  emptyLiveText: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  scheduleNote: {
+    marginTop: 12,
+    fontSize: 12,
+    lineHeight: 17,
+  },
   largeScanButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -389,12 +548,6 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 22,
     fontWeight: '800',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    marginBottom: 16,
-    letterSpacing: -0.3,
   },
   nextClassCard: {
     borderRadius: 20,

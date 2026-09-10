@@ -1,377 +1,323 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Dimensions, Alert, Platform } from 'react-native';
+import React, { useState } from 'react';
+import {
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+  Dimensions,
+  Platform,
+  ScrollView,
+} from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'expo-router';
 import { saveOfflineScan } from '../../hooks/useOfflineSync';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { apiFetch, isNetworkError } from '../../lib/api';
+import { getDeviceId } from '../../lib/deviceId';
 import { Colors, Spacing } from '@/constants/theme';
-import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
-import * as LocalAuthentication from 'expo-local-authentication';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
+const theme = Colors.light;
+const SCAN_SIZE = Math.min(width - 64, 280);
 
-function getDistanceFromLatLonInM(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const R = 6371e3;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-export default function ScanQRScreen() {
-  const { user } = useAuth();
+export default function MarkAttendanceScreen() {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [scanned, setScanned] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [statusMsg, setStatusMsg] = useState('Scan the QR code displayed by your lecturer');
+  const [statusMsg, setStatusMsg] = useState('Point at the lecturer QR code');
   const [statusType, setStatusType] = useState<'info' | 'error' | 'success'>('info');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  const MAX_DISTANCE_METERS = 50;
-
-  useEffect(() => {
-    const authenticate = async () => {
-      const hasHardware = await LocalAuthentication.hasHardwareAsync();
-      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-      
-      if (hasHardware && isEnrolled) {
-        const result = await LocalAuthentication.authenticateAsync({
-          promptMessage: 'Verify identity to mark attendance',
-          fallbackLabel: 'Use Passcode',
-        });
-        
-        if (result.success) {
-          setIsAuthenticated(true);
-        } else {
-          Alert.alert('Authentication Failed', 'You must verify your identity to check in.');
-          router.back();
-        }
-      } else {
-        // If device doesn't support biometrics, just allow them through
-        setIsAuthenticated(true);
+  const openScanner = async () => {
+    if (!permission?.granted) {
+      const result = await requestPermission();
+      if (!result.granted) {
+        setStatusType('error');
+        setStatusMsg('Camera permission is required to scan.');
+        return;
       }
-    };
-    
-    authenticate();
-  }, []);
+    }
+    setScanned(false);
+    setProcessing(false);
+    setStatusType('info');
+    setStatusMsg('Point at the lecturer QR code');
+    setScannerOpen(true);
+  };
 
-  if (!isAuthenticated) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#7C3AED" />
-        <ThemedText style={{ color: 'white', marginTop: 16, textAlign: 'center' }}>Verifying identity...</ThemedText>
-      </View>
-    );
-  }
-
-  if (!permission) {
-    return <View style={styles.container}><ActivityIndicator size="large" color="#7C3AED" /></View>;
-  }
-
-  if (!permission.granted) {
-    return (
-      <View style={styles.container}>
-        <ThemedText style={{ textAlign: 'center', marginBottom: 20 }}>We need your permission to show the camera</ThemedText>
-        <TouchableOpacity style={styles.button} onPress={requestPermission}>
-          <Text style={styles.buttonText}>Grant Permission</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  const handleBarCodeScanned = async ({ type, data }: { type: string, data: string }) => {
+  const handleBarCodeScanned = async ({ data }: { type: string; data: string }) => {
     if (scanned || processing) return;
     setScanned(true);
     setProcessing(true);
-
-    console.log("SCANNED DATA:", data);
     setStatusType('info');
     setStatusMsg('QR detected! Verifying...');
 
     try {
-      let qrData;
+      let qrData: any;
       try {
         qrData = JSON.parse(data);
-      } catch (e) {
+      } catch {
         throw new Error('Invalid QR Code format.');
       }
 
       if (!qrData.sessionId) {
-        throw new Error('Invalid QR Code payload.');
+        if (qrData.type === 'smartattend_student') {
+          throw new Error('This is a student ID code. Ask an attendance officer to scan it.');
+        }
+        throw new Error('Invalid QR Code. Use the live class QR from your lecturer.');
       }
 
-      // Check for QR expiration (Dynamic QR Code)
-      if (qrData.t) {
-        const qrAgeMs = Date.now() - qrData.t;
-        // 30 seconds expiration window
-        if (qrAgeMs > 30000 || qrAgeMs < -10000) {
-          throw new Error('This QR code has expired. Please scan the current code on the screen.');
-        }
-      } else {
-        // Optional: Reject codes without timestamp (enforce dynamic QR)
+      const qrTimestamp = qrData.t || qrData.timestamp;
+      if (!qrTimestamp) {
         throw new Error('Invalid QR Code format. Dynamic QR required.');
       }
 
+      const qrAgeMs = Date.now() - qrTimestamp;
+      if (qrAgeMs > 30000 || qrAgeMs < -10000) {
+        throw new Error('This QR code has expired. Scan the current code on screen.');
+      }
+
       const sessionId = qrData.sessionId;
+      const method =
+        qrData.source === 'desktop_qr' || qrData.method === 'desktop_qr'
+          ? 'desktop_qr'
+          : 'dynamic_qr';
 
-      // 1. Fetch Session from Supabase
-      const { data: sessionData, error: sessionError } = await supabase
-        .from('attendance_sessions')
-        .select('*')
-        .eq('id', sessionId)
-        .single();
-
-      if (sessionError || !sessionData) {
-        throw new Error('Session not found or invalid.');
-      }
-
-      // 2. Check if active
-      if (sessionData.status !== 'active') {
-        throw new Error('This attendance session has been closed.');
-      }
-
-      // 3. Check expiry
-      if (new Date(sessionData.expires_at) < new Date()) {
-        throw new Error('This QR code has expired.');
-      }
-
-      // 4. Verify GPS Location
-      let { status } = await Location.requestForegroundPermissionsAsync();
+      const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         throw new Error('Location permission is required for attendance.');
       }
 
-      const locationPromise = Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const locationPromise = Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Location fetch timed out.")), 10000)
+        setTimeout(() => reject(new Error('Location fetch timed out.')), 10000)
       );
       const studentLocation: any = await Promise.race([locationPromise, timeoutPromise]);
 
       if (studentLocation.mocked) {
-        throw new Error('Mock Location (Fake GPS) detected. Please disable it to mark attendance.');
+        throw new Error('Fake GPS detected. Disable mock location to check in.');
       }
 
-      const distance = getDistanceFromLatLonInM(
-        studentLocation.coords.latitude,
-        studentLocation.coords.longitude,
-        sessionData.latitude,
-        sessionData.longitude
-      );
-
-      if (distance > MAX_DISTANCE_METERS) {
-        throw new Error(`You are too far from the classroom (${Math.round(distance)}m away). You must be within ${MAX_DISTANCE_METERS}m.`);
-      }
-
-      // 5. Mark Attendance
       const scanData = {
-        student_id: user?.id,
-        student_name: user?.name,
-        class_id: sessionData.class_id,
-        session_id: sessionData.id,
-        timestamp: new Date().toISOString()
+        sessionId,
+        latitude: studentLocation.coords.latitude,
+        longitude: studentLocation.coords.longitude,
+        qrTimestamp,
+        device_id: await getDeviceId(),
+        method,
       };
 
-      const { error: insertError } = await supabase
-        .from('attendance_records')
-        .insert(scanData);
-
-      if (insertError) {
-        // If it's a unique constraint, they already checked in
-        if (insertError.code === '23505') {
-          throw new Error('You have already marked attendance for this session.');
+      try {
+        await apiFetch('/api/student/attendance', {
+          method: 'POST',
+          body: JSON.stringify(scanData),
+        });
+      } catch (insertError: any) {
+        if (isNetworkError(insertError)) {
+          await saveOfflineScan(scanData);
+          setStatusType('info');
+          setStatusMsg('Offline: Scan saved and will sync later.');
+          setTimeout(() => {
+            setScannerOpen(false);
+            router.replace('/(student)');
+          }, 2500);
+          return;
         }
-        
-        // If it's a network error (TypeError: Failed to fetch), queue offline
-        if (insertError.message?.includes('Failed to fetch') || insertError.message?.includes('Network request failed')) {
-           await saveOfflineScan(scanData);
-           setStatusType('info');
-           setStatusMsg('Offline: Scan saved and will sync later.');
-           setTimeout(() => router.replace('/(student)'), 3000);
-           return;
-        }
-
         throw insertError;
       }
 
       setStatusType('success');
       setStatusMsg('Successfully checked in!');
-
-      if (Platform.OS === 'web') {
-        window.alert('Successfully checked in!');
-      }
-
-      // Auto go back after 2 seconds
       setTimeout(() => {
+        setScannerOpen(false);
         router.replace('/(student)');
-      }, 2500);
-
+      }, 2000);
     } catch (error: any) {
-      console.error(error);
       setStatusType('error');
-      setStatusMsg(error.message || 'An unexpected error occurred.');
+      setStatusMsg(error.message || 'Could not mark attendance.');
       setProcessing(false);
-      // Wait 3 seconds before allowing another scan
-      setTimeout(() => setScanned(false), 3000);
+      setTimeout(() => setScanned(false), 2500);
     }
   };
 
-  const getStatusColor = () => {
-    if (statusType === 'error') return '#ef4444';
-    if (statusType === 'success') return '#10b981';
-    return '#7C3AED';
-  };
+  const statusColor =
+    statusType === 'error' ? '#ef4444' : statusType === 'success' ? '#10b981' : theme.primary;
 
   return (
-    <View style={styles.container}>
-      <CameraView
-        style={StyleSheet.absoluteFill}
-        facing="back"
-        barcodeScannerSettings={{
-          barcodeTypes: ["qr"],
-        }}
-        onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
-      >
-        <View style={styles.overlay}>
-          {/* Header */}
-          <Animated.View entering={FadeInDown.duration(600)} style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <Ionicons name="chevron-back" size={24} color="white" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Scan QR Code</Text>
-            <View style={{ width: 40 }} />
-          </Animated.View>
+    <View style={[styles.screen, { backgroundColor: theme.background }]}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: theme.text }]}>Mark Present</Text>
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+            Scan the live QR from your lecturer after you join that class.
+          </Text>
+        </View>
 
-          {/* Scanner Box */}
-          <View style={styles.scannerBoxContainer}>
-            <View style={styles.scannerBox}>
-              <View style={[styles.corner, styles.topLeft]} />
-              <View style={[styles.corner, styles.topRight]} />
-              <View style={[styles.corner, styles.bottomLeft]} />
-              <View style={[styles.corner, styles.bottomRight]} />
+        {!scannerOpen ? (
+          <View style={[styles.readyCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+            <View style={[styles.iconWrap, { backgroundColor: theme.primaryLight }]}>
+              <Ionicons name="qr-code-outline" size={36} color={theme.primary} />
             </View>
-            <Text style={styles.microcopy}>
-              Point your camera at the QR code shown on the presentation screen.
+            <Text style={[styles.readyTitle, { color: theme.text }]}>Ready to check in</Text>
+            <Text style={[styles.readyText, { color: theme.textSecondary }]}>
+              1. Join the class on Overview{'\n'}
+              2. Wait for the lecturer to start a session{'\n'}
+              3. Open the scanner and point at the QR
             </Text>
+            <TouchableOpacity
+              style={[styles.primaryButton, { backgroundColor: theme.primary }]}
+              onPress={openScanner}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="camera-outline" size={20} color="#fff" />
+              <Text style={styles.primaryButtonText}>Open Scanner</Text>
+            </TouchableOpacity>
           </View>
+        ) : (
+          <View style={styles.scannerSection}>
+            <View style={[styles.cameraCard, { borderColor: theme.border }]}>
+              {permission?.granted ? (
+                <CameraView
+                  style={styles.camera}
+                  facing="back"
+                  barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                  onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+                />
+              ) : (
+                <View style={styles.cameraFallback}>
+                  <Text style={{ color: theme.textSecondary, textAlign: 'center' }}>
+                    Camera permission needed
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.secondaryButton, { borderColor: theme.primary }]}
+                    onPress={requestPermission}
+                  >
+                    <Text style={{ color: theme.primary, fontWeight: '700' }}>Grant Permission</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              <View style={styles.scanFrame} pointerEvents="none">
+                <View style={[styles.corner, styles.topLeft]} />
+                <View style={[styles.corner, styles.topRight]} />
+                <View style={[styles.corner, styles.bottomLeft]} />
+                <View style={[styles.corner, styles.bottomRight]} />
+              </View>
+            </View>
 
-          {/* Status Toast */}
-          <Animated.View entering={FadeInUp.duration(600)} style={styles.footer}>
-            <View style={[styles.statusBox, { backgroundColor: getStatusColor() }]}>
-              {processing && statusType === 'info' && <ActivityIndicator color="white" style={{ marginRight: 12 }} />}
-              {statusType === 'success' && <Ionicons name="checkmark-circle" size={24} color="white" style={{ marginRight: 12 }} />}
-              {statusType === 'error' && <Ionicons name="alert-circle" size={24} color="white" style={{ marginRight: 12 }} />}
+            <View style={[styles.statusBox, { backgroundColor: statusColor }]}>
+              {processing && statusType === 'info' ? (
+                <ActivityIndicator color="#fff" style={{ marginRight: 10 }} />
+              ) : null}
+              {statusType === 'success' ? (
+                <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ marginRight: 10 }} />
+              ) : null}
+              {statusType === 'error' ? (
+                <Ionicons name="alert-circle" size={20} color="#fff" style={{ marginRight: 10 }} />
+              ) : null}
               <Text style={styles.statusText}>{statusMsg}</Text>
             </View>
-          </Animated.View>
 
-        </View>
-      </CameraView>
+            <TouchableOpacity
+              style={[styles.secondaryButton, { borderColor: theme.border }]}
+              onPress={() => {
+                setScannerOpen(false);
+                setScanned(false);
+                setProcessing(false);
+              }}
+            >
+              <Text style={{ color: theme.text, fontWeight: '700' }}>Close Scanner</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  screen: { flex: 1 },
+  content: {
+    padding: Spacing.four,
+    paddingTop: Spacing.six,
+    paddingBottom: Spacing.eight,
+  },
+  header: { marginBottom: Spacing.five },
+  title: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5, marginBottom: 6 },
+  subtitle: { fontSize: 14, lineHeight: 20 },
+  readyCard: {
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    gap: 12,
+  },
+  iconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#000',
+    marginBottom: 4,
   },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'space-between',
-  },
-  header: {
+  readyTitle: { fontSize: 20, fontWeight: '800' },
+  readyText: { fontSize: 14, lineHeight: 22, textAlign: 'center', marginBottom: 8 },
+  primaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    gap: 8,
+    paddingHorizontal: 22,
+    paddingVertical: 14,
+    borderRadius: 14,
+    marginTop: 8,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  primaryButtonText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  scannerSection: { gap: 14 },
+  cameraCard: {
+    width: SCAN_SIZE,
+    height: SCAN_SIZE,
+    alignSelf: 'center',
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1,
+    backgroundColor: '#0f172a',
   },
-  headerTitle: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  scannerBoxContainer: {
+  camera: { flex: 1 },
+  cameraFallback: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 12,
+    padding: 16,
   },
-  scannerBox: {
-    width: width * 0.7,
-    height: width * 0.7,
-    backgroundColor: 'transparent',
+  scanFrame: {
+    ...StyleSheet.absoluteFillObject,
+    margin: 28,
   },
   corner: {
     position: 'absolute',
-    width: 40,
-    height: 40,
-    borderColor: 'white',
+    width: 28,
+    height: 28,
+    borderColor: '#fff',
   },
-  topLeft: { top: 0, left: 0, borderTopWidth: 4, borderLeftWidth: 4, borderTopLeftRadius: 16 },
-  topRight: { top: 0, right: 0, borderTopWidth: 4, borderRightWidth: 4, borderTopRightRadius: 16 },
-  bottomLeft: { bottom: 0, left: 0, borderBottomWidth: 4, borderLeftWidth: 4, borderBottomLeftRadius: 16 },
-  bottomRight: { bottom: 0, right: 0, borderBottomWidth: 4, borderRightWidth: 4, borderBottomRightRadius: 16 },
-  footer: {
-    padding: 30,
-    paddingBottom: Platform.OS === 'ios' ? 50 : 30,
-  },
+  topLeft: { top: 0, left: 0, borderTopWidth: 3, borderLeftWidth: 3, borderTopLeftRadius: 10 },
+  topRight: { top: 0, right: 0, borderTopWidth: 3, borderRightWidth: 3, borderTopRightRadius: 10 },
+  bottomLeft: { bottom: 0, left: 0, borderBottomWidth: 3, borderLeftWidth: 3, borderBottomLeftRadius: 10 },
+  bottomRight: { bottom: 0, right: 0, borderBottomWidth: 3, borderRightWidth: 3, borderBottomRightRadius: 10 },
   statusBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    padding: 14,
+    borderRadius: 14,
   },
-  statusText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-    flex: 1,
-  },
-  button: {
-    backgroundColor: '#7C3AED',
-    padding: 16,
+  statusText: { color: '#fff', fontSize: 14, fontWeight: '600', flex: 1 },
+  secondaryButton: {
+    borderWidth: 1,
     borderRadius: 12,
-    marginHorizontal: 40,
+    paddingVertical: 12,
     alignItems: 'center',
   },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  microcopy: {
-    color: 'rgba(255,255,255,0.8)',
-    textAlign: 'center',
-    marginTop: 24,
-    paddingHorizontal: 40,
-    fontSize: 14,
-    lineHeight: 20,
-  }
 });

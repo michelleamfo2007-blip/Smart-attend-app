@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Platform, Alert } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { Spacing, Colors } from '@/constants/theme';
 import { useColorScheme } from 'react-native';
 import { SymbolView } from 'expo-symbols';
-import { supabase } from '../../lib/supabase';
+import { apiFetch } from '../../lib/api';
 
 export default function LecturerProfileScreen() {
   const { user, logout } = useAuth();
@@ -18,9 +17,9 @@ export default function LecturerProfileScreen() {
   useEffect(() => {
     const fetchInst = async () => {
       if (user?.institution_id) {
-        const { data: instData } = await supabase.from('institutions').select('name').eq('id', user.institution_id).maybeSingle();
-        if (instData?.name) {
-          setInstitutionName(instData.name);
+        const data = await apiFetch('/api/me');
+        if (data.user?.institution?.name) {
+          setInstitutionName(data.user.institution.name);
         }
       }
     };
@@ -54,54 +53,12 @@ export default function LecturerProfileScreen() {
         </View>
       </View>
 
-      <ThemedText style={styles.sectionTitle}>Information</ThemedText>
+      <ThemedText style={styles.sectionTitle}>Account</ThemedText>
       <View style={[styles.menuGroup, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-        <View style={styles.infoItem}>
-          <ThemedText themeColor="textSecondary" style={styles.infoLabel}>Department</ThemedText>
-          <ThemedText style={styles.infoValue}>Computer Science</ThemedText>
-        </View>
-        <View style={[styles.divider, { backgroundColor: theme.border }]} />
         <View style={styles.infoItem}>
           <ThemedText themeColor="textSecondary" style={styles.infoLabel}>Email</ThemedText>
-          <ThemedText style={styles.infoValue}>{user?.name?.split(' ')[0]?.toLowerCase()}.lecturer@university.edu</ThemedText>
+          <ThemedText style={styles.infoValue}>{user?.email || 'Not set'}</ThemedText>
         </View>
-      </View>
-
-      <ThemedText style={styles.sectionTitle}>Settings</ThemedText>
-      <View style={[styles.menuGroup, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-        <TouchableOpacity 
-          style={styles.menuItem} 
-          onPress={() => {
-            if (Platform.OS === 'web') {
-              window.alert("App Preferences coming soon!");
-            } else {
-              Alert.alert("Coming Soon", "App Preferences will be available in a future update.");
-            }
-          }}
-        >
-          <View style={[styles.menuIcon, { backgroundColor: 'rgba(107, 114, 128, 0.1)' }]}>
-            <SymbolView name="gearshape.fill" size={20} tintColor="#6b7280" />
-          </View>
-          <ThemedText style={styles.menuText}>App Preferences</ThemedText>
-          <SymbolView name="chevron.right" size={20} tintColor={theme.textSecondary} />
-        </TouchableOpacity>
-        <View style={[styles.divider, { backgroundColor: theme.border }]} />
-        <TouchableOpacity 
-          style={styles.menuItem} 
-          onPress={() => {
-            if (Platform.OS === 'web') {
-              window.alert("Help Center coming soon!");
-            } else {
-              Alert.alert("Coming Soon", "Help Center will be available in a future update.");
-            }
-          }}
-        >
-          <View style={[styles.menuIcon, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
-            <SymbolView name="questionmark.circle.fill" size={20} tintColor="#3b82f6" />
-          </View>
-          <ThemedText style={styles.menuText}>Help & Support</ThemedText>
-          <SymbolView name="chevron.right" size={20} tintColor={theme.textSecondary} />
-        </TouchableOpacity>
       </View>
 
       <TouchableOpacity style={styles.logoutButton} onPress={logout}>

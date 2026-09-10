@@ -1,22 +1,22 @@
-import { NextResponse } from 'next/headers';
+import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/auth';
+import { getAuth } from '@/lib/session';
 
 export async function GET() {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('token')?.value;
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    
-    const payload = await verifyToken(token);
-    if (!payload || payload.userRole !== 'LECTURER') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const auth = await getAuth();
+    if (!auth?.userId || auth.userRole !== 'LECTURER') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
-    // Fetch courses that belong to the lecturer's institution and have NO lecturer assigned
+    if (!auth.institutionId) {
+      return NextResponse.json({ courses: [] });
+    }
+
     const courses = await prisma.classes.findMany({
-      where: { 
+      where: {
         lecturer_id: null,
-        institution_id: payload.institutionId as string
+        institution_id: auth.institutionId,
       },
       orderBy: { name: 'asc' },
     });
