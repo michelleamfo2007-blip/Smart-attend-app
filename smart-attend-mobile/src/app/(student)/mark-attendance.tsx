@@ -257,7 +257,7 @@ export default function MarkAttendanceScreen() {
           </View>
         ) : (
           <View style={styles.scannerSection}>
-            <View style={[styles.cameraCard, { borderColor: theme.border }]}>
+            <View style={styles.cameraCard}>
               {permission?.granted ? (
                 <CameraView
                   style={styles.camera}
@@ -278,13 +278,31 @@ export default function MarkAttendanceScreen() {
                   </TouchableOpacity>
                 </View>
               )}
-              <View style={styles.scanFrame} pointerEvents="none">
-                <View style={[styles.corner, styles.topLeft]} />
-                <View style={[styles.corner, styles.topRight]} />
-                <View style={[styles.corner, styles.bottomLeft]} />
-                <View style={[styles.corner, styles.bottomRight]} />
+
+              {/* Soft vignette + clean QR finder — no broken corner arcs */}
+              <View style={styles.overlay} pointerEvents="none">
+                <View style={styles.overlayBand} />
+                <View style={styles.overlayMidRow}>
+                  <View style={styles.overlayBand} />
+                  <View style={styles.finder}>
+                    <View style={[styles.finderArm, styles.finderTLH]} />
+                    <View style={[styles.finderArm, styles.finderTLV]} />
+                    <View style={[styles.finderArm, styles.finderTRH]} />
+                    <View style={[styles.finderArm, styles.finderTRV]} />
+                    <View style={[styles.finderArm, styles.finderBLH]} />
+                    <View style={[styles.finderArm, styles.finderBLV]} />
+                    <View style={[styles.finderArm, styles.finderBRH]} />
+                    <View style={[styles.finderArm, styles.finderBRV]} />
+                  </View>
+                  <View style={styles.overlayBand} />
+                </View>
+                <View style={styles.overlayBand} />
               </View>
             </View>
+
+            <Text style={[styles.scanHint, { color: theme.textSecondary }]}>
+              Align the lecturer QR inside the square
+            </Text>
 
             <View style={[styles.statusBox, { backgroundColor: statusColor }]}>
               {processing && statusType === 'info' ? (
@@ -360,14 +378,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   primaryButtonText: { color: '#fff', fontWeight: '800', fontSize: 16 },
-  scannerSection: { gap: 14 },
+  scannerSection: { gap: 12 },
   cameraCard: {
     width: SCAN_SIZE,
     height: SCAN_SIZE,
     alignSelf: 'center',
-    borderRadius: 24,
+    borderRadius: 20,
     overflow: 'hidden',
-    borderWidth: 1,
     backgroundColor: '#0f172a',
   },
   camera: { flex: 1 },
@@ -378,20 +395,40 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 16,
   },
-  scanFrame: {
+  overlay: {
     ...StyleSheet.absoluteFillObject,
-    margin: 28,
   },
-  corner: {
+  overlayBand: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+  },
+  overlayMidRow: {
+    height: SCAN_SIZE * 0.62,
+    flexDirection: 'row',
+  },
+  finder: {
+    width: SCAN_SIZE * 0.62,
+    height: SCAN_SIZE * 0.62,
+    position: 'relative',
+  },
+  finderArm: {
     position: 'absolute',
-    width: 28,
-    height: 28,
-    borderColor: '#fff',
+    backgroundColor: '#fff',
+    borderRadius: 2,
   },
-  topLeft: { top: 0, left: 0, borderTopWidth: 3, borderLeftWidth: 3, borderTopLeftRadius: 10 },
-  topRight: { top: 0, right: 0, borderTopWidth: 3, borderRightWidth: 3, borderTopRightRadius: 10 },
-  bottomLeft: { bottom: 0, left: 0, borderBottomWidth: 3, borderLeftWidth: 3, borderBottomLeftRadius: 10 },
-  bottomRight: { bottom: 0, right: 0, borderBottomWidth: 3, borderRightWidth: 3, borderBottomRightRadius: 10 },
+  finderTLH: { top: 0, left: 0, width: 28, height: 3 },
+  finderTLV: { top: 0, left: 0, width: 3, height: 28 },
+  finderTRH: { top: 0, right: 0, width: 28, height: 3 },
+  finderTRV: { top: 0, right: 0, width: 3, height: 28 },
+  finderBLH: { bottom: 0, left: 0, width: 28, height: 3 },
+  finderBLV: { bottom: 0, left: 0, width: 3, height: 28 },
+  finderBRH: { bottom: 0, right: 0, width: 28, height: 3 },
+  finderBRV: { bottom: 0, right: 0, width: 3, height: 28 },
+  scanHint: {
+    textAlign: 'center',
+    fontSize: 13,
+    fontWeight: '600',
+  },
   statusBox: {
     flexDirection: 'row',
     alignItems: 'center',
