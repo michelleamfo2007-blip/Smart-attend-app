@@ -70,8 +70,8 @@ export default function PricingPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <Feature text="1 Administrator" />
               <Feature text="Up to 50 Users" />
-              <Feature text="5GB Storage" />
-              <Feature text="Basic Email Support" />
+              <Feature text="GPS + QR attendance" />
+              <Feature text="Basic reporting" />
             </div>
           </div>
 
@@ -91,9 +91,9 @@ export default function PricingPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <Feature text="5 Administrators" />
               <Feature text="Up to 500 Users" />
-              <Feature text="50GB Storage" />
-              <Feature text="Priority Email Support" />
-              <Feature text="Custom Branding" />
+              <Feature text="Advanced analytics & student reports" />
+              <Feature text="Priority email support" />
+              <Feature text="Bulk user import" />
             </div>
           </div>
 
@@ -107,41 +107,17 @@ export default function PricingPage() {
               <span style={{ fontSize: '2.25rem', fontWeight: 800, color: '#111827', whiteSpace: 'nowrap' }}>GH₵ {isYearly ? '40,000' : '4,000'}</span>
               <span style={{ color: '#6b7280', fontWeight: 500 }}>/{isYearly ? 'year' : 'month'}</span>
             </div>
-            <p style={{ color: '#6b7280', fontSize: '0.95rem', marginBottom: '32px' }}>Unlimited scaling for massive global universities.</p>
+            <p style={{ color: '#6b7280', fontSize: '0.95rem', marginBottom: '32px' }}>For large campuses that need unlimited seats and dedicated support.</p>
             
             <Link href="/onboard?plan=enterprise" style={{ display: 'block', textAlign: 'center', padding: '12px', background: '#e01e37', color: 'white', borderRadius: '12px', fontWeight: 600, textDecoration: 'none', marginBottom: '32px', transition: 'background 0.2s', boxShadow: '0 4px 6px -1px rgba(224,30,55,0.3)' }}>
               Start 6-Month Free Trial
             </Link>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <Feature text="Unlimited Administrators" />
-              <Feature text="Unlimited Users" />
-              <Feature text="500GB Storage" />
-              <Feature text="24/7 Phone Support" />
-              <Feature text="Single Sign-On (SSO)" />
-              <Feature text="API Access" />
-            </div>
-          </div>
-
-          {/* Self-Hosted Plan */}
-          <div style={{ background: 'white', borderRadius: '24px', padding: '40px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', margin: '0 0 16px 0' }}>Self-Hosted</h3>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', marginBottom: '8px' }}>
-              <span style={{ fontSize: '2.25rem', fontWeight: 800, color: '#111827', whiteSpace: 'nowrap' }}>Custom</span>
-            </div>
-            <p style={{ color: '#6b7280', fontSize: '0.95rem', marginBottom: '32px' }}>Deployed to your private servers. Pricing tiered by total student volume.</p>
-            
-            <Link href="/onboard?plan=self-hosted" style={{ display: 'block', textAlign: 'center', padding: '12px', background: '#111827', color: 'white', borderRadius: '12px', fontWeight: 600, textDecoration: 'none', marginBottom: '32px', transition: 'background 0.2s' }}>
-              Start 6-Month Free Trial
-            </Link>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <Feature text="100% Data Sovereignty" />
-              <Feature text="Tiered by Student Volume" />
-              <Feature text="Custom Hardware Integration" />
-              <Feature text="Dedicated Setup Engineer" />
-              <Feature text="Annual Maintenance SLA" />
-              <Feature text="Source Code Escrow" />
+              <Feature text="Unlimited administrators" />
+              <Feature text="Unlimited users" />
+              <Feature text="Priority onboarding help" />
+              <Feature text="Dedicated support channel" />
             </div>
           </div>
 

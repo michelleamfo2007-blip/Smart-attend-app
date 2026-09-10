@@ -3,11 +3,29 @@ import Stripe from 'stripe';
 import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'dummy');
+import { getStripeSecretKey } from '@/lib/env';
 
 export async function POST(req: Request) {
   try {
+    const stripeKey = getStripeSecretKey();
+    if (!stripeKey) {
+      return NextResponse.json(
+        { error: 'Stripe is not configured. Set STRIPE_SECRET_KEY and price IDs first.' },
+        { status: 503 }
+      );
+    }
+
+    const starterPrice = process.env.STRIPE_STARTER_PRICE_ID;
+    const proPrice = process.env.STRIPE_PRO_PRICE_ID;
+    if (!starterPrice || !proPrice || starterPrice.startsWith('price_12') || proPrice.startsWith('price_12')) {
+      return NextResponse.json(
+        { error: 'Stripe price IDs are not configured (STRIPE_STARTER_PRICE_ID / STRIPE_PRO_PRICE_ID).' },
+        { status: 503 }
+      );
+    }
+
+    const stripe = new Stripe(stripeKey);
+
     const cookieStore = await cookies();
     const token = cookieStore.get('token')?.value;
 
@@ -30,9 +48,9 @@ export async function POST(req: Request) {
 
     let priceId = '';
     if (plan === 'pro') {
-      priceId = process.env.STRIPE_PRO_PRICE_ID || 'price_123';
+      priceId = proPrice;
     } else if (plan === 'starter') {
-      priceId = process.env.STRIPE_STARTER_PRICE_ID || 'price_124';
+      priceId = starterPrice;
     } else {
       return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
     }
@@ -45,6 +63,8 @@ export async function POST(req: Request) {
       institution?.contact_email ||
       (typeof decoded.email === 'string' ? decoded.email : undefined);
 
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'http://localhost:3000';
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
@@ -54,8 +74,8 @@ export async function POST(req: Request) {
         },
       ],
       mode: 'subscription',
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/admin/settings?checkout=success`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/admin/settings?checkout=cancelled`,
+      success_url: `${appUrl}/dashboard/admin/settings?checkout=success`,
+      cancel_url: `${appUrl}/dashboard/admin/settings?checkout=cancelled`,
       customer_email: customerEmail,
       client_reference_id: institutionId,
       metadata: {
@@ -71,8 +91,12 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ url: session.url });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Stripe checkout error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const message =
+      typeof error?.message === 'string' && error.message.includes('STRIPE_SECRET_KEY')
+        ? error.message
+        : 'Internal server error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

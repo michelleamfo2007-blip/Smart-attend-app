@@ -176,10 +176,10 @@ export default function InstitutionForm({
                 {/* Starter Plan */}
                 <div className={`${styles.planCard} ${formData.subscription_plan === 'starter' ? styles.planCardActive : ''}`} onClick={() => updateField('subscription_plan', 'starter')}>
                   <span className={styles.planTitle}>Starter</span>
-                  <span className={styles.planPrice}>$29<span style={{ fontSize: '0.9rem', color: '#6b7280', fontWeight: 'normal' }}>/mo</span></span>
+                  <span className={styles.planPrice}>GH₵ 400<span style={{ fontSize: '0.9rem', color: '#6b7280', fontWeight: 'normal' }}>/mo</span></span>
                   <div className={styles.planFeature}>✓ 1 Admin</div>
                   <div className={styles.planFeature}>✓ 50 Users</div>
-                  <div className={styles.planFeature}>✓ 5GB Storage</div>
+                  <div className={styles.planFeature}>✓ GPS + QR attendance</div>
                 </div>
                 {/* Pro Plan */}
                 <div className={`${styles.planCard} ${formData.subscription_plan === 'pro' ? styles.planCardActive : ''}`} onClick={() => updateField('subscription_plan', 'pro')}>
@@ -187,15 +187,15 @@ export default function InstitutionForm({
                   <span className={styles.planPrice}>GH₵ 2,500<span style={{ fontSize: '0.9rem', color: '#6b7280', fontWeight: 'normal' }}>/mo</span></span>
                   <div className={styles.planFeature}>✓ 5 Admins</div>
                   <div className={styles.planFeature}>✓ 500 Users</div>
-                  <div className={styles.planFeature}>✓ 50GB Storage</div>
+                  <div className={styles.planFeature}>✓ Advanced analytics</div>
                 </div>
                 {/* Enterprise Plan */}
                 <div className={`${styles.planCard} ${formData.subscription_plan === 'enterprise' ? styles.planCardActive : ''}`} onClick={() => updateField('subscription_plan', 'enterprise')}>
                   <span className={styles.planTitle}>Enterprise</span>
-                  <span className={styles.planPrice}>$299<span style={{ fontSize: '0.9rem', color: '#6b7280', fontWeight: 'normal' }}>/mo</span></span>
+                  <span className={styles.planPrice}>GH₵ 4,000<span style={{ fontSize: '0.9rem', color: '#6b7280', fontWeight: 'normal' }}>/mo</span></span>
                   <div className={styles.planFeature}>✓ Unlimited Admins</div>
                   <div className={styles.planFeature}>✓ Unlimited Users</div>
-                  <div className={styles.planFeature}>✓ 500GB Storage</div>
+                  <div className={styles.planFeature}>✓ Dedicated support</div>
                 </div>
               </div>
 
@@ -211,12 +211,6 @@ export default function InstitutionForm({
                   type="number" value={formData.max_users || ''} onChange={e => updateField('max_users', e.target.value)}
                   className={styles.searchInput} placeholder="Leave empty for plan default"
                 />
-              </div>
-
-              <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', marginBottom: '20px' }}>
-                <Switch checked={formData.api_access || false} onChange={v => updateField('api_access', v)} label="API Access" />
-                <Switch checked={formData.sso || false} onChange={v => updateField('sso', v)} label="SSO Integration" />
-                <Switch checked={formData.custom_branding || false} onChange={v => updateField('custom_branding', v)} label="Custom Branding" />
               </div>
 
               <div>

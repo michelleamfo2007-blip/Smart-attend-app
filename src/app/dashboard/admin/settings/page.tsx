@@ -26,12 +26,19 @@ export default function SettingsPage() {
 }
 
 function SettingsPageInner() {
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [savingCode, setSavingCode] = useState(false);
   const [codeMessage, setCodeMessage] = useState('');
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
+  const [envStatus, setEnvStatus] = useState<{
+    productionReady: boolean;
+    databaseOk: boolean;
+    emailReady: boolean;
+    stripeReady: boolean;
+    missingRequired: string[];
+    flags: { key: string; set: boolean; required: boolean; notes?: string }[];
+  } | null>(null);
   const searchParams = useSearchParams();
   const checkoutStatus = searchParams.get('checkout');
 
@@ -43,6 +50,13 @@ function SettingsPageInner() {
         if (data.subscription) setSubscription(data.subscription);
       })
       .catch(() => setInviteCode(''));
+
+    fetch('/api/admin/system/env')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.flags) setEnvStatus(data);
+      })
+      .catch(() => {});
   }, []);
 
   const saveInviteCode = async (code: string) => {
@@ -74,31 +88,6 @@ function SettingsPageInner() {
     }
     setInviteCode(code);
     saveInviteCode(code);
-  };
-
-  const handleUpgrade = async (plan: string) => {
-    setLoading(true);
-    setError('');
-    try {
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan })
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to initialize checkout');
-      }
-
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    } catch (err: any) {
-      setError(err.message);
-      setLoading(false);
-    }
   };
 
   const endsAtLabel = subscription?.endsAt
@@ -202,6 +191,81 @@ function SettingsPageInner() {
         </div>
       </section>
 
+      {envStatus && (
+        <section className={styles.section}>
+          <div className={styles.formPanel}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ background: envStatus.productionReady && envStatus.databaseOk ? '#ecfdf5' : '#fef2f2', padding: '10px', borderRadius: '10px' }}>
+                {envStatus.productionReady && envStatus.databaseOk ? (
+                  <CheckCircle2 size={24} color="#059669" />
+                ) : (
+                  <AlertCircle size={24} color="#dc2626" />
+                )}
+              </div>
+              <div>
+                <h3 className={styles.formTitle} style={{ marginBottom: 0 }}>Production secrets</h3>
+                <p className={styles.pageSubtitle}>
+                  Presence check only (values are never shown).{' '}
+                  {envStatus.productionReady && envStatus.databaseOk
+                    ? 'Required secrets look set and the database responds.'
+                    : 'Something required is missing — fix these in Vercel → Settings → Environment Variables.'}
+                </p>
+              </div>
+            </div>
+            <div style={{ display: 'grid', gap: '8px' }}>
+              {envStatus.flags.map((flag) => (
+                <div
+                  key={flag.key}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    background: '#f9fafb',
+                    border: '1px solid #e5e7eb',
+                    fontSize: '0.9rem',
+                  }}
+                >
+                  <div>
+                    <strong style={{ color: '#111827' }}>{flag.key}</strong>
+                    {flag.notes ? <span style={{ color: '#6b7280' }}> — {flag.notes}</span> : null}
+                    {flag.required ? (
+                      <span style={{ marginLeft: 8, color: '#b91c1c', fontSize: '0.75rem', fontWeight: 700 }}>REQUIRED</span>
+                    ) : (
+                      <span style={{ marginLeft: 8, color: '#6b7280', fontSize: '0.75rem', fontWeight: 600 }}>OPTIONAL</span>
+                    )}
+                  </div>
+                  <span style={{ fontWeight: 700, color: flag.set ? '#059669' : '#dc2626' }}>
+                    {flag.set ? 'Set' : 'Missing'}
+                  </span>
+                </div>
+              ))}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  background: '#f9fafb',
+                  border: '1px solid #e5e7eb',
+                  fontSize: '0.9rem',
+                }}
+              >
+                <strong>Database connection</strong>
+                <span style={{ fontWeight: 700, color: envStatus.databaseOk ? '#059669' : '#dc2626' }}>
+                  {envStatus.databaseOk ? 'Connected' : 'Failed'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: 4, fontSize: '0.85rem', color: '#4b5563' }}>
+                <span>Email (Resend): <strong style={{ color: envStatus.emailReady ? '#059669' : '#b45309' }}>{envStatus.emailReady ? 'Ready' : 'Not set'}</strong></span>
+                <span>Stripe: <strong style={{ color: envStatus.stripeReady ? '#059669' : '#b45309' }}>{envStatus.stripeReady ? 'Ready' : 'Not set'}</strong></span>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
         <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '16px', padding: '24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
@@ -219,7 +283,7 @@ function SettingsPageInner() {
           <p style={{ fontSize: '0.9rem', color: '#374151', marginBottom: '12px', lineHeight: 1.5 }}>
             {planName === 'Starter' && `${userLimitLabel} and basic reporting. Upgrade to Pro for up to 500 users and advanced analytics.`}
             {planName === 'Pro' && `${userLimitLabel}, advanced analytics, and priority support. Upgrade to Enterprise for unlimited users.`}
-            {planName === 'Enterprise' && 'Unlimited users, SSO, and custom branding.'}
+            {planName === 'Enterprise' && 'Unlimited users and dedicated support.'}
             {planName === 'Free' && `${userLimitLabel}. Upgrade to unlock more seats and reporting.`}
             {!['Starter', 'Pro', 'Enterprise', 'Free'].includes(planName) && `${userLimitLabel}.`}
           </p>
@@ -234,7 +298,7 @@ function SettingsPageInner() {
             disabled={true}
             style={{ width: '100%', padding: '10px', background: '#f3f4f6', color: '#9ca3af', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'not-allowed' }}
           >
-            Manage Billing (Stripe Portal)
+            Billing portal (Paystack — coming soon)
           </button>
         </div>
 
@@ -256,9 +320,9 @@ function SettingsPageInner() {
             {subscription?.plan === 'pro' ? (
               <>
                 <li>Unlimited users &amp; admins</li>
-                <li>SSO Integration</li>
-                <li>Custom branding</li>
-                <li>Dedicated support</li>
+                <li>Priority onboarding help</li>
+                <li>Dedicated support channel</li>
+                <li>Custom student volume pricing</li>
               </>
             ) : (
               <>
@@ -271,24 +335,20 @@ function SettingsPageInner() {
           </ul>
           <button
             onClick={() => {
-              if (subscription?.plan === 'pro') {
-                window.location.href = 'mailto:support@smartattend.app?subject=Enterprise%20upgrade';
+              if (subscription?.plan === 'pro' || subscription?.plan === 'enterprise') {
+                window.location.href = 'mailto:support@smartattend.app?subject=Plan%20upgrade';
                 return;
               }
-              handleUpgrade('pro');
+              window.location.href = 'mailto:support@smartattend.app?subject=Upgrade%20to%20Pro';
             }}
-            disabled={loading || subscription?.plan === 'enterprise'}
-            style={{ width: '100%', padding: '10px', background: '#e01e37', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: loading ? 'wait' : 'pointer', transition: 'background 0.2s', opacity: subscription?.plan === 'enterprise' ? 0.5 : 1 }}
+            disabled={subscription?.plan === 'enterprise'}
+            style={{ width: '100%', padding: '10px', background: '#e01e37', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s', opacity: subscription?.plan === 'enterprise' ? 0.5 : 1 }}
           >
             {subscription?.plan === 'enterprise'
               ? 'On Enterprise'
-              : loading
-                ? 'Redirecting to Stripe...'
-                : subscription?.plan === 'pro'
-                  ? 'Contact Sales'
-                  : isExpired
-                    ? 'Renew / Upgrade Now'
-                    : 'Upgrade Now'}
+              : isExpired
+                ? 'Contact us to renew'
+                : 'Contact us to upgrade'}
           </button>
         </div>
       </div>

@@ -40,7 +40,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     maxUsers: null,
     maxAdmins: null,
     priceMonthlyUsd: 299,
-    features: ['Unlimited users', 'Unlimited admins', 'SSO', 'Custom branding'],
+    features: ['Unlimited users', 'Unlimited admins', 'Priority onboarding', 'Dedicated support'],
   },
 };
 

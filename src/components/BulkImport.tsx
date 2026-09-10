@@ -97,7 +97,21 @@ export default function BulkImport({ onImportComplete, institutionId }: BulkImpo
       if (!res.ok) {
         setErrors([responseData.error || 'Failed to import users']);
       } else {
-        alert(`Successfully imported ${responseData.count} users. Lecturers can sign in with Welcome123!. Students without a password still need to register.`);
+        const temps = Array.isArray(responseData.temporaryCredentials)
+          ? responseData.temporaryCredentials
+          : [];
+        if (temps.length > 0) {
+          const lines = temps
+            .map((c: { name: string; email: string; temporaryPassword: string }) =>
+              `${c.name} <${c.email}> → ${c.temporaryPassword}`
+            )
+            .join('\n');
+          alert(
+            `${responseData.message}\n\nOne-time lecturer passwords (copy now):\n${lines}\n\nStudents still register on the mobile app.`
+          );
+        } else {
+          alert(responseData.message || `Successfully imported ${responseData.count} users.`);
+        }
         setData([]);
         if (fileInputRef.current) fileInputRef.current.value = '';
         onImportComplete();

@@ -248,7 +248,7 @@ export default function LoginPage() {
                 <input type="checkbox" id="remember-me" />
                 <span>Remember me</span>
               </label>
-              <a href="#" className={styles.forgotLink}>Forgot password?</a>
+              <Link href="/forgot-password" className={styles.forgotLink}>Forgot password?</Link>
             </div>
 
             <button

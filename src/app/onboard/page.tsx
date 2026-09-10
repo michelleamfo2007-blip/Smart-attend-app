@@ -28,11 +28,6 @@ const PLAN_DISPLAY: Record<string, PlanDisplay> = {
     priceMonthly: 'GH₵ 4,000/mo',
     seats: 'Unlimited users & admins',
   },
-  'self-hosted': {
-    name: 'Self-Hosted',
-    priceMonthly: 'Custom pricing',
-    seats: 'Tiered by student volume',
-  },
 };
 
 function OnboardForm() {
@@ -127,7 +122,7 @@ function OnboardForm() {
         <div className={styles.trialBanner}>
           <strong>{TRIAL_MONTHS}-month free trial on every plan</strong>
           <span>
-            Starter, Pro, Enterprise, and Self-Hosted all include {TRIAL_MONTHS} months free. You won&apos;t be charged until the trial ends.
+            Starter, Pro, and Enterprise all include {TRIAL_MONTHS} months free. You won&apos;t be charged until the trial ends.
           </span>
         </div>
 
@@ -225,8 +220,7 @@ function OnboardForm() {
             {loading ? 'Creating Account...' : `Start ${TRIAL_MONTHS}-Month Free Trial`}
           </button>
           <p className={styles.footerNote}>
-            After the trial, billing follows your plan ({planInfo.priceMonthly}
-            {planKey === 'self-hosted' ? '' : ' after trial'}). Cancel anytime before it ends.
+            After the trial, billing follows your plan ({planInfo.priceMonthly} after trial). Cancel anytime before it ends.
           </p>
         </form>
       </div>

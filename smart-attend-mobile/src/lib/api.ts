@@ -4,9 +4,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export const TOKEN_STORAGE_KEY = '@smartattend_token';
 export const AUTH_STORAGE_KEY = '@smartattend_user';
 
+/** Production API for TestFlight / Play / release builds. */
+export const PRODUCTION_API_URL = 'https://www.smartattend.co';
+
 export function getApiUrl() {
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL.replace(/\/$/, '');
+  }
+
+  // Release / store builds always hit production.
+  if (typeof __DEV__ !== 'undefined' && !__DEV__) {
+    return PRODUCTION_API_URL;
   }
 
   if (Platform.OS === 'web') {
@@ -17,7 +25,8 @@ export function getApiUrl() {
     return 'http://10.0.2.2:3000';
   }
 
-  return 'https://www.smartattend.co';
+  // iOS simulator in development
+  return 'http://localhost:3000';
 }
 
 export const API_URL = getApiUrl();

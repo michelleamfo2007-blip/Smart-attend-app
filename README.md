@@ -27,7 +27,28 @@ npx prisma generate
 npm run dev
 ```
 
-Requires `DATABASE_URL` and `JWT_SECRET` (or `SUPABASE_JWT_SECRET`) in `.env`. In production, a JWT secret is required.
+Requires `DATABASE_URL` and `JWT_SECRET` (or `SUPABASE_JWT_SECRET`) in `.env`. In production, a JWT secret is **required** — the app will refuse to sign tokens without it.
+
+Copy [`.env.example`](./.env.example) and fill in values.
+
+### Production secrets (Vercel)
+
+For **smart-attend-app-trgr** (`https://www.smartattend.co`):
+
+1. Open [Vercel → Project → Settings → Environment Variables](https://vercel.com/dashboard)
+2. Set these for **Production** (and Preview if you use it):
+
+| Variable | Required? |
+|----------|-----------|
+| `DATABASE_URL` | Yes |
+| `DIRECT_URL` | Yes |
+| `JWT_SECRET` | Yes (long random string) |
+| `NEXT_PUBLIC_APP_URL` | Yes (`https://www.smartattend.co`) |
+| `RESEND_API_KEY` / `EMAIL_FROM` | Recommended (welcome + forgot-password emails) |
+| Stripe keys | Optional — not required if you bill via **Paystack** later |
+
+3. Redeploy after changing env vars.
+4. Sign in as an admin → **Settings** → **Production secrets** panel (shows Set/Missing only, never values).
 
 To send a welcome email after **admin** or **lecturer** signup, also add:
 

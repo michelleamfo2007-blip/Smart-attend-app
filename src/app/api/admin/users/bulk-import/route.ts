@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { getAuth } from '@/lib/session';
 import { assertCanAddUsers, SubscriptionError } from '@/lib/subscription';
+import { generateTemporaryPassword } from '@/lib/passwordReset';
 
 export async function POST(req: Request) {
   try {
@@ -42,7 +43,7 @@ export async function POST(req: Request) {
 
     let successCount = 0;
     let failedCount = 0;
-    const defaultPassword = await bcrypt.hash('Welcome123!', 10);
+    const temporaryCredentials: { name: string; email: string; temporaryPassword: string }[] = [];
 
     for (const userData of users) {
       try {
@@ -73,6 +74,17 @@ export async function POST(req: Request) {
             throw err;
           }
 
+          let passwordHash: string | null = null;
+          if (role === 'LECTURER') {
+            const temporaryPassword = generateTemporaryPassword();
+            passwordHash = await bcrypt.hash(temporaryPassword, 10);
+            temporaryCredentials.push({
+              name: userData.name,
+              email: userData.email,
+              temporaryPassword,
+            });
+          }
+
           await prisma.users.create({
             data: {
               name: userData.name,
@@ -83,7 +95,7 @@ export async function POST(req: Request) {
               semester: userData.semester || null,
               student_id: userData.index_number || null,
               cohort_id: userData.cohort_id || userData.program_id || null,
-              password: role === 'STUDENT' ? null : defaultPassword,
+              password: passwordHash,
             },
           });
           successCount++;
@@ -109,7 +121,7 @@ export async function POST(req: Request) {
       data: {
         user_id: auth.userId,
         action: 'BULK_IMPORT_USERS',
-        details: `Imported ${successCount} users (${failedCount} failed)`,
+        details: `Imported ${successCount} users (${failedCount} failed); ${temporaryCredentials.length} lecturer temp passwords issued`,
         ip_address: req.headers.get('x-forwarded-for') || 'unknown',
       },
     });
@@ -117,7 +129,12 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       count: successCount,
-      message: `Successfully imported ${successCount} users. Existing emails were skipped.`,
+      failedCount,
+      temporaryCredentials,
+      message:
+        temporaryCredentials.length > 0
+          ? `Imported ${successCount} users. Copy the one-time lecturer passwords now — they are not shown again.`
+          : `Imported ${successCount} users. Students still need to register on the mobile app.`,
     });
   } catch (error: any) {
     console.error('Bulk import error:', error);

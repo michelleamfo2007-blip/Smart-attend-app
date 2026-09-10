@@ -7,19 +7,33 @@ import {
   startOrExtendSubscription,
 } from '@/lib/subscription';
 import { getPlan, normalizePlan } from '@/lib/plans';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'dummy');
-
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+import { getStripeSecretKey } from '@/lib/env';
 
 export async function POST(req: Request) {
+  let stripeKey: string | null;
+  try {
+    stripeKey = getStripeSecretKey();
+  } catch {
+    return NextResponse.json({ error: 'Stripe is not configured' }, { status: 503 });
+  }
+
+  if (!stripeKey) {
+    return NextResponse.json({ error: 'Stripe is not configured' }, { status: 503 });
+  }
+
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!endpointSecret) {
+    return NextResponse.json({ error: 'STRIPE_WEBHOOK_SECRET is not configured' }, { status: 503 });
+  }
+
+  const stripe = new Stripe(stripeKey);
   const body = await req.text();
   const signature = (await headers()).get('stripe-signature') as string;
 
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(body, signature, endpointSecret as string);
+    event = stripe.webhooks.constructEvent(body, signature, endpointSecret);
   } catch (err: any) {
     console.error(`Webhook Error: ${err.message}`);
     return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });

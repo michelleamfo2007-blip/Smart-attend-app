@@ -185,3 +185,32 @@ export async function sendWelcomeEmail(options: {
     return { sent: false as const };
   }
 }
+
+export async function sendPasswordResetEmail(options: {
+  to: string;
+  name?: string | null;
+  resetUrl: string;
+}) {
+  const emailError = getEmailError(options.to);
+  if (emailError) {
+    return { sent: false as const, error: emailError };
+  }
+
+  const to = normalizeEmail(options.to);
+  const firstName = options.name?.trim()?.split(/\s+/)[0] || 'there';
+  const subject = 'Reset your SmartAttend password';
+  const text = `Hi ${firstName},\n\nReset your SmartAttend password using this link (expires in 1 hour):\n${options.resetUrl}\n\nIf you did not ask for this, you can ignore this email.\n`;
+  const html = `<!DOCTYPE html><html><body style="font-family:sans-serif;line-height:1.5;color:#111">
+    <p>Hi ${escapeHtml(firstName)},</p>
+    <p>We received a request to reset your SmartAttend password.</p>
+    <p><a href="${escapeHtml(options.resetUrl)}" style="display:inline-block;background:#e01e37;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">Reset password</a></p>
+    <p style="color:#64748b;font-size:14px">This link expires in 1 hour. If you did not request a reset, ignore this email.</p>
+  </body></html>`;
+
+  try {
+    return await sendMail(to, subject, html, text);
+  } catch (error) {
+    console.error('Failed to send password reset email:', error);
+    return { sent: false as const, error: 'Failed to send email' };
+  }
+}
