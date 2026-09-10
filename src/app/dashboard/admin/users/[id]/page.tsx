@@ -6,7 +6,7 @@ import styles from './student-dashboard.module.css';
 import { 
   ArrowLeft, BookOpen, CheckCircle, Clock, 
   AlertTriangle, XCircle, GraduationCap, Building,
-  Calendar, Check, X
+  Calendar, Check, X, Download, FileText
 } from 'lucide-react';
 
 interface TimelineEvent {
@@ -56,6 +56,7 @@ export default function UserDetailsPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [resetPassword, setResetPassword] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
+  const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null);
 
   const fetchUser = useCallback(async () => {
     if (!params?.id) return;
@@ -116,6 +117,41 @@ export default function UserDetailsPage() {
     }
   };
 
+  const handleDownloadCsv = async () => {
+    setExporting('csv');
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}/report?format=csv`);
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        alert(json.error || 'Failed to download CSV report.');
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `attendance-report-${(user.name || 'student').replace(/\s+/g, '_')}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to download CSV report.');
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handlePrintPdf = () => {
+    setExporting('pdf');
+    const win = window.open(`/api/admin/users/${user.id}/report?format=html`, '_blank');
+    if (!win) {
+      alert('Please allow pop-ups to open the printable report.');
+    }
+    setTimeout(() => setExporting(null), 500);
+  };
+
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -123,6 +159,49 @@ export default function UserDetailsPage() {
           <ArrowLeft size={20} />
         </button>
         <h1 className={styles.pageTitle}>Student Analytics</h1>
+        {user.role === 'STUDENT' && analytics ? (
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={handleDownloadCsv}
+              disabled={!!exporting}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '10px 14px',
+                borderRadius: 10,
+                border: '1px solid #e2e8f0',
+                background: 'white',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              <Download size={16} />
+              {exporting === 'csv' ? 'Downloading…' : 'Download CSV'}
+            </button>
+            <button
+              type="button"
+              onClick={handlePrintPdf}
+              disabled={!!exporting}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '10px 14px',
+                borderRadius: 10,
+                border: 'none',
+                background: '#e01e37',
+                color: 'white',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              <FileText size={16} />
+              {exporting === 'pdf' ? 'Opening…' : 'Print / Save PDF'}
+            </button>
+          </div>
+        ) : null}
       </header>
 
       {user.role === 'STUDENT' && analytics ? (
