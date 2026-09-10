@@ -213,24 +213,54 @@ export default function StudentOverviewScreen() {
           </View>
         </Animated.View>
 
-        {/* LARGE SCAN BUTTON */}
+        {/* LARGE SCAN BUTTON — only urge scan when not already marked */}
         <Animated.View entering={FadeInDown.duration(500).delay(120)} style={{ marginBottom: Spacing.six }}>
-           <TouchableOpacity onPress={() => router.push('/(student)/mark-attendance')} activeOpacity={0.85}>
-             <LinearGradient 
-                colors={['#e01e37', '#b91c2c']} 
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={styles.largeScanButton}
-             >
-               <Ionicons name="qr-code-outline" size={32} color="#FFF" />
-               <View style={styles.scanButtonTextContainer}>
-                  <Text style={styles.scanButtonTitle}>Scan QR Code</Text>
-                  <Text style={styles.scanButtonSubtitle}>
-                    {activeSessions.length > 0 ? 'A session is open — tap to scan' : 'Opens scanner when a session is live'}
-                  </Text>
-               </View>
-               <Ionicons name="chevron-forward" size={24} color="rgba(255,255,255,0.6)" />
-             </LinearGradient>
-           </TouchableOpacity>
+           {(() => {
+             const needsScan = activeSessions.some((s) => !s.alreadyMarked);
+             const allMarked =
+               activeSessions.length > 0 && activeSessions.every((s) => s.alreadyMarked);
+             const gradientColors = allMarked
+               ? (['#15803d', '#166534'] as const)
+               : (['#e01e37', '#b91c2c'] as const);
+             const title = allMarked
+               ? 'Already checked in'
+               : needsScan
+                 ? 'Scan QR Code'
+                 : 'Scan QR Code';
+             const subtitle = allMarked
+               ? 'You are marked present for the live session'
+               : needsScan
+                 ? 'A session is open — tap to scan'
+                 : 'Opens scanner when a session is live';
+             const icon = allMarked ? 'checkmark-circle-outline' : 'qr-code-outline';
+
+             return (
+               <TouchableOpacity
+                 onPress={() => {
+                   if (allMarked) return;
+                   router.push('/(student)/mark-attendance');
+                 }}
+                 activeOpacity={allMarked ? 1 : 0.85}
+                 disabled={allMarked}
+               >
+                 <LinearGradient
+                   colors={[...gradientColors]}
+                   start={{ x: 0, y: 0 }}
+                   end={{ x: 1, y: 1 }}
+                   style={styles.largeScanButton}
+                 >
+                   <Ionicons name={icon as any} size={32} color="#FFF" />
+                   <View style={styles.scanButtonTextContainer}>
+                     <Text style={styles.scanButtonTitle}>{title}</Text>
+                     <Text style={styles.scanButtonSubtitle}>{subtitle}</Text>
+                   </View>
+                   {!allMarked ? (
+                     <Ionicons name="chevron-forward" size={24} color="rgba(255,255,255,0.6)" />
+                   ) : null}
+                 </LinearGradient>
+               </TouchableOpacity>
+             );
+           })()}
         </Animated.View>
 
         {/* STATISTICS GRID - Clean Web Style */}
