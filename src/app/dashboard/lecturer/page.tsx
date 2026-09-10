@@ -22,7 +22,13 @@ interface Session {
   created_at: string;
   expires_at?: string;
   class: { name: string; level: string };
-  records: { id: string; student_id: string }[];
+  records: {
+    id: string;
+    student_id: string;
+    student_name?: string | null;
+    timestamp?: string;
+    student?: { id: string; name: string | null; student_id?: string | null };
+  }[];
 }
 
 interface CatalogueModule {
@@ -63,6 +69,7 @@ export default function LecturerDashboard() {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [creating, setCreating] = useState(false);
+  const [locationPromptClassId, setLocationPromptClassId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     const [classesRes, sessionsRes, catalogueRes] = await Promise.all([
@@ -81,13 +88,28 @@ export default function LecturerDashboard() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  const hasActiveSession = sessions.some((session) => session.status === 'active');
+
   useEffect(() => {
-    // Rotate QR code timestamp every 10 seconds
     const interval = setInterval(() => {
       setQrTimestamp(Date.now());
     }, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!hasActiveSession) return;
+
+    const interval = setInterval(async () => {
+      const res = await fetch('/api/lecturer/sessions');
+      const data = await res.json();
+      if (Array.isArray(data.sessions)) {
+        setSessions(data.sessions);
+      }
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [hasActiveSession]);
 
   const handleCreateClass = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,36 +147,68 @@ export default function LecturerDashboard() {
     }
   };
 
-  const handleStartSession = async (courseId: string) => {
-    setStarting(courseId);
+  const handleStartSession = (courseId: string) => {
     setMsg(null);
+    if (activeSession) {
+      setMsg({ type: 'error', text: 'End the current session before starting another.' });
+      return;
+    }
+    setLocationPromptClassId(courseId);
+  };
+
+  const confirmLocationAndStart = async () => {
+    const courseId = locationPromptClassId;
+    if (!courseId) return;
 
     if (!navigator.geolocation) {
       setMsg({ type: 'error', text: 'Geolocation is not supported by your browser.' });
-      setStarting(null);
+      setLocationPromptClassId(null);
       return;
     }
+
+    setStarting(courseId);
+    setMsg({ type: 'success', text: 'Waiting for your classroom location… Allow location access when your browser asks.' });
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
-        const res = await fetch('/api/lecturer/sessions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ courseId, latitude, longitude }),
-        });
-        const data = await res.json();
-        if (res.ok) {
-          setMsg({ type: 'success', text: `✓ Session started for ${data.session.class.name}. Students can now mark attendance.` });
-          fetchData();
-        } else {
-          setMsg({ type: 'error', text: data.error || 'Failed to start session.' });
+        try {
+          const res = await fetch('/api/lecturer/sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ courseId, latitude, longitude }),
+          });
+          const data = await res.json();
+          if (res.ok) {
+            setMsg({
+              type: 'success',
+              text: `✓ Session started for ${data.session.class.name}. Location locked for this class.`,
+            });
+            setLocationPromptClassId(null);
+            fetchData();
+          } else {
+            setMsg({ type: 'error', text: data.error || 'Failed to start session.' });
+          }
+        } catch {
+          setMsg({ type: 'error', text: 'Failed to start session.' });
+        } finally {
+          setStarting(null);
         }
+      },
+      (err) => {
+        const denied = err?.code === 1;
+        setMsg({
+          type: 'error',
+          text: denied
+            ? 'Location was blocked. Enable location for this site in browser settings, then try again.'
+            : 'Could not get your location. Move near a window and try again.',
+        });
         setStarting(null);
       },
-      () => {
-        setMsg({ type: 'error', text: 'Could not get your location. Please allow location access.' });
-        setStarting(null);
+      {
+        enableHighAccuracy: true,
+        timeout: 20000,
+        maximumAge: 0,
       }
     );
   };
@@ -257,7 +311,9 @@ export default function LecturerDashboard() {
                 <QRCode 
                   value={JSON.stringify({ 
                     sessionId: activeSession.id, 
-                    timestamp: qrTimestamp 
+                    t: qrTimestamp,
+                    timestamp: qrTimestamp,
+                    source: 'dynamic_qr',
                   })} 
                   size={160} 
                   level="H"
@@ -268,7 +324,9 @@ export default function LecturerDashboard() {
                 <div style={{ fontSize: '18px', fontWeight: '600', color: '#111827', lineHeight: '1.4' }}>
                   Students must scan this QR code with the Smart Attend mobile app to check in.
                 </div>
-                <p style={{ color: '#6b7280', fontSize: '13px', marginTop: '12px' }}>Code rotates automatically to prevent screenshot sharing.</p>
+                <p style={{ color: '#6b7280', fontSize: '13px', marginTop: '12px' }}>
+                  Code rotates every 10 seconds. Students must be within 50m of your location.
+                </p>
               </div>
             </div>
           </div>
@@ -281,8 +339,11 @@ export default function LecturerDashboard() {
               ) : (
                 activeSession.records.map((record: any) => (
                   <div key={record.id} className={styles.attendeeItem}>
-                    <span className={styles.attendeeName}>{record.student_name || 'Unknown Student'}</span>
-                    <span className={styles.attendeeTime}>{new Date(record.timestamp).toLocaleTimeString()}</span>
+                    <span className={styles.attendeeName}>{record.student?.name || record.student_name || 'Unknown Student'}</span>
+                    <span className={styles.attendeeTime}>
+                      {new Date(record.timestamp).toLocaleTimeString()}
+                      {record.method ? ` · ${record.method.replace('_', ' ')}` : ''}
+                    </span>
                   </div>
                 ))
               )}
@@ -330,7 +391,7 @@ export default function LecturerDashboard() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                 <div>
                   <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#111827', marginBottom: '4px' }}>{cls.name}</h3>
-                  <p style={{ color: '#6b7280', fontSize: '0.9rem' }}>{cls.level} · {cls.semester}</p>
+                  <p style={{ color: '#6b7280', fontSize: '0.9rem' }}>Level {cls.level}</p>
                 </div>
               </div>
               
@@ -356,7 +417,7 @@ export default function LecturerDashboard() {
                   cursor: activeSession ? 'not-allowed' : 'pointer' 
                 }}
               >
-                {starting === cls.id ? 'Starting...' : 'Start Session'}
+                {starting === cls.id ? 'Getting location…' : 'Start with location'}
               </button>
             </div>
           ))
@@ -364,6 +425,64 @@ export default function LecturerDashboard() {
       </div>
 
 
+
+      {locationPromptClassId && (
+        <div className={styles.modalOverlay} onClick={() => !starting && setLocationPromptClassId(null)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
+            <div className={styles.modalHeader}>
+              <h2>Classroom location required</h2>
+              <button
+                className={styles.closeModalBtn}
+                type="button"
+                disabled={!!starting}
+                onClick={() => setLocationPromptClassId(null)}
+              >
+                ✕
+              </button>
+            </div>
+            <p style={{ color: '#4b5563', lineHeight: 1.5, marginBottom: 20 }}>
+              Every attendance session must use your <strong>current</strong> classroom location.
+              Students can only check in if they are near you. Your browser will ask for location permission next.
+            </p>
+            <div style={{ display: 'flex', gap: 10, flexDirection: 'column' }}>
+              <button
+                type="button"
+                onClick={confirmLocationAndStart}
+                disabled={!!starting}
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  borderRadius: 10,
+                  border: 'none',
+                  background: '#e01e37',
+                  color: 'white',
+                  fontWeight: 700,
+                  cursor: starting ? 'wait' : 'pointer',
+                }}
+              >
+                {starting ? 'Getting location…' : 'Share location & start session'}
+              </button>
+              <button
+                type="button"
+                disabled={!!starting}
+                onClick={() => setLocationPromptClassId(null)}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: 10,
+                  border: '1px solid #e5e7eb',
+                  background: 'white',
+                  color: '#374151',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create Class Modal */}
       {showCreateModal && (

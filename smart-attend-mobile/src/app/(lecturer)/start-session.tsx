@@ -5,8 +5,8 @@ import { useAuth } from '../../context/AuthContext';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing, Colors } from '@/constants/theme';
-import { useRouter } from 'expo-router';
-import { supabase } from '../../lib/supabase';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { apiFetch, isNetworkError } from '../../lib/api';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SymbolView } from 'expo-symbols';
 import QRCode from 'react-native-qrcode-svg';
@@ -24,6 +24,7 @@ export default function StartSessionScreen() {
   const [fetchingClasses, setFetchingClasses] = useState(true);
   const [classes, setClasses] = useState<any[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  const [awaitingLocationConfirm, setAwaitingLocationConfirm] = useState(false);
   const router = useRouter();
 
   // Active Session State
@@ -35,30 +36,48 @@ export default function StartSessionScreen() {
     fetchLecturerClasses();
   }, []);
 
+  useFocusEffect(
+    React.useCallback(() => {
+      const restoreActiveSession = async () => {
+        try {
+          const data = await apiFetch('/api/lecturer/sessions');
+          const active = (data.sessions || []).find((session: any) => session.status === 'active');
+          if (active) {
+            setActiveSessionId(active.id);
+            setCheckedInCount(active.records?.length || 0);
+            setSelectedClassId(active.class_id || active.class?.id || null);
+          } else {
+            setActiveSessionId((current) => (
+              current && String(current).startsWith('offline-') ? current : null
+            ));
+          }
+        } catch (err) {
+          console.error('Failed to restore active session', err);
+        }
+      };
+      restoreActiveSession();
+    }, [])
+  );
+
   // Listen to realtime attendance updates for the active session
   useEffect(() => {
-    if (!activeSessionId) return;
+    if (!activeSessionId || String(activeSessionId).startsWith('offline-')) return;
 
-    const channel = supabase
-      .channel('attendance_changes')
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'attendance_records',
-        filter: `session_id=eq.${activeSessionId}`
-      }, (payload) => {
-        console.log('New check-in!', payload);
-        setCheckedInCount((prev) => prev + 1);
-      })
-      .subscribe();
+    const poll = setInterval(async () => {
+      try {
+        const data = await apiFetch(`/api/lecturer/sessions/${activeSessionId}`);
+        setCheckedInCount(data.checkedInCount || 0);
+      } catch (err) {
+        console.error('Failed to poll session', err);
+      }
+    }, 4000);
 
-    // Rotate QR code timestamp every 15 seconds
     const interval = setInterval(() => {
       setQrTimestamp(Date.now());
-    }, 15000);
+    }, 10000);
 
     return () => {
-      supabase.removeChannel(channel);
+      clearInterval(poll);
       clearInterval(interval);
     };
   }, [activeSessionId]);
@@ -66,15 +85,11 @@ export default function StartSessionScreen() {
   const fetchLecturerClasses = async () => {
     setFetchingClasses(true);
     try {
-      const { data, error } = await supabase
-        .from('classes')
-        .select('id, name, level, semester, start_time, end_time')
-        .eq('lecturer_id', user?.id);
-
-      if (error) throw error;
-      setClasses(data || []);
-      if (data && data.length > 0) {
-        setSelectedClassId(data[0].id);
+      const data = await apiFetch('/api/lecturer/courses');
+      const courses = data.courses || [];
+      setClasses(courses);
+      if (courses.length > 0) {
+        setSelectedClassId(courses[0].id);
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to load classes');
@@ -88,86 +103,73 @@ export default function StartSessionScreen() {
       Alert.alert('Error', 'Please select a class first.');
       return;
     }
+    setErrorMsg(null);
+    setAwaitingLocationConfirm(true);
+  };
 
+  const startSessionWithLocation = async () => {
+    setAwaitingLocationConfirm(false);
     setLoading(true);
-    let { status } = await Location.requestForegroundPermissionsAsync();
+    setErrorMsg(null);
+
+    const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
-      setErrorMsg('Permission to access location was denied');
+      setErrorMsg('Location permission was denied. Enable it in Settings, then try again.');
       setLoading(false);
       return;
     }
 
     try {
-      // Get location with a timeout
-      const locationPromise = Location.getCurrentPositionAsync({ 
-        accuracy: Location.Accuracy.Balanced
+      // Force a fresh GPS fix for this class (do not reuse an old cached position)
+      const locationPromise = Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+        mayShowUserSettingsDialog: true,
       });
-      
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("Location fetch timed out. Please check your GPS/Location settings.")), 10000)
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error('Location timed out. Check GPS is on and try again.')),
+          20000
+        )
       );
 
-      let location: any = await Promise.race([locationPromise, timeoutPromise]);
+      const location: any = await Promise.race([locationPromise, timeoutPromise]);
 
-      // Close old active sessions for this class
-      await supabase
-        .from('attendance_sessions')
-        .update({ status: 'closed' })
-        .eq('class_id', selectedClassId)
-        .eq('status', 'active');
-
-      let expiresAtStr: string;
-      const selectedClassObj = classes.find(c => c.id === selectedClassId);
-      if (selectedClassObj && selectedClassObj.end_time) {
-        const [h, m] = selectedClassObj.end_time.split(':').map(Number);
-        const date = new Date();
-        date.setHours(h, m, 0, 0);
-        // If the end time has already passed today, assume it's for tomorrow (or keep it as is)
-        if (date.getTime() < Date.now()) {
-          date.setDate(date.getDate() + 1);
-        }
-        expiresAtStr = date.toISOString();
-      } else {
-        // Fallback to 2 hours if no dynamic time is set
-        expiresAtStr = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
-      }
-
-      const sessionPayload = {
-          class_id: selectedClassId,
-          lecturer_id: user?.id,
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-          expires_at: expiresAtStr,
-          status: 'active'
-      };
-      
-      const { data, error } = await supabase
-        .from('attendance_sessions')
-        .insert(sessionPayload)
-        .select()
-        .single();
-
-      if (error) {
-        if (error.message?.includes('Failed to fetch') || error.message?.includes('Network request failed')) {
-           // Mock a session ID since we are offline
-           const mockSessionId = 'offline-' + Date.now();
-           await saveOfflineLecturerAction({ type: 'START_SESSION', payload: { ...sessionPayload, id: mockSessionId } });
-           setActiveSessionId(mockSessionId);
-           setCheckedInCount(0);
-           Alert.alert('Offline Mode', 'Session started offline. It will sync when connection is restored.');
-           return;
+      try {
+        const data = await apiFetch('/api/lecturer/sessions', {
+          method: 'POST',
+          body: JSON.stringify({
+            courseId: selectedClassId,
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          }),
+        });
+        setActiveSessionId(data.session.id);
+        setCheckedInCount(0);
+      } catch (error: any) {
+        if (isNetworkError(error)) {
+          const mockSessionId = 'offline-' + Date.now();
+          await saveOfflineLecturerAction({
+            type: 'START_SESSION',
+            payload: {
+              class_id: selectedClassId,
+              courseId: selectedClassId,
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+              id: mockSessionId,
+            },
+          });
+          setActiveSessionId(mockSessionId);
+          setCheckedInCount(0);
+          Alert.alert('Offline Mode', 'Session started offline. It will sync when connection is restored.');
+          return;
         }
         throw error;
       }
-
-      setActiveSessionId(data.id);
-      setCheckedInCount(0);
-      
     } catch (err: any) {
-      console.error("Start Session Error:", err);
       setErrorMsg(err.message || 'Failed to get location or save session');
       if (Platform.OS === 'web') {
-         window.alert(`Error: ${err.message || 'Failed to get location'}`);
+        window.alert(`Error: ${err.message || 'Failed to get location'}`);
       }
     } finally {
       setLoading(false);
@@ -187,20 +189,7 @@ export default function StartSessionScreen() {
          return;
       }
 
-      const { error } = await supabase
-        .from('attendance_sessions')
-        .update({ status: 'closed' })
-        .eq('id', activeSessionId);
-        
-      if (error) {
-         if (error.message?.includes('Failed to fetch') || error.message?.includes('Network request failed')) {
-           await saveOfflineLecturerAction({ type: 'END_SESSION', payload: { sessionId: activeSessionId } });
-           setActiveSessionId(null);
-           Alert.alert('Offline Mode', 'Session ended offline. It will sync later.');
-           return;
-         }
-         throw error;
-      }
+      await apiFetch(`/api/lecturer/sessions/${activeSessionId}`, { method: 'PATCH' });
       
       setActiveSessionId(null);
       if (Platform.OS === 'web') {
@@ -209,6 +198,12 @@ export default function StartSessionScreen() {
         Alert.alert('Success', 'Session ended successfully.');
       }
     } catch (err: any) {
+      if (isNetworkError(err)) {
+        await saveOfflineLecturerAction({ type: 'END_SESSION', payload: { sessionId: activeSessionId } });
+        setActiveSessionId(null);
+        Alert.alert('Offline Mode', 'Session ended offline. It will sync later.');
+        return;
+      }
       Alert.alert('Error', err.message);
     } finally {
       setLoading(false);
@@ -217,7 +212,7 @@ export default function StartSessionScreen() {
 
   if (activeSessionId) {
     // QR Code Display State (Dynamic with timestamp)
-    const qrData = JSON.stringify({ sessionId: activeSessionId, t: qrTimestamp });
+    const qrData = JSON.stringify({ sessionId: activeSessionId, t: qrTimestamp, timestamp: qrTimestamp, source: 'dynamic_qr' });
     
     return (
       <Animated.View entering={FadeIn.duration(800)} style={{ flex: 1, backgroundColor: theme.background }}>
@@ -286,7 +281,7 @@ export default function StartSessionScreen() {
             ) : classes.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <SymbolView name="exclamationmark.triangle.fill" size={48} tintColor={theme.textSecondary} style={{ opacity: 0.5, marginBottom: 16 }} />
-                <ThemedText style={styles.errorText}>You are not assigned to any classes.</ThemedText>
+                <ThemedText style={styles.errorText}>You are not assigned to any classes yet. Claim a module on the web dashboard first.</ThemedText>
               </View>
             ) : (
               <View style={{ width: '100%', marginBottom: Spacing.six }}>
@@ -328,7 +323,7 @@ export default function StartSessionScreen() {
             <Animated.View entering={FadeInUp.duration(600).delay(400)} style={[styles.infoBox, { backgroundColor: theme.backgroundSelected }]}>
               <SymbolView name="info.circle.fill" size={20} tintColor={theme.textSecondary} />
               <ThemedText style={styles.instructions} themeColor="textSecondary">
-                Starting a session will generate a 2-hour QR code and record your current GPS location. Students must scan the QR code within 50 meters of this location.
+                Each time you start a session, the app asks for your current classroom location (fresh GPS). Students must scan the rotating QR within about 50 meters of that point.
               </ThemedText>
             </Animated.View>
             
@@ -343,25 +338,53 @@ export default function StartSessionScreen() {
         </ScrollView>
 
         <Animated.View entering={FadeInUp.duration(600).delay(500)} style={styles.footer}>
-          <TouchableOpacity 
-            style={[
-              styles.startButton, 
-              { backgroundColor: theme.primary },
-              (loading || classes.length === 0) && styles.buttonDisabled
-            ]} 
-            onPress={handleStartSession}
-            disabled={loading || classes.length === 0}
-            activeOpacity={0.8}
-          >
-            {loading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <>
-                <SymbolView name="qrcode" size={24} tintColor="white" />
-                <Text style={styles.startButtonText}>Start Attendance (Generate QR)</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          {awaitingLocationConfirm ? (
+            <View style={[styles.locationPrompt, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+              <ThemedText type="defaultSemiBold" style={{ marginBottom: 6 }}>
+                Classroom location required
+              </ThemedText>
+              <ThemedText themeColor="textSecondary" style={{ marginBottom: 14, fontSize: 13, lineHeight: 18 }}>
+                Every session uses your current GPS so students nearby can check in. Tap below to allow location and start.
+              </ThemedText>
+              <TouchableOpacity
+                style={[styles.startButton, { backgroundColor: theme.primary, marginBottom: 10 }]}
+                onPress={startSessionWithLocation}
+                activeOpacity={0.85}
+              >
+                <SymbolView name="location.fill" size={20} tintColor="white" />
+                <Text style={styles.startButtonText}>Share location & start</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.cancelLocationButton, { borderColor: theme.border }]}
+                onPress={() => setAwaitingLocationConfirm(false)}
+              >
+                <Text style={{ color: theme.text, fontWeight: '700' }}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity 
+              style={[
+                styles.startButton, 
+                { backgroundColor: theme.primary },
+                (loading || classes.length === 0) && styles.buttonDisabled
+              ]} 
+              onPress={handleStartSession}
+              disabled={loading || classes.length === 0}
+              activeOpacity={0.8}
+            >
+              {loading ? (
+                <>
+                  <ActivityIndicator color="white" />
+                  <Text style={styles.startButtonText}>Getting location…</Text>
+                </>
+              ) : (
+                <>
+                  <SymbolView name="location.fill" size={22} tintColor="white" />
+                  <Text style={styles.startButtonText}>Confirm location & start</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
         </Animated.View>
 
       </ThemedView>
@@ -415,6 +438,17 @@ const styles = StyleSheet.create({
     bottom: Spacing.six,
     left: Spacing.four,
     right: Spacing.four,
+  },
+  locationPrompt: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+  },
+  cancelLocationButton: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
   },
   startButton: {
     flexDirection: 'row',

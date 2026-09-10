@@ -22,6 +22,7 @@ export default function LecturerClassesPage() {
   const [claiming, setClaiming] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [activeSession, setActiveSession] = useState<any>(null);
+  const [locationPromptClassId, setLocationPromptClassId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     const [classesRes, sessionsRes, catalogRes] = await Promise.all([
@@ -44,36 +45,68 @@ export default function LecturerClassesPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const handleStartSession = async (courseId: string) => {
-    setStarting(courseId);
+  const handleStartSession = (courseId: string) => {
     setMsg(null);
+    if (activeSession) {
+      setMsg({ type: 'error', text: 'End the current session before starting another.' });
+      return;
+    }
+    setLocationPromptClassId(courseId);
+  };
+
+  const confirmLocationAndStart = () => {
+    const courseId = locationPromptClassId;
+    if (!courseId) return;
 
     if (!navigator.geolocation) {
       setMsg({ type: 'error', text: 'Geolocation is not supported by your browser.' });
-      setStarting(null);
+      setLocationPromptClassId(null);
       return;
     }
+
+    setStarting(courseId);
+    setMsg({ type: 'success', text: 'Waiting for your classroom location… Allow location access when your browser asks.' });
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
-        const res = await fetch('/api/lecturer/sessions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ courseId, latitude, longitude }),
-        });
-        const data = await res.json();
-        if (res.ok) {
-          setMsg({ type: 'success', text: `✓ Session started for ${data.session.class.name}. Students can now mark attendance.` });
-          fetchData();
-        } else {
-          setMsg({ type: 'error', text: data.error || 'Failed to start session.' });
+        try {
+          const res = await fetch('/api/lecturer/sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ courseId, latitude, longitude }),
+          });
+          const data = await res.json();
+          if (res.ok) {
+            setMsg({
+              type: 'success',
+              text: `✓ Session started for ${data.session.class.name}. Location locked for this class.`,
+            });
+            setLocationPromptClassId(null);
+            fetchData();
+          } else {
+            setMsg({ type: 'error', text: data.error || 'Failed to start session.' });
+          }
+        } catch {
+          setMsg({ type: 'error', text: 'Failed to start session.' });
+        } finally {
+          setStarting(null);
         }
+      },
+      (err) => {
+        const denied = err?.code === 1;
+        setMsg({
+          type: 'error',
+          text: denied
+            ? 'Location was blocked. Enable location for this site in browser settings, then try again.'
+            : 'Could not get your location. Move near a window and try again.',
+        });
         setStarting(null);
       },
-      () => {
-        setMsg({ type: 'error', text: 'Could not get your location. Please allow location access.' });
-        setStarting(null);
+      {
+        enableHighAccuracy: true,
+        timeout: 20000,
+        maximumAge: 0,
       }
     );
   };
@@ -176,7 +209,7 @@ export default function LecturerClassesPage() {
                         onClick={() => handleStartSession(c.id)}
                         disabled={!!starting || !!activeSession}
                       >
-                        {starting === c.id ? <><span className={styles.btnSpinner} /> Starting...</> : '▶ Start Session'}
+                        {starting === c.id ? <><span className={styles.btnSpinner} /> Getting location…</> : '▶ Start with location'}
                       </button>
                     ) : (
                       <span className={styles.sessionActiveNote}>Session running</span>
@@ -230,6 +263,64 @@ export default function LecturerClassesPage() {
           </div>
         )}
       </section>
+
+      {locationPromptClassId && (
+        <div className={styles.modalOverlay} onClick={() => !starting && setLocationPromptClassId(null)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
+            <div className={styles.modalHeader}>
+              <h2>Classroom location required</h2>
+              <button
+                className={styles.closeModalBtn}
+                type="button"
+                disabled={!!starting}
+                onClick={() => setLocationPromptClassId(null)}
+              >
+                ✕
+              </button>
+            </div>
+            <p style={{ color: '#4b5563', lineHeight: 1.5, marginBottom: 20 }}>
+              Every attendance session must use your <strong>current</strong> classroom location.
+              Students can only check in if they are near you. Your browser will ask for location permission next.
+            </p>
+            <div style={{ display: 'flex', gap: 10, flexDirection: 'column' }}>
+              <button
+                type="button"
+                onClick={confirmLocationAndStart}
+                disabled={!!starting}
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  borderRadius: 10,
+                  border: 'none',
+                  background: '#e01e37',
+                  color: 'white',
+                  fontWeight: 700,
+                  cursor: starting ? 'wait' : 'pointer',
+                }}
+              >
+                {starting ? 'Getting location…' : 'Share location & start session'}
+              </button>
+              <button
+                type="button"
+                disabled={!!starting}
+                onClick={() => setLocationPromptClassId(null)}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: 10,
+                  border: '1px solid #e5e7eb',
+                  background: 'white',
+                  color: '#374151',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

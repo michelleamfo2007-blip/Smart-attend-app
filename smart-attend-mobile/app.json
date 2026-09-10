@@ -26,6 +26,10 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
@@ -69,6 +73,12 @@
         "projectId": "572f6bc1-7a3b-4052-92ce-175290194dba"
       }
     },
-    "owner": "mercedes.dev"
+    "owner": "mercedes.dev",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/572f6bc1-7a3b-4052-92ce-175290194dba"
+    }
   }
 }
