@@ -139,22 +139,22 @@ export default function StudentOverviewScreen() {
                 style={{ marginBottom: 12 }}
               >
                 <LinearGradient
-                  colors={session.alreadyMarked ? ['#15803d', '#166534'] : ['#e01e37', '#9f1239']}
+                  colors={session.alreadyMarked ? ['#6ee7b7', '#34d399'] : ['#e01e37', '#9f1239']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.liveCard}
                 >
                   <View style={styles.liveBadge}>
-                    <View style={styles.liveDot} />
-                    <Text style={styles.liveBadgeText}>
+                    <View style={[styles.liveDot, session.alreadyMarked && { backgroundColor: '#065f46' }]} />
+                    <Text style={[styles.liveBadgeText, session.alreadyMarked && { color: '#064e3b' }]}>
                       {session.alreadyMarked ? 'MARKED PRESENT' : 'ATTENDANCE OPEN'}
                     </Text>
                   </View>
-                  <Text style={styles.liveClassName}>
+                  <Text style={[styles.liveClassName, session.alreadyMarked && { color: '#064e3b' }]}>
                     {session.class?.course_code ? `${session.class.course_code} · ` : ''}
                     {session.class?.name || 'Class session'}
                   </Text>
-                  <Text style={styles.liveHint}>
+                  <Text style={[styles.liveHint, session.alreadyMarked && { color: '#065f46' }]}>
                     {session.alreadyMarked
                       ? 'You are already checked in for this session.'
                       : 'Tap to open scanner and mark attendance'}
@@ -176,39 +176,50 @@ export default function StudentOverviewScreen() {
         {/* JOIN CLASS */}
         <Animated.View entering={FadeInDown.duration(500).delay(100)} style={{ marginBottom: Spacing.five }}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Join Class</Text>
-          <View style={[styles.joinCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-            <Text style={[styles.joinHint, { color: theme.textSecondary }]}>
-              Enter the invite code your lecturer shared to add that class.
-            </Text>
-            <View style={styles.joinRow}>
-              <TextInput
-                style={[
-                  styles.joinInput,
-                  {
-                    backgroundColor: theme.backgroundSelected,
-                    color: theme.text,
-                    borderColor: theme.border,
-                  },
-                ]}
-                placeholder="e.g. A1B2C3"
-                placeholderTextColor={theme.textSecondary}
-                value={joinCode}
-                onChangeText={setJoinCode}
-                autoCapitalize="characters"
-                autoCorrect={false}
-              />
-              <TouchableOpacity
-                style={[styles.joinButton, { backgroundColor: theme.primary, opacity: joining ? 0.7 : 1 }]}
-                onPress={handleJoinClass}
-                disabled={joining}
-                activeOpacity={0.85}
-              >
-                {joining ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.joinButtonText}>Join</Text>
-                )}
-              </TouchableOpacity>
+          <View style={[styles.joinCard, { backgroundColor: theme.backgroundElement }]}>
+            <View style={styles.joinTopBanner} />
+            <View style={styles.joinCardBody}>
+              <View style={styles.joinTitleRow}>
+                <View style={[styles.joinIconWrap, { backgroundColor: theme.primaryLight }]}>
+                  <Ionicons name="key-outline" size={18} color={theme.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.joinTitle, { color: theme.text }]}>Have an invite code?</Text>
+                  <Text style={[styles.joinHint, { color: theme.textSecondary }]}>
+                    Enter the code your lecturer shared to add that class.
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.joinRow}>
+                <TextInput
+                  style={[
+                    styles.joinInput,
+                    {
+                      backgroundColor: theme.backgroundSelected,
+                      color: theme.text,
+                      borderColor: theme.border,
+                    },
+                  ]}
+                  placeholder="e.g. A1B2C3"
+                  placeholderTextColor={theme.textSecondary}
+                  value={joinCode}
+                  onChangeText={setJoinCode}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                />
+                <TouchableOpacity
+                  style={[styles.joinButton, { backgroundColor: theme.primary, opacity: joining ? 0.7 : 1 }]}
+                  onPress={handleJoinClass}
+                  disabled={joining}
+                  activeOpacity={0.85}
+                >
+                  {joining ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.joinButtonText}>Join</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </Animated.View>
@@ -220,7 +231,7 @@ export default function StudentOverviewScreen() {
              const allMarked =
                activeSessions.length > 0 && activeSessions.every((s) => s.alreadyMarked);
              const gradientColors = allMarked
-               ? (['#15803d', '#166534'] as const)
+               ? (['#6ee7b7', '#34d399'] as const)
                : (['#e01e37', '#b91c2c'] as const);
              const title = allMarked
                ? 'Already checked in'
@@ -233,6 +244,8 @@ export default function StudentOverviewScreen() {
                  ? 'A session is open — tap to scan'
                  : 'Opens scanner when a session is live';
              const icon = allMarked ? 'checkmark-circle-outline' : 'qr-code-outline';
+             const softFg = allMarked ? '#064e3b' : '#FFF';
+             const softFgMuted = allMarked ? '#065f46' : 'rgba(255,255,255,0.8)';
 
              return (
                <TouchableOpacity
@@ -249,10 +262,10 @@ export default function StudentOverviewScreen() {
                    end={{ x: 1, y: 1 }}
                    style={styles.largeScanButton}
                  >
-                   <Ionicons name={icon as any} size={32} color="#FFF" />
+                   <Ionicons name={icon as any} size={32} color={softFg} />
                    <View style={styles.scanButtonTextContainer}>
-                     <Text style={styles.scanButtonTitle}>{title}</Text>
-                     <Text style={styles.scanButtonSubtitle}>{subtitle}</Text>
+                     <Text style={[styles.scanButtonTitle, { color: softFg }]}>{title}</Text>
+                     <Text style={[styles.scanButtonSubtitle, { color: softFgMuted }]}>{subtitle}</Text>
                    </View>
                    {!allMarked ? (
                      <Ionicons name="chevron-forward" size={24} color="rgba(255,255,255,0.6)" />
@@ -423,10 +436,46 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   joinCard: {
-    borderWidth: 1,
-    borderRadius: 16,
+    borderRadius: 20,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.05,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  joinTopBanner: {
+    height: 6,
+    backgroundColor: '#e01e37',
+    width: '100%',
+  },
+  joinCardBody: {
     padding: 16,
+    gap: 14,
+  },
+  joinTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 12,
+  },
+  joinIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  joinTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    marginBottom: 4,
   },
   joinHint: {
     fontSize: 13,

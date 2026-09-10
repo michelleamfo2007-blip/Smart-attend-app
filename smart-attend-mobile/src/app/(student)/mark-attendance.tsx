@@ -213,7 +213,7 @@ export default function MarkAttendanceScreen() {
   };
 
   const statusColor =
-    statusType === 'error' ? '#ef4444' : statusType === 'success' ? '#10b981' : theme.primary;
+    statusType === 'error' ? '#ef4444' : statusType === 'success' ? '#34d399' : theme.primary;
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
