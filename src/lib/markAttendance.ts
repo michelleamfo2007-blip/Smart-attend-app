@@ -123,6 +123,7 @@ export async function markStudentPresent(opts: {
   location?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  accuracy?: number | null;
   enforceGps?: boolean;
   ip?: string;
 }) {
@@ -169,13 +170,17 @@ export async function markStudentPresent(opts: {
 
   let distance = 0;
   if (opts.enforceGps) {
-    const allowedRadius = session.class.classroom?.radius_meters || 50;
+    // Indoor phone GPS is often 50–120m off; default 150m unless classroom sets its own radius.
+    const allowedRadius = session.class.classroom?.radius_meters || 150;
     if (session.latitude != null && session.longitude != null) {
       if (opts.latitude == null || opts.longitude == null) {
         throw new AttendanceError('Location coordinates are required.', 400);
       }
       distance = getDistanceMeters(session.latitude, session.longitude, Number(opts.latitude), Number(opts.longitude));
-      if (distance > allowedRadius && shouldEnforceGps()) {
+      // Credit reported GPS accuracy (capped) so noisy fixes don't falsely reject nearby students.
+      const accuracyCredit = Math.min(Math.max(Number(opts.accuracy) || 0, 0), 75);
+      const effectiveDistance = Math.max(0, distance - accuracyCredit);
+      if (effectiveDistance > allowedRadius && shouldEnforceGps()) {
         throw new AttendanceError(
           `You are outside the approved attendance location (${Math.round(distance)}m away). Must be within ${allowedRadius}m.`,
           400

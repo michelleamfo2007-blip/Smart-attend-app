@@ -6,8 +6,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Dimensions,
-  Platform,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
@@ -22,29 +22,104 @@ const { width } = Dimensions.get('window');
 const theme = Colors.light;
 const SCAN_SIZE = Math.min(width - 64, 280);
 
+type ReadyLocation = {
+  latitude: number;
+  longitude: number;
+  accuracy: number | null;
+};
+
+async function getFreshStudentLocation(): Promise<ReadyLocation> {
+  const { status } = await Location.requestForegroundPermissionsAsync();
+  if (status !== 'granted') {
+    throw new Error('Location permission is required before you can scan.');
+  }
+
+  const servicesOn = await Location.hasServicesEnabledAsync();
+  if (!servicesOn) {
+    throw new Error('Turn on Location / GPS in phone settings, then try again.');
+  }
+
+  // Warm GPS, then take a high-accuracy reading (indoor phones often need this).
+  try {
+    await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+    });
+  } catch {
+    // ignore warm-up failure
+  }
+
+  const locationPromise = Location.getCurrentPositionAsync({
+    accuracy: Location.Accuracy.High,
+  });
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error('Location timed out. Stand near a window and try again.')), 20000)
+  );
+
+  const studentLocation = await Promise.race([locationPromise, timeoutPromise]);
+
+  if ((studentLocation as any).mocked) {
+    throw new Error('Fake GPS detected. Disable mock location to check in.');
+  }
+
+  return {
+    latitude: studentLocation.coords.latitude,
+    longitude: studentLocation.coords.longitude,
+    accuracy:
+      typeof studentLocation.coords.accuracy === 'number'
+        ? studentLocation.coords.accuracy
+        : null,
+  };
+}
+
 export default function MarkAttendanceScreen() {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [gettingLocation, setGettingLocation] = useState(false);
+  const [readyLocation, setReadyLocation] = useState<ReadyLocation | null>(null);
   const [scanned, setScanned] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [statusMsg, setStatusMsg] = useState('Point at the lecturer QR code');
+  const [statusMsg, setStatusMsg] = useState('Share your location, then scan the lecturer QR.');
   const [statusType, setStatusType] = useState<'info' | 'error' | 'success'>('info');
 
   const openScanner = async () => {
-    if (!permission?.granted) {
-      const result = await requestPermission();
-      if (!result.granted) {
-        setStatusType('error');
-        setStatusMsg('Camera permission is required to scan.');
-        return;
-      }
-    }
-    setScanned(false);
-    setProcessing(false);
     setStatusType('info');
-    setStatusMsg('Point at the lecturer QR code');
-    setScannerOpen(true);
+    setStatusMsg('Checking your classroom location…');
+    setGettingLocation(true);
+
+    try {
+      const location = await getFreshStudentLocation();
+      setReadyLocation(location);
+
+      if (!permission?.granted) {
+        const result = await requestPermission();
+        if (!result.granted) {
+          setStatusType('error');
+          setStatusMsg('Camera permission is required to scan.');
+          return;
+        }
+      }
+
+      setScanned(false);
+      setProcessing(false);
+      setStatusType('info');
+      setStatusMsg(
+        location.accuracy != null
+          ? `Location ready (±${Math.round(location.accuracy)}m). Point at the lecturer QR.`
+          : 'Location ready. Point at the lecturer QR code.'
+      );
+      setScannerOpen(true);
+    } catch (error: any) {
+      setReadyLocation(null);
+      setStatusType('error');
+      setStatusMsg(error.message || 'Could not get your location.');
+      Alert.alert(
+        'Location needed',
+        error.message || 'Allow location access before scanning so we can confirm you are in class.'
+      );
+    } finally {
+      setGettingLocation(false);
+    }
   };
 
   const handleBarCodeScanned = async ({ data }: { type: string; data: string }) => {
@@ -52,7 +127,7 @@ export default function MarkAttendanceScreen() {
     setScanned(true);
     setProcessing(true);
     setStatusType('info');
-    setStatusMsg('QR detected! Verifying...');
+    setStatusMsg('QR detected! Refreshing location…');
 
     try {
       let qrData: any;
@@ -85,27 +160,20 @@ export default function MarkAttendanceScreen() {
           ? 'desktop_qr'
           : 'dynamic_qr';
 
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        throw new Error('Location permission is required for attendance.');
-      }
-
-      const locationPromise = Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Location fetch timed out.')), 10000)
-      );
-      const studentLocation: any = await Promise.race([locationPromise, timeoutPromise]);
-
-      if (studentLocation.mocked) {
-        throw new Error('Fake GPS detected. Disable mock location to check in.');
+      // Fresh high-accuracy fix at scan time (fallback to pre-check location).
+      let studentLocation = readyLocation;
+      try {
+        studentLocation = await getFreshStudentLocation();
+        setReadyLocation(studentLocation);
+      } catch (locErr: any) {
+        if (!studentLocation) throw locErr;
       }
 
       const scanData = {
         sessionId,
-        latitude: studentLocation.coords.latitude,
-        longitude: studentLocation.coords.longitude,
+        latitude: studentLocation!.latitude,
+        longitude: studentLocation!.longitude,
+        accuracy: studentLocation!.accuracy,
         qrTimestamp,
         device_id: await getDeviceId(),
         method,
@@ -153,28 +221,38 @@ export default function MarkAttendanceScreen() {
         <View style={styles.header}>
           <Text style={[styles.title, { color: theme.text }]}>Mark Present</Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-            Scan the live QR from your lecturer after you join that class.
+            Share your location first, then scan the live QR from your lecturer.
           </Text>
         </View>
 
         {!scannerOpen ? (
           <View style={[styles.readyCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
             <View style={[styles.iconWrap, { backgroundColor: theme.primaryLight }]}>
-              <Ionicons name="qr-code-outline" size={36} color={theme.primary} />
+              <Ionicons name="location-outline" size={36} color={theme.primary} />
             </View>
-            <Text style={[styles.readyTitle, { color: theme.text }]}>Ready to check in</Text>
+            <Text style={[styles.readyTitle, { color: theme.text }]}>Location before scan</Text>
             <Text style={[styles.readyText, { color: theme.textSecondary }]}>
-              1. Join the class on Overview{'\n'}
-              2. Wait for the lecturer to start a session{'\n'}
-              3. Open the scanner and point at the QR
+              1. Allow location when asked{'\n'}
+              2. Wait until GPS locks your position{'\n'}
+              3. Scanner opens — point at the lecturer QR
             </Text>
+            {statusType === 'error' ? (
+              <Text style={styles.preError}>{statusMsg}</Text>
+            ) : null}
             <TouchableOpacity
-              style={[styles.primaryButton, { backgroundColor: theme.primary }]}
+              style={[styles.primaryButton, { backgroundColor: theme.primary, opacity: gettingLocation ? 0.75 : 1 }]}
               onPress={openScanner}
               activeOpacity={0.85}
+              disabled={gettingLocation}
             >
-              <Ionicons name="camera-outline" size={20} color="#fff" />
-              <Text style={styles.primaryButtonText}>Open Scanner</Text>
+              {gettingLocation ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Ionicons name="navigate-outline" size={20} color="#fff" />
+              )}
+              <Text style={styles.primaryButtonText}>
+                {gettingLocation ? 'Getting location…' : 'Share location & open scanner'}
+              </Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -265,6 +343,13 @@ const styles = StyleSheet.create({
   },
   readyTitle: { fontSize: 20, fontWeight: '800' },
   readyText: { fontSize: 14, lineHeight: 22, textAlign: 'center', marginBottom: 8 },
+  preError: {
+    color: '#b91c1c',
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
   primaryButton: {
     flexDirection: 'row',
     alignItems: 'center',

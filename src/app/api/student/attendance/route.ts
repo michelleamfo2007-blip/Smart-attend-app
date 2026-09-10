@@ -120,6 +120,7 @@ export async function POST(req: Request) {
     }
 
     const ip = req.headers.get('x-forwarded-for') || 'unknown';
+    const accuracy = body.accuracy != null ? Number(body.accuracy) : null;
     const { record, distance } = await markStudentPresent({
       studentId: userId,
       sessionId: resolvedSession.id,
@@ -127,6 +128,7 @@ export async function POST(req: Request) {
       location: `Lat: ${latitude}, Lng: ${longitude}`,
       latitude: Number(latitude),
       longitude: Number(longitude),
+      accuracy,
       enforceGps: true,
       ip,
     });
