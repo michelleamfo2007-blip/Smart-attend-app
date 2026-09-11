@@ -14,7 +14,7 @@ import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { saveOfflineScan } from '../../hooks/useOfflineSync';
 import { apiFetch, isNetworkError } from '../../lib/api';
-import { getDeviceId } from '../../lib/deviceId';
+import { getDeviceBinding } from '../../lib/deviceId';
 import { Colors, Spacing } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -169,13 +169,15 @@ export default function MarkAttendanceScreen() {
         if (!studentLocation) throw locErr;
       }
 
+      const binding = await getDeviceBinding();
       const scanData = {
         sessionId,
         latitude: studentLocation!.latitude,
         longitude: studentLocation!.longitude,
         accuracy: studentLocation!.accuracy,
         qrTimestamp,
-        device_id: await getDeviceId(),
+        device_id: binding.deviceId,
+        device_fingerprint: binding.deviceFingerprint,
         method,
       };
 

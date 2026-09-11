@@ -7,7 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme, KeyboardAvoidingView, Platform } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
-import { getDeviceId } from '../lib/deviceId';
+import { getDeviceBinding } from '../lib/deviceId';
 import { apiFetch } from '../lib/api';
 
 type Programme = {
@@ -85,14 +85,15 @@ export default function RegisterScreen() {
 
     setLoading(true);
     try {
-      const currentDeviceId = await getDeviceId();
+      const binding = await getDeviceBinding();
       const payload = {
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         name: `${firstName.trim()} ${lastName.trim()}`,
         password,
         role: 'STUDENT',
-        device_id: currentDeviceId,
+        device_id: binding.deviceId,
+        device_fingerprint: binding.deviceFingerprint,
         student_id: studentId.trim(),
         inviteCode: inviteCode.trim().toUpperCase(),
         programme_id: selectedProgrammeId,

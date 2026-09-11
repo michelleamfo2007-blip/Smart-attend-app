@@ -2,11 +2,18 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useUser } from '@/hooks/useUser';
-import { Users, GraduationCap, Presentation, BookOpen, Activity, Key } from 'lucide-react';
+import { Users, GraduationCap, Presentation, BookOpen, Activity, Key, ShieldAlert, AlertTriangle } from 'lucide-react';
 import styles from './admin.module.css';
 
 interface User { id: string; name: string; email: string; role: string; }
 interface Class { id: string; name: string; level: string; semester: string; schedule_time: string; records: { id: string }[]; sessions: { id: string; status: string }[]; lecturer: { name: string }; }
+interface FailureRow {
+  id: string;
+  action: string;
+  details: string | null;
+  created_at: string;
+  user?: { name: string | null; student_id: string | null } | null;
+}
 
 import { useRouter } from 'next/navigation';
 
@@ -16,6 +23,9 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<User[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
+  const [failedCheckins24h, setFailedCheckins24h] = useState(0);
+  const [deviceAlerts24h, setDeviceAlerts24h] = useState(0);
+  const [recentFailures, setRecentFailures] = useState<FailureRow[]>([]);
 
 
 
@@ -26,17 +36,22 @@ export default function AdminDashboard() {
   const [generatingCode, setGeneratingCode] = useState(false);
 
   const fetchData = useCallback(async () => {
-    const [usersRes, classesRes, settingsRes] = await Promise.all([
+    const [usersRes, classesRes, settingsRes, dashRes] = await Promise.all([
       fetch('/api/admin/users'),
       fetch('/api/admin/courses'),
       fetch('/api/admin/settings'),
+      fetch('/api/admin/dashboard'),
     ]);
     const usersData = await usersRes.json();
     const classesData = await classesRes.json();
     const settingsData = await settingsRes.json();
+    const dashData = await dashRes.json();
     setUsers(usersData.users || []);
     setClasses(classesData.courses || []);
     setInviteCode(settingsData.code || '');
+    setFailedCheckins24h(dashData.stats?.failedCheckins24h || 0);
+    setDeviceAlerts24h(dashData.stats?.deviceAlerts24h || 0);
+    setRecentFailures(dashData.recentFailures || []);
     setLoading(false);
   }, []);
 
@@ -81,6 +96,8 @@ export default function AdminDashboard() {
           { label: 'Lecturers', value: lecturers.length, icon: <Presentation size={20} />, color: '#fdf4ff', textColor: '#a855f7', link: '/dashboard/admin/users?tab=LECTURER' },
           { label: 'Classes', value: classes.length, icon: <BookOpen size={20} />, color: '#fff7ed', textColor: '#f97316', link: '/dashboard/admin/classes' },
           { label: 'Active Sessions', value: activeSessions, icon: <Activity size={20} />, color: '#f0fdf4', textColor: '#22c55e', link: '/dashboard/admin/classes' },
+          { label: 'Failed check-ins (24h)', value: failedCheckins24h, icon: <AlertTriangle size={20} />, color: '#fef2f2', textColor: '#dc2626', link: '/dashboard/admin/audit' },
+          { label: 'Device alerts (24h)', value: deviceAlerts24h, icon: <ShieldAlert size={20} />, color: '#fff7ed', textColor: '#ea580c', link: '/dashboard/admin/audit' },
           { label: 'Admins', value: admins.length, icon: <Key size={20} />, color: '#f8fafc', textColor: '#64748b', link: '/dashboard/admin/users?tab=ALL' },
         ].map(({ label, value, icon, color, textColor, link }) => (
           <div 
@@ -96,6 +113,37 @@ export default function AdminDashboard() {
           </div>
         ))}
       </div>
+
+      {(failedCheckins24h > 0 || deviceAlerts24h > 0 || recentFailures.length > 0) && (
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>Monitoring alerts (last 24 hours)</h2>
+          <p className={styles.pageSubtitle} style={{ marginBottom: 12 }}>
+            Uptime probe: <code>/api/health</code> — point UptimeRobot or Better Stack at{' '}
+            <code>https://www.smartattend.co/api/health</code>
+          </p>
+          <div className={styles.formPanel}>
+            {recentFailures.length === 0 ? (
+              <p className={styles.pageSubtitle}>No recent attendance/device failures.</p>
+            ) : (
+              <ul style={{ margin: 0, paddingLeft: 18, displayHeight: 1.6 }}>
+                {recentFailures.map((row) => (
+                  <li key={row.id} style={{ marginBottom: 8, color: '#374151', fontSize: '0.9rem' }}>
+                    <strong>{row.action}</strong>
+                    {row.user?.name ? ` · ${row.user.name}` : ''}
+                    {row.user?.student_id ? ` (${row.user.student_id})` : ''}
+                    {' — '}
+                    {row.details || 'No details'}
+                    <span style={{ color: '#9ca3af' }}>
+                      {' · '}
+                      {new Date(row.created_at).toLocaleString()}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* System Settings */}
       <section className={styles.section}>

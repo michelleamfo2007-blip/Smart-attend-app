@@ -29,6 +29,11 @@ npm run dev
 
 Requires `DATABASE_URL` and `JWT_SECRET` (or `SUPABASE_JWT_SECRET`) in `.env`. In production, a JWT secret is **required** — the app will refuse to sign tokens without it.
 
+### Monitoring
+
+- Public health probe: `GET /api/health` (checks database). Point UptimeRobot / Better Stack at `https://www.smartattend.co/api/health`.
+- Admin dashboard shows failed check-ins and device alerts for the last 24 hours (also in Audit Logs).
+
 Copy [`.env.example`](./.env.example) and fill in values.
 
 ### Production secrets (Vercel)

@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { signToken } from '@/lib/auth';
 import { checkRateLimit } from '@/lib/rateLimit';
 import { assertInstitutionAccess, refreshInstitutionSubscription, SubscriptionError } from '@/lib/subscription';
+import { assertAndBindStudentDevice, DeviceBindingError } from '@/lib/deviceBinding';
 
 export async function POST(req: Request) {
   try {
@@ -14,7 +15,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Too many login attempts. Please try again later.' }, { status: 429 });
     }
 
-    const { email, student_id, password, device_id, institutionId } = await req.json();
+    const { email, student_id, password, device_id, device_fingerprint, institutionId } = await req.json();
 
     if ((!email && !student_id) || !password) {
       return NextResponse.json({ error: 'Missing login credentials or password' }, { status: 400 });
@@ -30,7 +31,23 @@ export async function POST(req: Request) {
           { OR: identityFilters },
           ...(institutionId ? [{ institution_id: institutionId as string }] : []),
         ],
-      }
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        password: true,
+        role: true,
+        institution_id: true,
+        device_id: true,
+        device_fingerprint: true,
+        needs_device_reset: true,
+        student_id: true,
+        level: true,
+        semester: true,
+        can_mark_attendance: true,
+        cohort_id: true,
+      },
     });
 
     if (!user || !user.password) {
@@ -68,33 +85,22 @@ export async function POST(req: Request) {
     }
 
     if (device_id && user.role === 'STUDENT') {
-      const otherOwner = await prisma.users.findFirst({
-        where: {
-          device_id,
-          id: { not: user.id },
-        },
-        select: { id: true },
-      });
-
-      if (otherOwner) {
-        return NextResponse.json(
-          { error: 'This phone is already registered to another user. You cannot use the same phone for multiple accounts.' },
-          { status: 403 }
+      try {
+        await assertAndBindStudentDevice(
+          {
+            id: user.id,
+            device_id: user.device_id,
+            device_fingerprint: user.device_fingerprint,
+            needs_device_reset: user.needs_device_reset,
+          },
+          { deviceId: device_id, deviceFingerprint: device_fingerprint },
+          { ip, context: 'login' }
         );
-      }
-
-      if (user.needs_device_reset || !user.device_id) {
-        await prisma.users.update({
-          where: { id: user.id },
-          data: { device_id, needs_device_reset: false },
-        });
-        user.device_id = device_id;
-        user.needs_device_reset = false;
-      } else if (user.device_id !== device_id) {
-        return NextResponse.json(
-          { error: 'This account is registered on another device. Please contact an administrator if you got a new phone.' },
-          { status: 403 }
-        );
+      } catch (err) {
+        if (err instanceof DeviceBindingError) {
+          return NextResponse.json({ error: err.message }, { status: err.status });
+        }
+        throw err;
       }
     }
 

@@ -19,6 +19,7 @@ model users {
   level          String?
   semester       String?
   device_id      String?
+  device_fingerprint String?
   student_id     String?
   staff_id       String?
   department     String?
@@ -37,6 +38,7 @@ model users {
   records               attendance_records[]
   marked_records        attendance_records[]   @relation("attendance_marker")
   imports               import_history[]
+  audit_logs            audit_logs[]
 }
 
 model import_history {
@@ -270,4 +272,6 @@ model audit_logs {
   details     String?
   ip_address  String?
   created_at  DateTime @default(now()) @db.Timestamptz
+
+  user        users?   @relation(fields: [user_id], references: [id], onDelete: SetNull)
 }

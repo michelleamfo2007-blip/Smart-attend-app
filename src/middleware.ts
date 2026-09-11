@@ -42,6 +42,7 @@ export async function middleware(request: NextRequest) {
     '/api/public/',
     '/api/webhooks/',
     '/api/institutions',
+    '/api/health',
   ];
 
   const isPublicApi = publicApiRoutes.some((route) => pathname.startsWith(route));

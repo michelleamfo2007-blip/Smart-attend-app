@@ -28,6 +28,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       where: { id },
       data: {
         device_id: null,
+        device_fingerprint: null,
         needs_device_reset: true,
       },
     });

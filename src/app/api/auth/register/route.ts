@@ -9,7 +9,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const {
       email, password, name: rawName, first_name, firstName, last_name, lastName,
-      role, inviteCode, cohort_id, student_id, institution_id, device_id,
+      role, inviteCode, cohort_id, student_id, institution_id, device_id, device_fingerprint,
       programme_id, level, semester, selected_courses,
     } = body;
 
@@ -213,6 +213,7 @@ export async function POST(req: Request) {
           name, // Update name in case they fixed a typo
           password: hashedPassword,
           device_id: device_id || undefined,
+          device_fingerprint: device_fingerprint || undefined,
           email: normalizedEmail || undefined,
           programme_id: programme_id || undefined,
           cohort_id: cohort_id || undefined,
@@ -239,6 +240,7 @@ export async function POST(req: Request) {
           semester: semester || undefined,
           institution_id: role === 'ADMIN' ? null : assignedInstitutionId,
           device_id: device_id || undefined,
+          device_fingerprint: device_fingerprint || undefined,
         },
         select: {
           id: true, email: true, name: true, role: true, student_id: true,

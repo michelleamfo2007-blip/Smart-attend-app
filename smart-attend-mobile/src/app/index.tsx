@@ -6,7 +6,7 @@ import { useAuth, User } from '../context/AuthContext';
 import { Spacing, Colors } from '@/constants/theme';
 import { useColorScheme, KeyboardAvoidingView, Platform } from 'react-native';
 import { AnimatedIcon } from '@/components/animated-icon';
-import { getDeviceId } from '../lib/deviceId';
+import { getDeviceBinding } from '../lib/deviceId';
 import { apiFetch } from '../lib/api';
 
 export default function LoginScreen() {
@@ -36,14 +36,15 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      const currentDeviceId = await getDeviceId();
+      const binding = await getDeviceBinding();
       const data = await apiFetch('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({
           email: identifier.toLowerCase().trim(),
           student_id: identifier.trim(),
           password,
-          device_id: currentDeviceId,
+          device_id: binding.deviceId,
+          device_fingerprint: binding.deviceFingerprint,
         }),
       });
 

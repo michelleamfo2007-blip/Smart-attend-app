@@ -6,6 +6,8 @@ import {
   markStudentPresent,
   parseStudentAttendanceMethod,
 } from '@/lib/markAttendance';
+import { assertAndBindStudentDevice, DeviceBindingError } from '@/lib/deviceBinding';
+import { logAttendanceRejection } from '@/lib/audit';
 
 export async function GET() {
   try {
@@ -32,9 +34,12 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const ip = req.headers.get('x-forwarded-for') || 'unknown';
+  let userId: string | null = null;
+
   try {
     const headersList = await headers();
-    const userId = headersList.get('x-user-id');
+    userId = headersList.get('x-user-id');
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
@@ -44,9 +49,16 @@ export async function POST(req: Request) {
     const longitude = body.longitude;
     const qrTimestamp = body.qrTimestamp ?? body.t ?? body.timestamp;
     const deviceId = body.device_id || body.deviceId;
+    const deviceFingerprint = body.device_fingerprint || body.deviceFingerprint || null;
     const method = parseStudentAttendanceMethod(body.method || body.source);
 
     if ((!sessionId && !attendanceCode) || latitude == null || longitude == null) {
+      await logAttendanceRejection({
+        userId,
+        reason: 'MISSING_FIELDS',
+        details: 'Missing session/code or coordinates',
+        ip,
+      });
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -57,6 +69,7 @@ export async function POST(req: Request) {
         name: true,
         role: true,
         device_id: true,
+        device_fingerprint: true,
         needs_device_reset: true,
       },
     });
@@ -65,28 +78,38 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Only students can mark attendance' }, { status: 403 });
     }
 
-    if (!student.needs_device_reset && student.device_id) {
-      if (!deviceId) {
-        return NextResponse.json(
-          { error: 'This account is bound to a registered device. Open the mobile app to check in.' },
-          { status: 403 }
-        );
+    try {
+      await assertAndBindStudentDevice(
+        student,
+        { deviceId, deviceFingerprint },
+        { ip, context: 'attendance' }
+      );
+    } catch (err) {
+      if (err instanceof DeviceBindingError) {
+        return NextResponse.json({ error: err.message }, { status: err.status });
       }
-      if (deviceId !== student.device_id) {
-        return NextResponse.json(
-          { error: 'This account is registered on another device. Please contact an administrator if you got a new phone.' },
-          { status: 403 }
-        );
-      }
+      throw err;
     }
 
     if (sessionId && qrTimestamp == null) {
+      await logAttendanceRejection({
+        userId,
+        reason: 'INVALID_QR_FORMAT',
+        details: `session=${sessionId}`,
+        ip,
+      });
       return NextResponse.json({ error: 'Invalid QR Code format. Dynamic QR required.' }, { status: 400 });
     }
 
     if (sessionId && qrTimestamp != null) {
       const qrAgeMs = Date.now() - Number(qrTimestamp);
       if (Number.isNaN(qrAgeMs) || qrAgeMs > 30000 || qrAgeMs < -10000) {
+        await logAttendanceRejection({
+          userId,
+          reason: 'QR_EXPIRED',
+          details: `session=${sessionId} ageMs=${qrAgeMs}`,
+          ip,
+        });
         return NextResponse.json(
           { error: 'This QR code has expired. Please scan the current code on the screen.' },
           { status: 400 }
@@ -104,22 +127,15 @@ export async function POST(req: Request) {
         });
 
     if (!resolvedSession) {
+      await logAttendanceRejection({
+        userId,
+        reason: 'SESSION_INVALID',
+        details: `sessionId=${sessionId || ''} code=${attendanceCode || ''}`,
+        ip,
+      });
       return NextResponse.json({ error: 'Invalid attendance code or session has ended.' }, { status: 400 });
     }
 
-    if (student.needs_device_reset && deviceId) {
-      await prisma.users.update({
-        where: { id: userId },
-        data: { device_id: deviceId, needs_device_reset: false },
-      });
-    } else if (!student.device_id && deviceId) {
-      await prisma.users.update({
-        where: { id: userId },
-        data: { device_id: deviceId },
-      });
-    }
-
-    const ip = req.headers.get('x-forwarded-for') || 'unknown';
     const accuracy = body.accuracy != null ? Number(body.accuracy) : null;
     const { record, distance } = await markStudentPresent({
       studentId: userId,
@@ -136,6 +152,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ record, distance }, { status: 201 });
   } catch (error) {
     if (error instanceof AttendanceError) {
+      await logAttendanceRejection({
+        userId,
+        reason: error.status === 409 ? 'DUPLICATE' : 'GPS_OR_RULES',
+        details: error.message,
+        ip,
+      });
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
     console.error(error);

@@ -10,21 +10,47 @@ export async function GET() {
     }
 
     const institutionId = auth.institutionId || undefined;
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    const [users, lecturers, students, classes, sessions, records] = await Promise.all([
-      prisma.users.count({ where: institutionId ? { institution_id: institutionId } : {} }),
-      prisma.users.count({ where: { ...(institutionId ? { institution_id: institutionId } : {}), role: 'LECTURER' } }),
-      prisma.users.count({ where: { ...(institutionId ? { institution_id: institutionId } : {}), role: 'STUDENT' } }),
-      prisma.classes.count({ where: institutionId ? { institution_id: institutionId } : {} }),
-      prisma.attendance_sessions.findMany({
-        where: institutionId ? { class: { institution_id: institutionId } } : {},
-        select: { id: true },
-      }),
-      prisma.attendance_records.findMany({
-        where: institutionId ? { class: { institution_id: institutionId } } : {},
-        select: { student_id: true },
-      }),
-    ]);
+    const [users, lecturers, students, classes, sessions, records, failedCheckins24h, deviceAlerts24h] =
+      await Promise.all([
+        prisma.users.count({ where: institutionId ? { institution_id: institutionId } : {} }),
+        prisma.users.count({
+          where: { ...(institutionId ? { institution_id: institutionId } : {}), role: 'LECTURER' },
+        }),
+        prisma.users.count({
+          where: { ...(institutionId ? { institution_id: institutionId } : {}), role: 'STUDENT' },
+        }),
+        prisma.classes.count({ where: institutionId ? { institution_id: institutionId } : {} }),
+        prisma.attendance_sessions.findMany({
+          where: institutionId ? { class: { institution_id: institutionId } } : {},
+          select: { id: true },
+        }),
+        prisma.attendance_records.findMany({
+          where: institutionId ? { class: { institution_id: institutionId } } : {},
+          select: { student_id: true },
+        }),
+        prisma.audit_logs.count({
+          where: {
+            action: 'ATTENDANCE_REJECTED',
+            created_at: { gte: since },
+            ...(institutionId
+              ? { user: { institution_id: institutionId } }
+              : {}),
+          },
+        }),
+        prisma.audit_logs.count({
+          where: {
+            action: {
+              in: ['DEVICE_MISMATCH', 'DEVICE_FINGERPRINT_MISMATCH', 'DEVICE_CONFLICT'],
+            },
+            created_at: { gte: since },
+            ...(institutionId
+              ? { user: { institution_id: institutionId } }
+              : {}),
+          },
+        }),
+      ]);
 
     const studentRows = await prisma.users.findMany({
       where: { ...(institutionId ? { institution_id: institutionId } : {}), role: 'STUDENT' },
@@ -43,9 +69,45 @@ export async function GET() {
             .filter((student) => student.rate < 75)
         : [];
 
+    const recentFailures = await prisma.audit_logs.findMany({
+      where: {
+        action: {
+          in: [
+            'ATTENDANCE_REJECTED',
+            'DEVICE_MISMATCH',
+            'DEVICE_FINGERPRINT_MISMATCH',
+            'DEVICE_CONFLICT',
+          ],
+        },
+        created_at: { gte: since },
+        ...(institutionId ? { user: { institution_id: institutionId } } : {}),
+      },
+      orderBy: { created_at: 'desc' },
+      take: 8,
+      select: {
+        id: true,
+        action: true,
+        details: true,
+        created_at: true,
+        user: { select: { name: true, student_id: true } },
+      },
+    });
+
     return NextResponse.json({
-      stats: { users, lecturers, students, classes },
+      stats: {
+        users,
+        lecturers,
+        students,
+        classes,
+        failedCheckins24h,
+        deviceAlerts24h,
+      },
       atRiskStudents,
+      recentFailures,
+      monitoring: {
+        healthUrl: '/api/health',
+        hint: 'Point UptimeRobot or Better Stack at GET /api/health on your domain.',
+      },
     });
   } catch (error) {
     console.error('Admin dashboard error:', error);
