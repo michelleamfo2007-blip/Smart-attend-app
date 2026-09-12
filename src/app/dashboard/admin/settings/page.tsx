@@ -88,6 +88,7 @@ function SettingsPageInner() {
       })
       .catch(() => setInviteCode(''));
 
+    // Platform env diagnostics — only returned for super-admins (no institution).
     fetch('/api/admin/system/env')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {

@@ -6,12 +6,13 @@ import prisma from '@/lib/prisma';
 /**
  * Presence-only production secrets check.
  * Never returns secret values — only whether each var is set.
- * Restricted to ADMIN users (school admins + super admins).
+ * Platform super-admins only (ADMIN with no institution) — not school admins.
  */
 export async function GET() {
   try {
     const auth = await getAuth();
-    if (!auth || auth.userRole !== 'ADMIN') {
+    const isSuperAdmin = auth?.userRole === 'ADMIN' && !auth.institutionId;
+    if (!isSuperAdmin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
