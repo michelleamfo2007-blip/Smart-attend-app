@@ -44,10 +44,24 @@ export async function assertAndBindStudentDevice(
   if (otherOwner) {
     await logAudit({
       userId: student.id,
+      role: 'STUDENT',
+      studentId: student.id,
       action: 'DEVICE_CONFLICT',
+      result: 'failure',
       details: `Device already bound to another account during ${context}`,
       ip,
     });
+    try {
+      const { evaluateSuspiciousDevice } = await import('@/lib/suspiciousActivity');
+      await evaluateSuspiciousDevice({
+        studentId: student.id,
+        reason: 'Device conflict',
+        details: `Device already bound to another account during ${context}`,
+        ip,
+      });
+    } catch {
+      // ignore
+    }
     throw new DeviceBindingError(
       'This phone is already registered to another user. You cannot use the same phone for multiple accounts.',
       403
@@ -92,10 +106,24 @@ export async function assertAndBindStudentDevice(
   ) {
     await logAudit({
       userId: student.id,
+      role: 'STUDENT',
+      studentId: student.id,
       action: 'DEVICE_FINGERPRINT_MISMATCH',
+      result: 'failure',
       details: `Fingerprint changed during ${context} — possible cloned app data or device spoofing`,
       ip,
     });
+    try {
+      const { evaluateSuspiciousDevice } = await import('@/lib/suspiciousActivity');
+      await evaluateSuspiciousDevice({
+        studentId: student.id,
+        reason: 'Device fingerprint mismatch',
+        details: `Fingerprint changed during ${context} — possible cloned app data or device spoofing`,
+        ip,
+      });
+    } catch {
+      // ignore
+    }
     throw new DeviceBindingError(
       'This phone no longer matches the registered device signature. Ask an administrator to reset your device binding.',
       403

@@ -30,6 +30,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       where: { id },
       data: {
         name: typeof body.name === 'string' ? body.name.trim() : undefined,
+        device_label:
+          body.device_label === null || body.deviceLabel === null
+            ? null
+            : typeof body.device_label === 'string'
+              ? body.device_label.trim() || null
+              : typeof body.deviceLabel === 'string'
+                ? body.deviceLabel.trim() || null
+                : undefined,
         enabled: typeof body.enabled === 'boolean' ? body.enabled : undefined,
       },
     });

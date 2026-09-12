@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getAuth } from '@/lib/session';
 import { refreshInstitutionSubscription } from '@/lib/subscription';
+import { getEffectivePermissions } from '@/lib/permissions';
 
 export async function GET() {
   try {
@@ -64,7 +65,17 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({ user });
+    const permissions = await getEffectivePermissions(user);
+
+    return NextResponse.json({
+      user: {
+        ...user,
+        permissions: {
+          lecturer: permissions.lecturer,
+          librarian: permissions.librarian,
+        },
+      },
+    });
   } catch (error) {
     console.error('Me error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

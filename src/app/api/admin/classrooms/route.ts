@@ -59,12 +59,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Classroom name is required' }, { status: 400 });
     }
 
+    const building =
+      typeof body.building === 'string' && body.building.trim()
+        ? body.building.trim()
+        : null;
+
     const classroom = await prisma.classrooms.create({
       data: {
         institution_id: auth.institutionId,
         name,
-        latitude: body.latitude != null ? Number(body.latitude) : null,
-        longitude: body.longitude != null ? Number(body.longitude) : null,
+        building,
+        latitude: body.latitude != null && body.latitude !== '' ? Number(body.latitude) : null,
+        longitude: body.longitude != null && body.longitude !== '' ? Number(body.longitude) : null,
         radius_meters: body.radius_meters != null ? Number(body.radius_meters) : 50,
       },
       include: { kiosks: true, classes: { select: { id: true, name: true, course_code: true, level: true } } },

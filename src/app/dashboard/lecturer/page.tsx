@@ -21,6 +21,9 @@ interface Session {
   status: string;
   created_at: string;
   expires_at?: string;
+  scheduled_start?: string | null;
+  scheduled_end?: string | null;
+  auto_created?: boolean;
   class: { name: string; level: string };
   records: {
     id: string;
@@ -57,7 +60,19 @@ export default function LecturerDashboard() {
   const [starting, setStarting] = useState<string | null>(null);
   const [ending, setEnding] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [qrTimestamp, setQrTimestamp] = useState<number>(Date.now());
+  const [liveQrPayload, setLiveQrPayload] = useState<string>('');
+  const [liveShortCode, setLiveShortCode] = useState<string>('');
+  const [liveCodeExpires, setLiveCodeExpires] = useState<string | null>(null);
+  const [locationGate, setLocationGate] = useState<{
+    needed: boolean;
+    verifying: boolean;
+    message: string;
+    warning?: string;
+  }>({ needed: false, verifying: false, message: '' });
+  const [locationVerifyKey, setLocationVerifyKey] = useState(0);
+  const [notifications, setNotifications] = useState<
+    { id: string; title: string; body: string; read: boolean; created_at: string }[]
+  >([]);
   
   // Create Class State
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -72,30 +87,165 @@ export default function LecturerDashboard() {
   const [locationPromptClassId, setLocationPromptClassId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
-    const [classesRes, sessionsRes, catalogueRes] = await Promise.all([
-      fetch('/api/lecturer/courses'), // The API is still /courses, but returns classes
+    const [classesRes, sessionsRes, catalogueRes, notifRes] = await Promise.all([
+      fetch('/api/lecturer/courses'),
       fetch('/api/lecturer/sessions'),
       fetch('/api/lecturer/catalogue'),
+      fetch('/api/notifications'),
     ]);
     const classesData = await classesRes.json();
     const sessionsData = await sessionsRes.json();
     const catalogueData = await catalogueRes.json();
+    const notifData = notifRes.ok ? await notifRes.json() : { notifications: [] };
     setClasses(classesData.courses || []);
     setSessions(sessionsData.sessions || []);
     setCatalogue(catalogueData.catalogue || []);
+    setNotifications(notifData.notifications || []);
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const hasActiveSession = sessions.some((session) => session.status === 'active');
+  const activeSessionId = sessions.find((s) => s.status === 'active')?.id;
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setQrTimestamp(Date.now());
-    }, 10000);
-    return () => clearInterval(interval);
-  }, []);
+    if (!activeSessionId) {
+      setLiveQrPayload('');
+      setLiveShortCode('');
+      setLiveCodeExpires(null);
+      setLocationGate({ needed: false, verifying: false, message: '' });
+      return;
+    }
+
+    let cancelled = false;
+
+    const verifyThenLoad = async () => {
+      // On-demand GPS only — not continuous tracking
+      if (!navigator.geolocation) {
+        setLocationGate({
+          needed: true,
+          verifying: false,
+          message: 'Geolocation is required to unlock attendance controls.',
+        });
+        return;
+      }
+
+      setLocationGate((prev) => ({ ...prev, verifying: true, message: 'Checking your classroom location…' }));
+
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          try {
+            const verifyRes = await fetch(`/api/lecturer/sessions/${activeSessionId}/verify-location`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude,
+                accuracy: pos.coords.accuracy,
+              }),
+            });
+            const verifyData = await verifyRes.json();
+            if (cancelled) return;
+
+            if (!verifyRes.ok && verifyData.requiresLocationVerification === false && !verifyData.controlsAllowed) {
+              setLocationGate({
+                needed: true,
+                verifying: false,
+                message: verifyData.message || verifyData.error || 'Location check failed.',
+              });
+              return;
+            }
+
+            if (verifyData.controlsAllowed === false) {
+              setLocationGate({
+                needed: true,
+                verifying: false,
+                message: verifyData.message || 'You must be in the classroom to use attendance controls.',
+              });
+              return;
+            }
+
+            const warning =
+              verifyData.ok === false || verifyData.result === 'failed'
+                ? verifyData.message
+                : verifyData.result === 'skipped_no_anchor'
+                  ? verifyData.message
+                  : undefined;
+
+            setLocationGate({
+              needed: false,
+              verifying: false,
+              message: verifyData.message || 'Location verified',
+              warning,
+            });
+          } catch {
+            if (!cancelled) {
+              setLocationGate({
+                needed: true,
+                verifying: false,
+                message: 'Could not verify location. Try again.',
+              });
+            }
+          }
+        },
+        () => {
+          if (!cancelled) {
+            setLocationGate({
+              needed: true,
+              verifying: false,
+              message: 'Location permission is required to unlock attendance controls.',
+            });
+          }
+        },
+        { enableHighAccuracy: true, timeout: 20000 }
+      );
+    };
+
+    verifyThenLoad();
+    const recheck = setInterval(verifyThenLoad, 30 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(recheck);
+    };
+  }, [activeSessionId, locationVerifyKey]);
+
+  useEffect(() => {
+    if (!activeSessionId || locationGate.needed || locationGate.verifying) return;
+
+    let cancelled = false;
+    const loadLive = async () => {
+      try {
+        const res = await fetch(`/api/lecturer/sessions/${activeSessionId}/live`);
+        const data = await res.json();
+        if (cancelled) return;
+        if (!res.ok) {
+          if (data.requiresLocationVerification) {
+            setLocationGate({
+              needed: true,
+              verifying: false,
+              message: data.error || 'Location verification required.',
+            });
+          }
+          return;
+        }
+        if (data.qr?.payload) setLiveQrPayload(data.qr.payload);
+        if (data.shortCode?.code) {
+          setLiveShortCode(data.shortCode.code);
+          setLiveCodeExpires(data.shortCode.expiresAt || null);
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    loadLive();
+    const interval = setInterval(loadLive, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [activeSessionId, locationGate.needed, locationGate.verifying]);
 
   useEffect(() => {
     if (!hasActiveSession) return;
@@ -110,6 +260,23 @@ export default function LecturerDashboard() {
 
     return () => clearInterval(interval);
   }, [hasActiveSession]);
+
+  const refreshShortCode = async () => {
+    if (!activeSessionId) return;
+    const res = await fetch(`/api/lecturer/sessions/${activeSessionId}/live`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'refresh_code' }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setLiveShortCode(data.code);
+      setLiveCodeExpires(data.expiresAt || null);
+      setMsg({ type: 'success', text: 'Short code refreshed.' });
+    } else {
+      setMsg({ type: 'error', text: data.error || 'Could not refresh code.' });
+    }
+  };
 
   const handleCreateClass = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -237,6 +404,7 @@ export default function LecturerDashboard() {
   };
 
   const activeSession = sessions.find(s => s.status === 'active');
+  const scheduledSessions = sessions.filter((s) => s.status === 'scheduled');
   const totalStudents = classes.reduce((acc, c) => acc + (c.records?.length || 0), 0);
   const totalSessions = sessions.length;
   const totalAttendance = sessions.reduce((acc, s) => acc + (s.records?.length || 0), 0);
@@ -257,7 +425,9 @@ export default function LecturerDashboard() {
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>Welcome, {user?.name?.split(' ')[0]}</h1>
-          <p className={styles.pageSubtitle}>Manage your sessions and track attendance</p>
+          <p className={styles.pageSubtitle}>
+            Timetable opens sessions automatically. Use Start only as an override when needed.
+          </p>
         </div>
       </div>
 
@@ -267,6 +437,33 @@ export default function LecturerDashboard() {
           <button onClick={() => setMsg(null)} className={styles.notifClose}>✕</button>
         </div>
       )}
+
+      {notifications.filter((n) => !n.read).slice(0, 3).map((n) => (
+        <div
+          key={n.id}
+          className={`${styles.notification} ${styles.notifSuccess}`}
+          style={{ background: '#eff6ff', borderColor: '#bfdbfe', color: '#1e3a8a' }}
+        >
+          <div>
+            <strong>{n.title}</strong>
+            <div style={{ fontSize: '0.9rem', marginTop: 4 }}>{n.body}</div>
+          </div>
+          <button
+            type="button"
+            className={styles.notifClose}
+            onClick={async () => {
+              await fetch('/api/notifications', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: n.id }),
+              });
+              setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      ))}
 
       {/* Stats */}
       <div className={styles.statsGrid}>
@@ -296,6 +493,37 @@ export default function LecturerDashboard() {
         </div>
       </div>
 
+      {/* Scheduled (auto) sessions */}
+      {!activeSession && scheduledSessions.length > 0 && (
+        <div
+          style={{
+            marginBottom: 24,
+            padding: 16,
+            borderRadius: 14,
+            border: '1px solid #bfdbfe',
+            background: '#eff6ff',
+          }}
+        >
+          <strong style={{ color: '#1d4ed8' }}>Upcoming auto sessions today</strong>
+          <ul style={{ margin: '10px 0 0', paddingLeft: 18, color: '#1e3a8a', lineHeight: 1.6 }}>
+            {scheduledSessions.slice(0, 5).map((s) => (
+              <li key={s.id}>
+                {s.class?.name || 'Class'}
+                {s.scheduled_start
+                  ? ` · opens ${new Date(s.scheduled_start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                  : ''}
+                {s.scheduled_end
+                  ? ` – ${new Date(s.scheduled_end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                  : ''}
+              </li>
+            ))}
+          </ul>
+          <p style={{ margin: '8px 0 0', fontSize: '0.85rem', color: '#64748b' }}>
+            No need to start these manually — they go live at the scheduled time. Start Session remains available as an override.
+          </p>
+        </div>
+      )}
+
       {/* Active session panel */}
       {activeSession && (
         <div className={styles.activeSessionBanner}>
@@ -305,30 +533,96 @@ export default function LecturerDashboard() {
               <strong>Session in Progress</strong>
               <p>{activeSession.class.name} ({activeSession.class.level}) · Started {new Date(activeSession.created_at).toLocaleTimeString()}</p>
             </div>
-            
-            <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-              <div style={{ background: 'white', padding: '16px', borderRadius: '16px', border: '1px solid #e5e7eb' }}>
-                <QRCode 
-                  value={JSON.stringify({ 
-                    sessionId: activeSession.id, 
-                    t: qrTimestamp,
-                    timestamp: qrTimestamp,
-                    source: 'dynamic_qr',
-                  })} 
-                  size={160} 
-                  level="H"
-                />
+
+            {(locationGate.needed || locationGate.verifying || locationGate.warning) && (
+              <div
+                style={{
+                  width: '100%',
+                  marginBottom: 12,
+                  padding: 12,
+                  borderRadius: 12,
+                  background: locationGate.needed ? '#fef2f2' : '#fffbeb',
+                  border: `1px solid ${locationGate.needed ? '#fecaca' : '#fde68a'}`,
+                  color: locationGate.needed ? '#991b1b' : '#92400e',
+                  fontSize: '0.9rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <span>
+                  {locationGate.verifying
+                    ? 'Checking your location (one-time request — not background tracking)…'
+                    : locationGate.needed
+                      ? locationGate.message
+                      : locationGate.warning}
+                </span>
+                {locationGate.needed && !locationGate.verifying && (
+                  <button
+                    type="button"
+                    className={styles.actionBtn}
+                    onClick={() => setLocationVerifyKey((k) => k + 1)}
+                  >
+                    Retry location
+                  </button>
+                )}
               </div>
-              <div style={{ background: '#fdf2f2', border: '2px solid #e01e37', borderRadius: '16px', padding: '32px', textAlign: 'center', flex: 1 }}>
-                <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#e01e37', letterSpacing: '1px', marginBottom: '8px' }}>DYNAMIC QR SCANNER</div>
-                <div style={{ fontSize: '18px', fontWeight: '600', color: '#111827', lineHeight: '1.4' }}>
-                  Students must scan this QR code with the Smart Attend mobile app to check in.
+            )}
+            
+            {!locationGate.needed && (
+            <div style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
+              <div style={{ background: 'white', padding: '16px', borderRadius: '16px', border: '1px solid #e5e7eb' }}>
+                {liveQrPayload ? (
+                  <QRCode value={liveQrPayload} size={160} level="H" />
+                ) : (
+                  <div style={{ width: 160, height: 160, display: 'grid', placeItems: 'center', color: '#94a3b8', fontSize: 13 }}>
+                    Loading secure QR…
+                  </div>
+                )}
+              </div>
+              <div style={{ background: '#fdf2f2', border: '2px solid #e01e37', borderRadius: '16px', padding: '24px', textAlign: 'center', flex: 1, minWidth: 220 }}>
+                <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#e01e37', letterSpacing: '1px', marginBottom: '8px' }}>
+                  DYNAMIC QR (SECURE TOKEN)
+                </div>
+                <div style={{ fontSize: '16px', fontWeight: '600', color: '#111827', lineHeight: '1.4' }}>
+                  Students scan this QR with the SmartAttend app. Token refreshes about every 15 seconds.
                 </div>
                 <p style={{ color: '#6b7280', fontSize: '13px', marginTop: '12px' }}>
-                  Code rotates every 10 seconds. Students must be within 50m of your location.
+                  Old QR tokens expire. GPS + enrollment + device checks still apply.
                 </p>
               </div>
+              {user?.permissions?.lecturer?.use_short_code !== false && (
+              <div style={{ background: '#0f172a', color: 'white', borderRadius: '16px', padding: '24px', textAlign: 'center', minWidth: 200 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1, color: '#94a3b8', marginBottom: 8 }}>SHORT CODE</div>
+                <div style={{ fontSize: 40, fontWeight: 800, letterSpacing: 6 }}>{liveShortCode || '······'}</div>
+                <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 8 }}>
+                  For rooms without a projector. Students enter this in the app.
+                  {liveCodeExpires
+                    ? ` Expires ${new Date(liveCodeExpires).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`
+                    : ''}
+                </p>
+                <button
+                  type="button"
+                  onClick={refreshShortCode}
+                  style={{
+                    marginTop: 12,
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: '1px solid #334155',
+                    background: '#1e293b',
+                    color: 'white',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Refresh code
+                </button>
+              </div>
+              )}
             </div>
+            )}
           </div>
           
           <div className={styles.attendeeListWrapper}>

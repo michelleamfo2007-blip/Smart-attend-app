@@ -9,7 +9,13 @@ export async function GET(req: Request) {
     const access = await getAttendanceOfficer();
     if ('error' in access) return access.error;
 
-    const { officer } = access;
+    const { officer, effective } = access;
+    if (!effective.librarian.can_verify) {
+      return NextResponse.json(
+        { error: 'Student verification is disabled by institution permissions.', code: 'PERMISSION_DENIED' },
+        { status: 403 }
+      );
+    }
     const { searchParams } = new URL(req.url);
     const q = (searchParams.get('q') || '').trim();
     const sessionId = searchParams.get('sessionId');

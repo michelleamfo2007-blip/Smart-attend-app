@@ -30,7 +30,15 @@ export default function StartSessionScreen() {
   // Active Session State
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [checkedInCount, setCheckedInCount] = useState(0);
-  const [qrTimestamp, setQrTimestamp] = useState<number>(Date.now());
+  const [liveQrPayload, setLiveQrPayload] = useState('');
+  const [liveShortCode, setLiveShortCode] = useState('');
+  const [locationGate, setLocationGate] = useState<{
+    needed: boolean;
+    verifying: boolean;
+    message: string;
+    warning?: string;
+  }>({ needed: false, verifying: false, message: '' });
+  const [locationVerifyKey, setLocationVerifyKey] = useState(0);
 
   useEffect(() => {
     fetchLecturerClasses();
@@ -61,7 +69,104 @@ export default function StartSessionScreen() {
 
   // Listen to realtime attendance updates for the active session
   useEffect(() => {
+    if (!activeSessionId || String(activeSessionId).startsWith('offline-')) {
+      setLocationGate({ needed: false, verifying: false, message: '' });
+      return;
+    }
+
+    let cancelled = false;
+
+    const verifyThenLoad = async () => {
+      setLocationGate((prev) => ({
+        ...prev,
+        verifying: true,
+        message: 'Checking your classroom location…',
+      }));
+
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          if (!cancelled) {
+            setLocationGate({
+              needed: true,
+              verifying: false,
+              message: 'Location permission is required to unlock attendance controls.',
+            });
+            setLiveQrPayload('');
+            setLiveShortCode('');
+          }
+          return;
+        }
+
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+          mayShowUserSettingsDialog: true,
+        });
+
+        let verify: any;
+        try {
+          verify = await apiFetch(`/api/lecturer/sessions/${activeSessionId}/verify-location`, {
+            method: 'POST',
+            body: JSON.stringify({
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+              accuracy: location.coords.accuracy,
+            }),
+          });
+        } catch (err: any) {
+          verify = err?.data || { controlsAllowed: false, message: err?.message };
+        }
+
+        if (cancelled) return;
+
+        if (verify?.controlsAllowed === false) {
+          setLocationGate({
+            needed: true,
+            verifying: false,
+            message: verify.message || 'You must be in the classroom to use attendance controls.',
+          });
+          setLiveQrPayload('');
+          setLiveShortCode('');
+          return;
+        }
+
+        const warning =
+          verify?.ok === false || verify?.result === 'failed'
+            ? verify.message
+            : verify?.result === 'skipped_no_anchor'
+              ? verify.message
+              : undefined;
+
+        setLocationGate({
+          needed: false,
+          verifying: false,
+          message: verify?.message || 'Location verified',
+          warning,
+        });
+      } catch (err: any) {
+        if (!cancelled) {
+          setLocationGate({
+            needed: true,
+            verifying: false,
+            message: err?.message || 'Could not verify location. Try again.',
+          });
+          setLiveQrPayload('');
+          setLiveShortCode('');
+        }
+      }
+    };
+
+    verifyThenLoad();
+    const recheck = setInterval(verifyThenLoad, 30 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(recheck);
+    };
+  }, [activeSessionId, locationVerifyKey]);
+
+  useEffect(() => {
     if (!activeSessionId || String(activeSessionId).startsWith('offline-')) return;
+    if (locationGate.needed || locationGate.verifying) return;
 
     const poll = setInterval(async () => {
       try {
@@ -72,15 +177,34 @@ export default function StartSessionScreen() {
       }
     }, 4000);
 
-    const interval = setInterval(() => {
-      setQrTimestamp(Date.now());
-    }, 10000);
+    const loadLive = async () => {
+      try {
+        const live = await apiFetch(`/api/lecturer/sessions/${activeSessionId}/live`);
+        if (live.qr?.payload) setLiveQrPayload(live.qr.payload);
+        if (live.shortCode?.code) setLiveShortCode(live.shortCode.code);
+      } catch (err: any) {
+        if (err?.data?.requiresLocationVerification) {
+          setLocationGate({
+            needed: true,
+            verifying: false,
+            message: err?.data?.error || err.message || 'Location verification required.',
+          });
+          setLiveQrPayload('');
+          setLiveShortCode('');
+        } else {
+          console.error('Failed to load live QR', err);
+        }
+      }
+    };
+
+    loadLive();
+    const liveInterval = setInterval(loadLive, 15000);
 
     return () => {
       clearInterval(poll);
-      clearInterval(interval);
+      clearInterval(liveInterval);
     };
-  }, [activeSessionId]);
+  }, [activeSessionId, locationGate.needed, locationGate.verifying]);
 
   const fetchLecturerClasses = async () => {
     setFetchingClasses(true);
@@ -211,9 +335,6 @@ export default function StartSessionScreen() {
   };
 
   if (activeSessionId) {
-    // QR Code Display State (Dynamic with timestamp)
-    const qrData = JSON.stringify({ sessionId: activeSessionId, t: qrTimestamp, timestamp: qrTimestamp, source: 'dynamic_qr' });
-    
     return (
       <Animated.View entering={FadeIn.duration(800)} style={{ flex: 1, backgroundColor: theme.background }}>
         <ThemedView style={styles.container}>
@@ -221,17 +342,69 @@ export default function StartSessionScreen() {
             <Animated.View entering={FadeInDown.duration(600).delay(200)} style={styles.header}>
               <SymbolView name="qrcode.viewfinder" size={32} tintColor={theme.primary} style={{ marginBottom: 12 }} />
               <ThemedText type="title" style={[styles.titleText, { textAlign: 'center' }]}>Scan to Check In</ThemedText>
-              <ThemedText style={[styles.subtitle, { textAlign: 'center' }]} themeColor="textSecondary">Students can scan this QR code to mark attendance.</ThemedText>
+              <ThemedText style={[styles.subtitle, { textAlign: 'center' }]} themeColor="textSecondary">
+                Secure QR refreshes about every 15 seconds. Or share the short code below.
+              </ThemedText>
             </Animated.View>
 
+            {(locationGate.needed || locationGate.verifying || locationGate.warning) && (
+              <View
+                style={{
+                  width: '100%',
+                  marginBottom: 16,
+                  padding: 14,
+                  borderRadius: 12,
+                  backgroundColor: locationGate.needed ? '#fef2f2' : '#fffbeb',
+                  borderWidth: 1,
+                  borderColor: locationGate.needed ? '#fecaca' : '#fde68a',
+                }}
+              >
+                <ThemedText style={{ color: locationGate.needed ? '#991b1b' : '#92400e', fontSize: 14 }}>
+                  {locationGate.verifying
+                    ? 'Checking your location (one-time — not background tracking)…'
+                    : locationGate.needed
+                      ? locationGate.message
+                      : locationGate.warning}
+                </ThemedText>
+                {locationGate.needed && !locationGate.verifying && (
+                  <TouchableOpacity
+                    style={{ marginTop: 10, alignSelf: 'flex-start' }}
+                    onPress={() => setLocationVerifyKey((k) => k + 1)}
+                  >
+                    <ThemedText style={{ color: theme.primary, fontWeight: '700' }}>Retry location</ThemedText>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+
+            {!locationGate.needed && (
+              <>
             <Animated.View entering={FadeInUp.duration(600).delay(300)} style={[styles.qrContainer, { backgroundColor: '#FFFFFF' }]}>
-              <QRCode
-                value={qrData}
-                size={Math.min(width * 0.7, 300)}
-                color="#000000"
-                backgroundColor="#FFFFFF"
-              />
+              {liveQrPayload ? (
+                <QRCode
+                  value={liveQrPayload}
+                  size={Math.min(width * 0.7, 300)}
+                  color="#000000"
+                  backgroundColor="#FFFFFF"
+                />
+              ) : (
+                <ActivityIndicator color={theme.primary} />
+              )}
             </Animated.View>
+
+            <Animated.View
+              entering={FadeInUp.duration(600).delay(350)}
+              style={[styles.statsContainer, { backgroundColor: '#0f172a', borderColor: '#0f172a', marginTop: 16 }]}
+            >
+              <ThemedText style={{ fontSize: 13, fontWeight: '700', color: '#94a3b8', letterSpacing: 1 }}>
+                SHORT CODE
+              </ThemedText>
+              <ThemedText style={{ fontSize: 40, fontWeight: '800', color: '#fff', marginTop: 8, letterSpacing: 6 }}>
+                {liveShortCode || '······'}
+              </ThemedText>
+            </Animated.View>
+              </>
+            )}
 
             <Animated.View entering={FadeInUp.duration(600).delay(400)} style={[styles.statsContainer, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
               <ThemedText style={{ fontSize: 16, fontWeight: '600' }} themeColor="textSecondary">Students Checked In</ThemedText>

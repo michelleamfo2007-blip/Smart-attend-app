@@ -1,10 +1,17 @@
 import prisma from '@/lib/prisma';
 import { getStudentClasses } from '@/lib/student';
 import { getDistanceMeters, shouldEnforceGps, levelsMatch, semestersMatch } from '@/lib/attendance';
+import {
+  getInstitutionLateGrace,
+  isStaffVerifiedMethod,
+  resolveCheckInStatus,
+  VERIFICATION_TYPE,
+} from '@/lib/attendanceStatus';
 
 export const ATTENDANCE_METHODS = {
   DYNAMIC_QR: 'dynamic_qr',
   DESKTOP_QR: 'desktop_qr',
+  SHORT_CODE: 'short_code',
   STAFF_SCAN: 'staff_scan',
   STAFF_MANUAL: 'staff_manual',
 } as const;
@@ -30,6 +37,8 @@ export function methodLabel(method?: string | null) {
   switch (method) {
     case ATTENDANCE_METHODS.DESKTOP_QR:
       return 'Classroom desktop QR';
+    case ATTENDANCE_METHODS.SHORT_CODE:
+      return 'Short attendance code';
     case ATTENDANCE_METHODS.STAFF_SCAN:
       return 'Staff scan';
     case ATTENDANCE_METHODS.STAFF_MANUAL:
@@ -41,7 +50,24 @@ export function methodLabel(method?: string | null) {
 
 export function parseStudentAttendanceMethod(value?: string | null): AttendanceMethod {
   if (value === ATTENDANCE_METHODS.DESKTOP_QR) return ATTENDANCE_METHODS.DESKTOP_QR;
+  if (value === ATTENDANCE_METHODS.SHORT_CODE) return ATTENDANCE_METHODS.SHORT_CODE;
   return ATTENDANCE_METHODS.DYNAMIC_QR;
+}
+
+/** Whether a session allows QR vs short-code check-in. */
+export function sessionAllowsMethod(
+  sessionMethod: string | null | undefined,
+  attempt: AttendanceMethod
+) {
+  const mode = sessionMethod || 'both';
+  if (mode === 'both') return true;
+  if (mode === 'dynamic_qr') {
+    return attempt === ATTENDANCE_METHODS.DYNAMIC_QR || attempt === ATTENDANCE_METHODS.DESKTOP_QR;
+  }
+  if (mode === 'short_code') {
+    return attempt === ATTENDANCE_METHODS.SHORT_CODE;
+  }
+  return true;
 }
 
 export function isSessionOpen(session: { status: string; expires_at: Date | null }) {
@@ -126,6 +152,7 @@ export async function markStudentPresent(opts: {
   accuracy?: number | null;
   enforceGps?: boolean;
   ip?: string;
+  notes?: string | null;
 }) {
   const session = await loadOpenSession(opts.sessionId);
 
@@ -141,6 +168,12 @@ export async function markStudentPresent(opts: {
   const eligible = await studentEligibleForClass(student.id, session.class_id);
   if (!eligible) {
     throw new AttendanceError('Student is not enrolled in this class. Attendance rejected.', 403);
+  }
+
+  const staffVerified = isStaffVerifiedMethod(opts.method);
+  const notes = typeof opts.notes === 'string' ? opts.notes.trim() : '';
+  if (opts.method === ATTENDANCE_METHODS.STAFF_MANUAL && notes.length < 3) {
+    throw new AttendanceError('A reason is required for staff-verified manual attendance.', 400);
   }
 
   await prisma.enrollments
@@ -160,23 +193,44 @@ export async function markStudentPresent(opts: {
     await prisma.audit_logs.create({
       data: {
         user_id: opts.markedById || student.id,
+        role: staffVerified ? 'STAFF' : 'STUDENT',
+        institution_id: session.class.institution_id || undefined,
+        session_id: session.id,
+        student_id: student.id,
+        result: 'warning',
         action: 'DUPLICATE_SCAN_ATTEMPT',
         details: `Duplicate attendance attempt for session ${session.id} (${opts.method}).`,
         ip_address: opts.ip || 'unknown',
       },
     });
+    try {
+      const { evaluateSuspiciousDuplicate } = await import('@/lib/suspiciousActivity');
+      await evaluateSuspiciousDuplicate({
+        studentId: student.id,
+        institutionId: session.class.institution_id,
+        sessionId: session.id,
+        ip: opts.ip,
+      });
+    } catch {
+      // ignore
+    }
     throw new AttendanceError('This student has already been marked present for this session.', 400);
   }
 
   let distance = 0;
   if (opts.enforceGps) {
+    // Prefer registered classroom coordinates (auto sessions); fall back to session anchor.
+    const anchorLat =
+      session.class.classroom?.latitude != null ? session.class.classroom.latitude : session.latitude;
+    const anchorLng =
+      session.class.classroom?.longitude != null ? session.class.classroom.longitude : session.longitude;
     // Indoor phone GPS is often 50–120m off; default 150m unless classroom sets its own radius.
     const allowedRadius = session.class.classroom?.radius_meters || 150;
-    if (session.latitude != null && session.longitude != null) {
+    if (anchorLat != null && anchorLng != null) {
       if (opts.latitude == null || opts.longitude == null) {
         throw new AttendanceError('Location coordinates are required.', 400);
       }
-      distance = getDistanceMeters(session.latitude, session.longitude, Number(opts.latitude), Number(opts.longitude));
+      distance = getDistanceMeters(anchorLat, anchorLng, Number(opts.latitude), Number(opts.longitude));
       // Credit reported GPS accuracy (capped) so noisy fixes don't falsely reject nearby students.
       const accuracyCredit = Math.min(Math.max(Number(opts.accuracy) || 0, 0), 75);
       const effectiveDistance = Math.max(0, distance - accuracyCredit);
@@ -189,6 +243,15 @@ export async function markStudentPresent(opts: {
     }
   }
 
+  const now = new Date();
+  const graceMinutes = await getInstitutionLateGrace(session.class.institution_id);
+  const checkInStatus = resolveCheckInStatus({
+    checkedAt: now,
+    scheduledStart: session.scheduled_start,
+    sessionCreatedAt: session.created_at,
+    graceMinutes,
+  });
+
   let record;
   try {
     record = await prisma.attendance_records.create({
@@ -198,8 +261,11 @@ export async function markStudentPresent(opts: {
         class_id: session.class_id,
         student_name: student.name,
         location: opts.location || null,
-        timestamp: new Date(),
+        timestamp: now,
         method: opts.method,
+        check_in_status: checkInStatus,
+        notes: notes || null,
+        verification_type: staffVerified ? VERIFICATION_TYPE.STAFF : VERIFICATION_TYPE.SELF,
         marked_by_id: opts.markedById || null,
       },
       include: {
@@ -222,8 +288,28 @@ export async function markStudentPresent(opts: {
   await prisma.audit_logs.create({
     data: {
       user_id: opts.markedById || student.id,
-      action: 'ATTENDANCE_MARKED',
-      details: `Attendance marked for ${student.name || student.id} on session ${session.id} via ${opts.method}.`,
+      role: staffVerified ? 'STAFF' : 'STUDENT',
+      institution_id: session.class.institution_id || undefined,
+      session_id: session.id,
+      student_id: student.id,
+      result: 'success',
+      action: staffVerified ? 'STAFF_ATTENDANCE_MARKED' : 'ATTENDANCE_MARKED',
+      details: [
+        `${staffVerified ? 'Staff-verified' : 'Self'} attendance for ${student.name || student.id}`,
+        `session=${session.id}`,
+        `method=${opts.method}`,
+        `status=${checkInStatus}`,
+        notes ? `reason=${notes}` : null,
+        opts.markedById ? `officer=${opts.markedById}` : null,
+      ]
+        .filter(Boolean)
+        .join('; '),
+      metadata: {
+        method: opts.method,
+        checkInStatus,
+        verificationType: staffVerified ? 'staff_verified' : 'self',
+        notes: notes || null,
+      },
       ip_address: opts.ip || 'unknown',
     },
   });

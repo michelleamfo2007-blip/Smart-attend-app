@@ -30,8 +30,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       where: { id },
       data: {
         name: typeof body.name === 'string' ? body.name.trim() : undefined,
-        latitude: body.latitude != null ? Number(body.latitude) : undefined,
-        longitude: body.longitude != null ? Number(body.longitude) : undefined,
+        building:
+          body.building === null
+            ? null
+            : typeof body.building === 'string'
+              ? body.building.trim() || null
+              : undefined,
+        latitude: body.latitude != null && body.latitude !== '' ? Number(body.latitude) : body.latitude === null ? null : undefined,
+        longitude: body.longitude != null && body.longitude !== '' ? Number(body.longitude) : body.longitude === null ? null : undefined,
         radius_meters: body.radius_meters != null ? Number(body.radius_meters) : undefined,
       },
     });

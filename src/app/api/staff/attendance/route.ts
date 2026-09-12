@@ -26,7 +26,16 @@ export async function POST(req: Request) {
     const access = await getAttendanceOfficer();
     if ('error' in access) return access.error;
 
-    const { officer } = access;
+    const { officer, effective } = access;
+    if (!effective.librarian.can_mark) {
+      return NextResponse.json(
+        {
+          error: 'Staff-assisted attendance is disabled by institution permissions.',
+          code: 'PERMISSION_DENIED',
+        },
+        { status: 403 }
+      );
+    }
     const body = await req.json();
     const sessionId = body.sessionId as string | undefined;
     const method = body.method === ATTENDANCE_METHODS.STAFF_MANUAL
@@ -67,6 +76,7 @@ export async function POST(req: Request) {
     }
 
     const ip = req.headers.get('x-forwarded-for') || 'unknown';
+    const notes = typeof body.reason === 'string' ? body.reason : typeof body.notes === 'string' ? body.notes : null;
     const { record, student } = await markStudentPresent({
       studentId,
       sessionId: session.id,
@@ -75,6 +85,7 @@ export async function POST(req: Request) {
       location: `Staff: ${officer.name || officer.id}`,
       enforceGps: false,
       ip,
+      notes,
     });
 
     return NextResponse.json({
@@ -82,6 +93,9 @@ export async function POST(req: Request) {
       record: {
         id: record.id,
         method: record.method,
+        checkInStatus: record.check_in_status,
+        verificationType: record.verification_type,
+        notes: record.notes,
         timestamp: record.timestamp,
         studentName: student.name,
         studentId: student.student_id,

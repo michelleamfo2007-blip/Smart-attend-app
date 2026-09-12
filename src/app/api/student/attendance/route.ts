@@ -3,11 +3,19 @@ import prisma from '@/lib/prisma';
 import { headers } from 'next/headers';
 import {
   AttendanceError,
+  ATTENDANCE_METHODS,
   markStudentPresent,
   parseStudentAttendanceMethod,
+  sessionAllowsMethod,
 } from '@/lib/markAttendance';
 import { assertAndBindStudentDevice, DeviceBindingError } from '@/lib/deviceBinding';
-import { logAttendanceRejection } from '@/lib/audit';
+import { logAttendanceRejection, logAudit } from '@/lib/audit';
+import {
+  extractQrTokenFromScan,
+  isShortCodeValid,
+  parseLegacyQrPayload,
+  verifyQrToken,
+} from '@/lib/attendanceTokens';
 
 export async function GET() {
   try {
@@ -36,6 +44,8 @@ export async function GET() {
 export async function POST(req: Request) {
   const ip = req.headers.get('x-forwarded-for') || 'unknown';
   let userId: string | null = null;
+  let lastSessionId: string | null = null;
+  let lastInstitutionId: string | null = null;
 
   try {
     const headersList = await headers();
@@ -43,20 +53,37 @@ export async function POST(req: Request) {
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const sessionId = body.sessionId as string | undefined;
-    const attendanceCode = body.attendanceCode as string | undefined;
     const latitude = body.latitude;
     const longitude = body.longitude;
-    const qrTimestamp = body.qrTimestamp ?? body.t ?? body.timestamp;
     const deviceId = body.device_id || body.deviceId;
     const deviceFingerprint = body.device_fingerprint || body.deviceFingerprint || null;
-    const method = parseStudentAttendanceMethod(body.method || body.source);
 
-    if ((!sessionId && !attendanceCode) || latitude == null || longitude == null) {
+    const qrTokenRaw =
+      body.qrToken ||
+      body.token ||
+      body.tok ||
+      (typeof body.qrPayload === 'string' ? extractQrTokenFromScan(body.qrPayload) : null);
+
+    let sessionId = body.sessionId as string | undefined;
+    let attendanceCode = (body.attendanceCode || body.code) as string | undefined;
+    let method = parseStudentAttendanceMethod(body.method || body.source);
+    const qrTimestamp = body.qrTimestamp ?? body.t ?? body.timestamp;
+
+    if (latitude == null || longitude == null) {
       await logAttendanceRejection({
         userId,
         reason: 'MISSING_FIELDS',
-        details: 'Missing session/code or coordinates',
+        details: 'Missing coordinates',
+        ip,
+      });
+      return NextResponse.json({ error: 'Location coordinates are required.' }, { status: 400 });
+    }
+
+    if (!sessionId && !attendanceCode && !qrTokenRaw && !body.qrPayload) {
+      await logAttendanceRejection({
+        userId,
+        reason: 'MISSING_FIELDS',
+        details: 'Missing session token or short code',
         ip,
       });
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -71,6 +98,7 @@ export async function POST(req: Request) {
         device_id: true,
         device_fingerprint: true,
         needs_device_reset: true,
+        institution_id: true,
       },
     });
 
@@ -91,17 +119,57 @@ export async function POST(req: Request) {
       throw err;
     }
 
-    if (sessionId && qrTimestamp == null) {
-      await logAttendanceRejection({
-        userId,
-        reason: 'INVALID_QR_FORMAT',
-        details: `session=${sessionId}`,
-        ip,
-      });
-      return NextResponse.json({ error: 'Invalid QR Code format. Dynamic QR required.' }, { status: 400 });
-    }
-
-    if (sessionId && qrTimestamp != null) {
+    // Prefer signed QR token
+    if (qrTokenRaw || body.qrPayload) {
+      try {
+        const token =
+          typeof qrTokenRaw === 'string'
+            ? qrTokenRaw
+            : extractQrTokenFromScan(String(body.qrPayload || ''));
+        if (!token) throw new Error('Invalid QR token format.');
+        const verified = verifyQrToken(token);
+        sessionId = verified.sessionId;
+        method = verified.source;
+      } catch (err: any) {
+        // Fall back to legacy payload embedded in qrPayload
+        const legacy = parseLegacyQrPayload(String(body.qrPayload || body.rawQr || ''));
+        if (legacy) {
+          sessionId = legacy.sessionId;
+          method = legacy.source;
+          const qrAgeMs = Date.now() - legacy.qrTimestamp;
+          if (Number.isNaN(qrAgeMs) || qrAgeMs > 30000 || qrAgeMs < -10000) {
+            await logAttendanceRejection({
+              userId,
+              reason: 'QR_EXPIRED',
+              details: `legacy session=${sessionId} ageMs=${qrAgeMs}`,
+              ip,
+            });
+            await logAudit({
+              userId,
+              action: 'QR_EXPIRED',
+              details: `Legacy QR expired for session ${sessionId}`,
+              ip,
+            });
+            return NextResponse.json(
+              { error: 'This QR code has expired. Please scan the current code on the screen.' },
+              { status: 400 }
+            );
+          }
+        } else {
+          await logAttendanceRejection({
+            userId,
+            reason: 'INVALID_QR',
+            details: err.message || 'token verify failed',
+            ip,
+          });
+          return NextResponse.json(
+            { error: err.message || 'Invalid or expired QR code.' },
+            { status: 400 }
+          );
+        }
+      }
+    } else if (sessionId && qrTimestamp != null) {
+      // Legacy mobile clients still sending sessionId + timestamp
       const qrAgeMs = Date.now() - Number(qrTimestamp);
       if (Number.isNaN(qrAgeMs) || qrAgeMs > 30000 || qrAgeMs < -10000) {
         await logAttendanceRejection({
@@ -115,15 +183,31 @@ export async function POST(req: Request) {
           { status: 400 }
         );
       }
+    } else if (sessionId && !attendanceCode) {
+      await logAttendanceRejection({
+        userId,
+        reason: 'INVALID_QR_FORMAT',
+        details: `session=${sessionId}`,
+        ip,
+      });
+      return NextResponse.json({ error: 'Invalid QR Code format. Dynamic QR required.' }, { status: 400 });
+    }
+
+    if (attendanceCode && !sessionId) {
+      method = ATTENDANCE_METHODS.SHORT_CODE;
     }
 
     const resolvedSession = sessionId
-      ? await prisma.attendance_sessions.findUnique({ where: { id: sessionId } })
+      ? await prisma.attendance_sessions.findUnique({
+          where: { id: sessionId },
+          include: { class: { select: { institution_id: true } } },
+        })
       : await prisma.attendance_sessions.findFirst({
           where: {
             status: 'active',
-            attendance_code: attendanceCode,
+            attendance_code: String(attendanceCode).trim(),
           },
+          include: { class: { select: { institution_id: true } } },
         });
 
     if (!resolvedSession) {
@@ -134,6 +218,62 @@ export async function POST(req: Request) {
         ip,
       });
       return NextResponse.json({ error: 'Invalid attendance code or session has ended.' }, { status: 400 });
+    }
+
+    lastSessionId = resolvedSession.id;
+    lastInstitutionId = resolvedSession.class.institution_id;
+
+    if (
+      student.institution_id &&
+      resolvedSession.class.institution_id &&
+      student.institution_id !== resolvedSession.class.institution_id
+    ) {
+      await logAttendanceRejection({
+        userId,
+        reason: 'WRONG_INSTITUTION',
+        details: `session=${resolvedSession.id}`,
+        ip,
+      });
+      return NextResponse.json({ error: 'This session belongs to another institution.' }, { status: 403 });
+    }
+
+    if (!sessionAllowsMethod(resolvedSession.attendance_method, method)) {
+      await logAttendanceRejection({
+        userId,
+        reason: 'METHOD_NOT_ALLOWED',
+        details: `method=${method} sessionMethod=${resolvedSession.attendance_method}`,
+        ip,
+      });
+      return NextResponse.json(
+        { error: 'This session does not accept that attendance method right now.' },
+        { status: 400 }
+      );
+    }
+
+    if (method === ATTENDANCE_METHODS.SHORT_CODE || (attendanceCode && !qrTokenRaw)) {
+      const code = attendanceCode || resolvedSession.attendance_code || '';
+      if (
+        !isShortCodeValid(
+          {
+            attendance_code: resolvedSession.attendance_code,
+            code_expires_at: resolvedSession.code_expires_at,
+            status: resolvedSession.status,
+          },
+          code
+        )
+      ) {
+        await logAttendanceRejection({
+          userId,
+          reason: 'CODE_EXPIRED_OR_INVALID',
+          details: `session=${resolvedSession.id}`,
+          ip,
+        });
+        return NextResponse.json(
+          { error: 'That attendance code is invalid or has expired. Ask for the current code.' },
+          { status: 400 }
+        );
+      }
+      method = ATTENDANCE_METHODS.SHORT_CODE;
     }
 
     const accuracy = body.accuracy != null ? Number(body.accuracy) : null;
@@ -149,12 +289,29 @@ export async function POST(req: Request) {
       ip,
     });
 
+    await logAudit({
+      userId,
+      role: 'STUDENT',
+      institutionId: lastInstitutionId,
+      sessionId: resolvedSession.id,
+      studentId: userId,
+      action: 'ATTENDANCE_SUBMITTED',
+      result: 'success',
+      details: `Student check-in via ${method} for session ${resolvedSession.id}`,
+      metadata: { method, distance },
+      ip,
+    });
+
     return NextResponse.json({ record, distance }, { status: 201 });
   } catch (error) {
     if (error instanceof AttendanceError) {
+      const outside = /outside|location/i.test(error.message);
       await logAttendanceRejection({
         userId,
-        reason: error.status === 409 ? 'DUPLICATE' : 'GPS_OR_RULES',
+        institutionId: lastInstitutionId,
+        sessionId: lastSessionId,
+        studentId: userId,
+        reason: outside ? 'OUTSIDE_GEOFENCE' : error.status === 403 ? 'NOT_ENROLLED' : 'GPS_OR_RULES',
         details: error.message,
         ip,
       });

@@ -25,11 +25,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ error: 'Desktop name is required' }, { status: 400 });
     }
 
+    const deviceLabel =
+      typeof body.device_label === 'string' && body.device_label.trim()
+        ? body.device_label.trim()
+        : typeof body.deviceLabel === 'string' && body.deviceLabel.trim()
+          ? body.deviceLabel.trim()
+          : null;
+
     const kiosk = await prisma.classroom_kiosks.create({
       data: {
         institution_id: classroom.institution_id,
         classroom_id: classroom.id,
         name,
+        device_label: deviceLabel,
         access_token: randomBytes(24).toString('hex'),
         enabled: true,
       },

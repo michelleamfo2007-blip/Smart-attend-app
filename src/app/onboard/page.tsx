@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import styles from './onboard.module.css';
 import Link from 'next/link';
 import { TRIAL_MONTHS } from '@/lib/plans';
+import { detectBrowserTimezone } from '@/lib/institutionTime';
 
 type PlanDisplay = {
   name: string;
@@ -51,7 +52,12 @@ function OnboardForm() {
     adminName: '',
     adminEmail: '',
     adminPassword: '',
+    timezone: 'Africa/Accra',
   });
+
+  useEffect(() => {
+    setFormData((prev) => ({ ...prev, timezone: detectBrowserTimezone() }));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,6 +172,21 @@ function OnboardForm() {
                 onChange={(e) => updateField('contactEmail', e.target.value)}
               />
               <p className={styles.hint}>Must be an inbox your school can access.</p>
+            </div>
+
+            <div className={styles.inputGroup}>
+              <label className={styles.label}>Institution timezone *</label>
+              <input
+                type="text"
+                required
+                className={styles.input}
+                value={formData.timezone}
+                onChange={(e) => updateField('timezone', e.target.value)}
+                placeholder="Africa/Accra"
+              />
+              <p className={styles.hint}>
+                Auto-detected from this device. Class sessions open and close in this timezone. Change it if wrong.
+              </p>
             </div>
           </div>
 

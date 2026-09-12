@@ -17,7 +17,7 @@ const NAV_LINKS = {
     { href: '/dashboard/lecturer/sessions', label: 'Sessions', icon: CalendarIcon },
   ],
   STAFF: [
-    { href: '/dashboard/staff', label: 'Scan Attendance', icon: ScanIcon },
+    { href: '/dashboard/staff', label: 'Librarian', icon: ScanIcon },
   ],
   ADMIN: [
     { href: '/dashboard/admin', label: 'Overview', icon: HomeIcon },
@@ -70,15 +70,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (user.role === 'ADMIN') {
     if (user.institution_id) {
       links = links.filter(l => l.label !== 'Institutions');
-      links.splice(1, 0, { href: '/dashboard/staff', label: 'Staff Scanner', icon: ScanIcon });
+      links.splice(1, 0, { href: '/dashboard/staff', label: 'Librarian', icon: ScanIcon });
     }
   }
-  if (user.role === 'LECTURER' && user.can_mark_attendance) {
-    links.push({ href: '/dashboard/staff', label: 'Staff Scanner', icon: ScanIcon });
+  if (user.role === 'LECTURER' && user.can_mark_attendance && user.permissions?.librarian?.can_use_tools !== false) {
+    links.push({ href: '/dashboard/staff', label: 'Librarian', icon: ScanIcon });
   }
 
   const roleColor = { STUDENT: '#3b82f6', LECTURER: '#8b5cf6', ADMIN: '#e01e37', STAFF: '#0f766e' }[user.role] || '#e01e37';
-  let roleLabel = { STUDENT: 'Student', LECTURER: 'Lecturer', ADMIN: 'Admin', STAFF: 'Attendance Officer' }[user.role] || 'Staff';
+  let roleLabel = { STUDENT: 'Student', LECTURER: 'Lecturer', ADMIN: 'Admin', STAFF: 'Librarian' }[user.role] || 'Staff';
   
   if (user.role === 'ADMIN') {
     roleLabel = user.institution_id ? 'School Admin' : 'Super Admin';

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getAuth, isCrossTenant } from '@/lib/session';
+import { getInstitutionRolePermissions } from '@/lib/permissions';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -155,10 +156,26 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
 
     const body = await req.json();
+    const enabling = Boolean(body.can_mark_attendance);
+
+    if (enabling && target.role === 'LECTURER') {
+      const perms = await getInstitutionRolePermissions(auth.institutionId || target.institution_id);
+      if (!perms.lecturer.manually_mark_students) {
+        return NextResponse.json(
+          {
+            error:
+              'Lecturer manual marking is disabled in Settings → Role permissions. Enable “Manually mark students” first.',
+            code: 'PERMISSION_DENIED',
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     const user = await prisma.users.update({
       where: { id },
       data: {
-        can_mark_attendance: Boolean(body.can_mark_attendance),
+        can_mark_attendance: enabling,
       },
       select: {
         id: true,

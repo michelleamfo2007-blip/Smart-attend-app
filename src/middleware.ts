@@ -43,6 +43,7 @@ export async function middleware(request: NextRequest) {
     '/api/webhooks/',
     '/api/institutions',
     '/api/health',
+    '/api/cron/',
   ];
 
   const isPublicApi = publicApiRoutes.some((route) => pathname.startsWith(route));

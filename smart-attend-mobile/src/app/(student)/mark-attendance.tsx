@@ -3,6 +3,7 @@ import {
   StyleSheet,
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   Dimensions,
@@ -39,7 +40,6 @@ async function getFreshStudentLocation(): Promise<ReadyLocation> {
     throw new Error('Turn on Location / GPS in phone settings, then try again.');
   }
 
-  // Warm GPS, then take a high-accuracy reading (indoor phones often need this).
   try {
     await Location.getCurrentPositionAsync({
       accuracy: Location.Accuracy.Balanced,
@@ -71,6 +71,20 @@ async function getFreshStudentLocation(): Promise<ReadyLocation> {
   };
 }
 
+function extractTokenFromScan(data: string): string | null {
+  const text = String(data || '').trim();
+  if (text.startsWith('v1.') && text.split('.').length === 6) return text;
+  try {
+    const parsed = JSON.parse(text);
+    if (typeof parsed?.tok === 'string') return parsed.tok;
+    if (typeof parsed?.token === 'string') return parsed.token;
+    if (typeof parsed?.qrToken === 'string') return parsed.qrToken;
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 export default function MarkAttendanceScreen() {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
@@ -79,8 +93,9 @@ export default function MarkAttendanceScreen() {
   const [readyLocation, setReadyLocation] = useState<ReadyLocation | null>(null);
   const [scanned, setScanned] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [statusMsg, setStatusMsg] = useState('Share your location, then scan the lecturer QR.');
+  const [statusMsg, setStatusMsg] = useState('Share your location, then scan the QR or enter the short code.');
   const [statusType, setStatusType] = useState<'info' | 'error' | 'success'>('info');
+  const [shortCode, setShortCode] = useState('');
 
   const openScanner = async () => {
     setStatusType('info');
@@ -105,8 +120,8 @@ export default function MarkAttendanceScreen() {
       setStatusType('info');
       setStatusMsg(
         location.accuracy != null
-          ? `Location ready (±${Math.round(location.accuracy)}m). Point at the lecturer QR.`
-          : 'Location ready. Point at the lecturer QR code.'
+          ? `Location ready (±${Math.round(location.accuracy)}m). Point at the class QR.`
+          : 'Location ready. Point at the class QR code.'
       );
       setScannerOpen(true);
     } catch (error: any) {
@@ -122,6 +137,41 @@ export default function MarkAttendanceScreen() {
     }
   };
 
+  const submitCheckIn = async (payload: Record<string, unknown>) => {
+    const binding = await getDeviceBinding();
+    const body = {
+      ...payload,
+      device_id: binding.deviceId,
+      device_fingerprint: binding.deviceFingerprint,
+    };
+
+    try {
+      await apiFetch('/api/student/attendance', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+    } catch (insertError: any) {
+      if (isNetworkError(insertError)) {
+        await saveOfflineScan(body as any);
+        setStatusType('info');
+        setStatusMsg('Offline: Check-in saved and will sync later.');
+        setTimeout(() => {
+          setScannerOpen(false);
+          router.replace('/(student)');
+        }, 2500);
+        return;
+      }
+      throw insertError;
+    }
+
+    setStatusType('success');
+    setStatusMsg('Successfully checked in!');
+    setTimeout(() => {
+      setScannerOpen(false);
+      router.replace('/(student)');
+    }, 2000);
+  };
+
   const handleBarCodeScanned = async ({ data }: { type: string; data: string }) => {
     if (scanned || processing) return;
     setScanned(true);
@@ -130,18 +180,42 @@ export default function MarkAttendanceScreen() {
     setStatusMsg('QR detected! Refreshing location…');
 
     try {
-      let qrData: any;
+      let qrData: any = null;
       try {
         qrData = JSON.parse(data);
       } catch {
-        throw new Error('Invalid QR Code format.');
+        qrData = null;
       }
 
-      if (!qrData.sessionId) {
-        if (qrData.type === 'smartattend_student') {
-          throw new Error('This is a student ID code. Ask an attendance officer to scan it.');
-        }
-        throw new Error('Invalid QR Code. Use the live class QR from your lecturer.');
+      if (qrData?.type === 'smartattend_student') {
+        throw new Error('This is a student ID code. Ask an attendance officer to scan it.');
+      }
+
+      const token = extractTokenFromScan(data);
+
+      // Fresh high-accuracy fix at scan time (fallback to pre-check location).
+      let studentLocation = readyLocation;
+      try {
+        studentLocation = await getFreshStudentLocation();
+        setReadyLocation(studentLocation);
+      } catch (locErr: any) {
+        if (!studentLocation) throw locErr;
+      }
+
+      if (token) {
+        await submitCheckIn({
+          qrToken: token,
+          qrPayload: data,
+          latitude: studentLocation!.latitude,
+          longitude: studentLocation!.longitude,
+          accuracy: studentLocation!.accuracy,
+        });
+        return;
+      }
+
+      // Legacy QR: { sessionId, t, source }
+      if (!qrData?.sessionId) {
+        throw new Error('Invalid QR Code. Use the live class QR from your lecturer or classroom display.');
       }
 
       const qrTimestamp = qrData.t || qrData.timestamp;
@@ -154,63 +228,54 @@ export default function MarkAttendanceScreen() {
         throw new Error('This QR code has expired. Scan the current code on screen.');
       }
 
-      const sessionId = qrData.sessionId;
       const method =
         qrData.source === 'desktop_qr' || qrData.method === 'desktop_qr'
           ? 'desktop_qr'
           : 'dynamic_qr';
 
-      // Fresh high-accuracy fix at scan time (fallback to pre-check location).
-      let studentLocation = readyLocation;
-      try {
-        studentLocation = await getFreshStudentLocation();
-        setReadyLocation(studentLocation);
-      } catch (locErr: any) {
-        if (!studentLocation) throw locErr;
-      }
-
-      const binding = await getDeviceBinding();
-      const scanData = {
-        sessionId,
+      await submitCheckIn({
+        sessionId: qrData.sessionId,
+        qrTimestamp,
+        method,
         latitude: studentLocation!.latitude,
         longitude: studentLocation!.longitude,
         accuracy: studentLocation!.accuracy,
-        qrTimestamp,
-        device_id: binding.deviceId,
-        device_fingerprint: binding.deviceFingerprint,
-        method,
-      };
-
-      try {
-        await apiFetch('/api/student/attendance', {
-          method: 'POST',
-          body: JSON.stringify(scanData),
-        });
-      } catch (insertError: any) {
-        if (isNetworkError(insertError)) {
-          await saveOfflineScan(scanData);
-          setStatusType('info');
-          setStatusMsg('Offline: Scan saved and will sync later.');
-          setTimeout(() => {
-            setScannerOpen(false);
-            router.replace('/(student)');
-          }, 2500);
-          return;
-        }
-        throw insertError;
-      }
-
-      setStatusType('success');
-      setStatusMsg('Successfully checked in!');
-      setTimeout(() => {
-        setScannerOpen(false);
-        router.replace('/(student)');
-      }, 2000);
+      });
     } catch (error: any) {
       setStatusType('error');
       setStatusMsg(error.message || 'Could not mark attendance.');
       setProcessing(false);
       setTimeout(() => setScanned(false), 2500);
+    }
+  };
+
+  const handleShortCodeSubmit = async () => {
+    const code = shortCode.trim();
+    if (!/^\d{6}$/.test(code)) {
+      Alert.alert('Invalid code', 'Enter the 6-digit attendance code from your lecturer.');
+      return;
+    }
+
+    setProcessing(true);
+    setStatusType('info');
+    setStatusMsg('Checking location and submitting code…');
+
+    try {
+      const location = await getFreshStudentLocation();
+      setReadyLocation(location);
+      await submitCheckIn({
+        attendanceCode: code,
+        method: 'short_code',
+        latitude: location.latitude,
+        longitude: location.longitude,
+        accuracy: location.accuracy,
+      });
+    } catch (error: any) {
+      setStatusType('error');
+      setStatusMsg(error.message || 'Could not mark attendance.');
+      Alert.alert('Check-in failed', error.message || 'Could not mark attendance.');
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -223,40 +288,73 @@ export default function MarkAttendanceScreen() {
         <View style={styles.header}>
           <Text style={[styles.title, { color: theme.text }]}>Mark Present</Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-            Share your location first, then scan the live QR from your lecturer.
+            Share your location, then scan the live QR or enter the short code if there is no projector.
           </Text>
         </View>
 
         {!scannerOpen ? (
-          <View style={[styles.readyCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-            <View style={[styles.iconWrap, { backgroundColor: theme.primaryLight }]}>
-              <Ionicons name="location-outline" size={36} color={theme.primary} />
-            </View>
-            <Text style={[styles.readyTitle, { color: theme.text }]}>Location before scan</Text>
-            <Text style={[styles.readyText, { color: theme.textSecondary }]}>
-              1. Allow location when asked{'\n'}
-              2. Wait until GPS locks your position{'\n'}
-              3. Scanner opens — point at the lecturer QR
-            </Text>
-            {statusType === 'error' ? (
-              <Text style={styles.preError}>{statusMsg}</Text>
-            ) : null}
-            <TouchableOpacity
-              style={[styles.primaryButton, { backgroundColor: theme.primary, opacity: gettingLocation ? 0.75 : 1 }]}
-              onPress={openScanner}
-              activeOpacity={0.85}
-              disabled={gettingLocation}
-            >
-              {gettingLocation ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Ionicons name="navigate-outline" size={20} color="#fff" />
-              )}
-              <Text style={styles.primaryButtonText}>
-                {gettingLocation ? 'Getting location…' : 'Share location & open scanner'}
+          <>
+            <View style={[styles.readyCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+              <View style={[styles.iconWrap, { backgroundColor: theme.primaryLight }]}>
+                <Ionicons name="qr-code-outline" size={36} color={theme.primary} />
+              </View>
+              <Text style={[styles.readyTitle, { color: theme.text }]}>Scan dynamic QR</Text>
+              <Text style={[styles.readyText, { color: theme.textSecondary }]}>
+                Use this when the lecturer screen or classroom display shows a QR.
               </Text>
-            </TouchableOpacity>
-          </View>
+              {statusType === 'error' ? <Text style={styles.preError}>{statusMsg}</Text> : null}
+              <TouchableOpacity
+                style={[styles.primaryButton, { backgroundColor: theme.primary, opacity: gettingLocation ? 0.75 : 1 }]}
+                onPress={openScanner}
+                activeOpacity={0.85}
+                disabled={gettingLocation || processing}
+              >
+                {gettingLocation ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Ionicons name="navigate-outline" size={20} color="#fff" />
+                )}
+                <Text style={styles.primaryButtonText}>
+                  {gettingLocation ? 'Getting location…' : 'Share location & open scanner'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={[styles.readyCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border, marginTop: 16 }]}>
+              <View style={[styles.iconWrap, { backgroundColor: '#eef2ff' }]}>
+                <Ionicons name="keypad-outline" size={36} color="#4338ca" />
+              </View>
+              <Text style={[styles.readyTitle, { color: theme.text }]}>Enter short code</Text>
+              <Text style={[styles.readyText, { color: theme.textSecondary }]}>
+                For classrooms without a projector/TV. Ask your lecturer for the 6-digit code.
+              </Text>
+              <TextInput
+                value={shortCode}
+                onChangeText={(v) => setShortCode(v.replace(/[^\d]/g, '').slice(0, 6))}
+                keyboardType="number-pad"
+                maxLength={6}
+                placeholder="482913"
+                placeholderTextColor={theme.textSecondary}
+                style={[
+                  styles.codeInput,
+                  { color: theme.text, borderColor: theme.border, backgroundColor: theme.background },
+                ]}
+              />
+              <TouchableOpacity
+                style={[styles.primaryButton, { backgroundColor: '#4338ca', opacity: processing ? 0.75 : 1 }]}
+                onPress={handleShortCodeSubmit}
+                activeOpacity={0.85}
+                disabled={processing || shortCode.length !== 6}
+              >
+                {processing ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
+                )}
+                <Text style={styles.primaryButtonText}>Submit code</Text>
+              </TouchableOpacity>
+            </View>
+          </>
         ) : (
           <View style={styles.scannerSection}>
             <View style={styles.cameraCard}>
@@ -345,6 +443,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     lineHeight: 18,
+  },
+  codeInput: {
+    width: '100%',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: 8,
+    textAlign: 'center',
   },
   primaryButton: {
     flexDirection: 'row',

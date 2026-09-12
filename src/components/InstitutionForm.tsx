@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import styles from '@/app/dashboard/admin/admin.module.css';
+import { detectBrowserTimezone } from '@/lib/institutionTime';
 
 export interface Institution {
   id?: string;
@@ -18,6 +19,7 @@ export interface Institution {
   sso?: boolean;
   custom_branding?: boolean;
   notes?: string;
+  timezone?: string;
   created_at?: string;
 }
 
@@ -44,11 +46,18 @@ export default function InstitutionForm({
     sso: institution?.sso || false,
     custom_branding: institution?.custom_branding || false,
     notes: institution?.notes || '',
+    timezone: institution?.timezone || 'Africa/Accra',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const isEditing = !!institution?.id;
+
+  useEffect(() => {
+    if (!isEditing && !institution?.timezone) {
+      setFormData((prev) => ({ ...prev, timezone: detectBrowserTimezone() }));
+    }
+  }, [isEditing, institution?.timezone]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,6 +152,20 @@ export default function InstitutionForm({
                     type="tel" value={formData.phone_number} onChange={e => updateField('phone_number', e.target.value)}
                     className={styles.searchInput} placeholder="+1 (555) 000-0000"
                   />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.875rem', fontWeight: 600 }}>Timezone *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.timezone || ''}
+                    onChange={(e) => updateField('timezone', e.target.value)}
+                    className={styles.searchInput}
+                    placeholder="Africa/Accra"
+                  />
+                  <p style={{ margin: '6px 0 0', fontSize: '0.75rem', color: '#6b7280' }}>
+                    Auto-filled from this device. Sessions use this timezone.
+                  </p>
                 </div>
                 {isEditing && (
                   <div>

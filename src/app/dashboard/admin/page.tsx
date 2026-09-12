@@ -125,7 +125,7 @@ export default function AdminDashboard() {
             {recentFailures.length === 0 ? (
               <p className={styles.pageSubtitle}>No recent attendance/device failures.</p>
             ) : (
-              <ul style={{ margin: 0, paddingLeft: 18, displayHeight: 1.6 }}>
+              <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6 }}>
                 {recentFailures.map((row) => (
                   <li key={row.id} style={{ marginBottom: 8, color: '#374151', fontSize: '0.9rem' }}>
                     <strong>{row.action}</strong>

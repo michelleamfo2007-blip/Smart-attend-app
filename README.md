@@ -33,6 +33,20 @@ Requires `DATABASE_URL` and `JWT_SECRET` (or `SUPABASE_JWT_SECRET`) in `.env`. I
 
 - Public health probe: `GET /api/health` (checks database). Point UptimeRobot / Better Stack at `https://www.smartattend.co/api/health`.
 - Admin dashboard shows failed check-ins and device alerts for the last 24 hours (also in Audit Logs).
+- Session scheduler: `GET /api/cron/sessions` (set `CRON_SECRET` in production). Vercel Cron hits it every 5 minutes (`vercel.json`). Lecturer/kiosk/staff polls also advance sessions for that school.
+
+### Institution timezone & auto sessions
+
+- Each school stores an IANA `timezone` (auto-detected at onboard / institution create).
+- Configurable morning/afternoon/evening periods live on the institution (Settings → Timezone & class periods).
+- Classes with weekday + start/end times get `scheduled → active → closed` sessions automatically in the school timezone.
+- Geofence for auto sessions prefers classroom lat/lng. Manual Start Session remains as an override.
+- **Attendance methods (Phase 2):** secure short-lived QR tokens (~15s refresh) and short 6-digit codes (rooms without a projector). Sessions default to `both`.
+- **Classroom Mode (Phase 3):** registered room displays at `/kiosk/[token]` auto-show the active timetable QR (course, room, time, status). Waiting state when inactive.
+- **Lecturer geofence (Phase 4):** on-demand GPS when opening session controls (not background tracking). Institution policy `off | warn | block` plus optional campus fallback; classroom GPS preferred. Verifications logged in `lecturer_location_verifications`.
+- **Librarian dashboard (Phase 5):** `/dashboard/staff` shows active/scheduled sessions, Present/Late/Absent roster, staff scan/manual assist (manual requires reason), history, and suspicious flags. Self check-in vs staff-verified is recorded. Late grace minutes are configurable in Settings.
+- **Role permissions (Phase 6):** Tenant Admin configures lecturer/librarian capabilities under Settings → Role permissions. Lecturers cannot manage the institution. Short codes, manual mark, edit/delete attendance are gated; delete stays off by default.
+- **Audit & suspicious activity (Phase 7):** Structured audit fields (institution/session/student/role/result/metadata). Auto-detects repeated failures, duplicate scans, and device tamper signals into librarian flags. Admin Audit filters + librarian Audit tab. Lecturers get in-app “class started” notifications when timetable opens a session.
 
 Copy [`.env.example`](./.env.example) and fill in values.
 

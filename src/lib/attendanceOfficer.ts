@@ -2,6 +2,7 @@ import prisma from '@/lib/prisma';
 import { getAuth } from '@/lib/session';
 import { NextResponse } from 'next/server';
 import { canUseStaffAttendance } from '@/lib/attendanceAccess';
+import { assertStaffToolAccess, getEffectivePermissions } from '@/lib/permissions';
 
 export type AttendanceOfficer = {
   id: string;
@@ -15,7 +16,8 @@ export type AttendanceOfficer = {
 export { canUseStaffAttendance };
 
 export async function getAttendanceOfficer(): Promise<
-  { officer: AttendanceOfficer } | { error: NextResponse }
+  | { officer: AttendanceOfficer; effective: Awaited<ReturnType<typeof getEffectivePermissions>> }
+  | { error: NextResponse }
 > {
   const auth = await getAuth();
   if (!auth?.userId) {
@@ -38,7 +40,10 @@ export async function getAttendanceOfficer(): Promise<
     return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
   }
 
-  return { officer };
+  const gate = await assertStaffToolAccess(officer);
+  if (!gate.ok) return { error: gate.response };
+
+  return { officer, effective: gate.effective };
 }
 
 export function officerInstitutionFilter(officer: AttendanceOfficer) {

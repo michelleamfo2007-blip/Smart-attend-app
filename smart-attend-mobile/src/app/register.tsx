@@ -116,6 +116,7 @@ export default function RegisterScreen() {
       const userSession: User = {
         id: newUser.id,
         name: newUser.name,
+        email: newUser.email || '',
         role: newUser.role,
         level: newUser.level,
         semester: newUser.semester,

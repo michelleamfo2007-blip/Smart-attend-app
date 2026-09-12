@@ -4,13 +4,17 @@ import bcrypt from 'bcryptjs';
 import { signToken } from '@/lib/auth';
 import { getEmailError, normalizeEmail, sendWelcomeEmail } from '@/lib/email';
 import { addTrialPeriod, getPlan, normalizePlan } from '@/lib/plans';
+import {
+  DEFAULT_SESSION_PERIODS,
+  normalizeTimezone,
+} from '@/lib/institutionTime';
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { 
       institutionName, domain, contactEmail, plan, 
-      adminName, adminEmail, adminPassword 
+      adminName, adminEmail, adminPassword, timezone,
     } = body;
 
     // 1. Basic Validation
@@ -70,6 +74,8 @@ export async function POST(req: Request) {
           max_users: planDef.maxUsers,
           subscription_ends_at: subscriptionEndsAt,
           invite_code: generatedInviteCode,
+          timezone: normalizeTimezone(timezone),
+          session_periods: DEFAULT_SESSION_PERIODS,
         }
       });
 

@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getAuth } from '@/lib/session';
 import { addBillingPeriod, addTrialPeriod, getPlan, normalizePlan } from '@/lib/plans';
+import {
+  DEFAULT_SESSION_PERIODS,
+  normalizeTimezone,
+} from '@/lib/institutionTime';
 
 function requireSuperAdmin(auth: Awaited<ReturnType<typeof getAuth>>) {
   return !auth || auth.userRole !== 'ADMIN' || auth.institutionId;
@@ -36,7 +40,7 @@ export async function POST(request: Request) {
     const {
       name, domain, logo, contact_email, phone_number,
       subscription_plan, status, billing_cycle, trial_period,
-      max_users, api_access, sso, custom_branding, notes,
+      max_users, api_access, sso, custom_branding, notes, timezone,
     } = body;
 
     if (!name) {
@@ -75,6 +79,8 @@ export async function POST(request: Request) {
         sso: sso || false,
         custom_branding: custom_branding || false,
         notes,
+        timezone: normalizeTimezone(timezone),
+        session_periods: DEFAULT_SESSION_PERIODS,
       },
     });
 

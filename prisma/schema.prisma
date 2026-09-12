@@ -1,6 +1,8 @@
 generator client {
-  provider = "prisma-client-js"
-  engineType = "binary"
+  provider      = "prisma-client-js"
+  engineType    = "binary"
+  output        = "../src/generated/prisma"
+  binaryTargets = ["native", "rhel-openssl-3.0.x", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -34,11 +36,14 @@ model users {
   cohort                cohorts?               @relation(fields: [cohort_id], references: [id], onDelete: SetNull)
   classes_lectured      classes[]              @relation("lecturer")
   attendance_sessions   attendance_sessions[]  @relation("session_lecturer")
+  lecturer_verifications lecturer_location_verifications[] @relation("lecturer_verifications")
   enrollments           enrollments[]
   records               attendance_records[]
   marked_records        attendance_records[]   @relation("attendance_marker")
+  attendance_flags      attendance_flags[]     @relation("attendance_flagger")
   imports               import_history[]
   audit_logs            audit_logs[]
+  notifications         user_notifications[]
 }
 
 model import_history {
@@ -86,6 +91,7 @@ model classrooms {
   id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   institution_id String   @db.Uuid
   name           String
+  building       String?
   latitude       Float?
   longitude      Float?
   radius_meters  Int      @default(50)
@@ -97,13 +103,16 @@ model classrooms {
 }
 
 model classroom_kiosks {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  institution_id String   @db.Uuid
-  classroom_id   String   @db.Uuid
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  institution_id String    @db.Uuid
+  classroom_id   String    @db.Uuid
   name           String
-  access_token   String   @unique
-  enabled        Boolean  @default(true)
-  created_at     DateTime @default(now()) @db.Timestamptz
+  /// Optional physical device identifier (asset tag / hostname)
+  device_label   String?
+  access_token   String    @unique
+  enabled        Boolean   @default(true)
+  last_seen_at   DateTime? @db.Timestamptz
+  created_at     DateTime  @default(now()) @db.Timestamptz
 
   institution    institutions @relation(fields: [institution_id], references: [id], onDelete: Cascade)
   classroom      classrooms   @relation(fields: [classroom_id], references: [id], onDelete: Cascade)
@@ -133,19 +142,53 @@ model cohort_classes {
 }
 
 model attendance_sessions {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  class_id        String   @db.Uuid
-  lecturer_id     String   @db.Uuid
-  attendance_code String?
-  latitude        Float?
-  longitude       Float?
-  status          String   @default("active")
-  expires_at      DateTime @db.Timestamptz
-  created_at      DateTime @default(now()) @db.Timestamptz
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  class_id           String    @db.Uuid
+  lecturer_id        String    @db.Uuid
+  attendance_code    String?
+  latitude           Float?
+  longitude          Float?
+  status             String    @default("active") // scheduled | active | closed
+  expires_at         DateTime  @db.Timestamptz
+  scheduled_start    DateTime? @db.Timestamptz
+  scheduled_end      DateTime? @db.Timestamptz
+  attendance_method  String    @default("both") // dynamic_qr | short_code | both
+  auto_created       Boolean   @default(false)
+  code_expires_at    DateTime? @db.Timestamptz
+  /// Last successful on-demand lecturer geofence check for this session (not continuous tracking)
+  lecturer_verified_at DateTime? @db.Timestamptz
+  created_at         DateTime  @default(now()) @db.Timestamptz
 
   class       classes  @relation(fields: [class_id], references: [id], onDelete: Cascade)
   lecturer    users    @relation("session_lecturer", fields: [lecturer_id], references: [id], onDelete: Cascade)
   records     attendance_records[]
+  lecturer_verifications lecturer_location_verifications[]
+
+  @@unique([class_id, scheduled_start])
+}
+
+/// On-demand lecturer location checks only (no background trail).
+model lecturer_location_verifications {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  institution_id     String   @db.Uuid
+  lecturer_id        String   @db.Uuid
+  session_id         String?  @db.Uuid
+  class_id           String?  @db.Uuid
+  classroom_id       String?  @db.Uuid
+  latitude           Float
+  longitude          Float
+  accuracy_meters    Float?
+  expected_latitude  Float?
+  expected_longitude Float?
+  expected_radius_m  Int?
+  distance_meters    Float?
+  result             String   // passed | failed | skipped_no_anchor
+  policy             String   // off | warn | block
+  created_at         DateTime @default(now()) @db.Timestamptz
+
+  institution institutions @relation(fields: [institution_id], references: [id], onDelete: Cascade)
+  lecturer    users        @relation("lecturer_verifications", fields: [lecturer_id], references: [id], onDelete: Cascade)
+  session     attendance_sessions? @relation(fields: [session_id], references: [id], onDelete: SetNull)
 }
 
 model attendance_records {
@@ -157,14 +200,38 @@ model attendance_records {
   timestamp    DateTime @db.Timestamptz
   location     String?
   method       String?  @default("dynamic_qr")
+  /// present | late (absent = no record after session closes)
+  check_in_status String @default("present")
+  /// Required for staff manual marks; optional otherwise
+  notes        String?
+  /// self | staff_verified
+  verification_type String @default("self")
   marked_by_id String?  @db.Uuid
 
   class        classes             @relation(fields: [class_id], references: [id], onDelete: Cascade)
   student      users               @relation(fields: [student_id], references: [id], onDelete: Cascade)
   session      attendance_sessions @relation(fields: [session_id], references: [id], onDelete: Cascade)
   marked_by    users?              @relation("attendance_marker", fields: [marked_by_id], references: [id], onDelete: SetNull)
+  flags        attendance_flags[]
 
   @@unique([student_id, session_id])
+}
+
+/// Librarian/staff flags for suspicious attendance (does not delete records).
+model attendance_flags {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  institution_id String @db.Uuid
+  record_id   String?  @db.Uuid
+  session_id  String?  @db.Uuid
+  student_id  String?  @db.Uuid
+  flagged_by  String   @db.Uuid
+  reason      String
+  status      String   @default("open") // open | reviewed | dismissed
+  created_at  DateTime @default(now()) @db.Timestamptz
+
+  institution institutions @relation(fields: [institution_id], references: [id], onDelete: Cascade)
+  record      attendance_records? @relation(fields: [record_id], references: [id], onDelete: SetNull)
+  flagged_by_user users @relation("attendance_flagger", fields: [flagged_by], references: [id], onDelete: Cascade)
 }
 
 model enrollments {
@@ -222,6 +289,20 @@ model institutions {
   custom_branding   Boolean  @default(false)
   invite_code       String?  @unique
   notes             String?
+  /// IANA timezone, e.g. Africa/Accra — set at institution signup from the admin's device
+  timezone          String   @default("Africa/Accra")
+  /// Configurable class periods [{ key, name, start_time, end_time, enabled }]
+  session_periods   Json?
+  /// Lecturer on-demand geofence: off | warn | block
+  lecturer_geo_policy String @default("warn")
+  /// Optional campus-wide fallback when a classroom has no GPS
+  campus_latitude   Float?
+  campus_longitude  Float?
+  campus_radius_meters Int?  @default(200)
+  /// Minutes after session start before check-in is Late (not hard-coded forever)
+  late_grace_minutes Int @default(15)
+  /// Tenant Admin role permission matrix (JSON). Locked keys always normalize to safe defaults.
+  role_permissions  Json?
   created_at        DateTime @default(now()) @db.Timestamptz
   updated_at        DateTime @updatedAt @db.Timestamptz
 
@@ -232,6 +313,9 @@ model institutions {
   imports           import_history[]
   colleges          colleges[]
   kiosks            classroom_kiosks[]
+  lecturer_verifications lecturer_location_verifications[]
+  attendance_flags  attendance_flags[]
+  audit_logs        audit_logs[]
 }
 
 model colleges {
@@ -266,12 +350,37 @@ model programmes {
 }
 
 model audit_logs {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id     String?  @db.Uuid
-  action      String
-  details     String?
-  ip_address  String?
-  created_at  DateTime @default(now()) @db.Timestamptz
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id        String?  @db.Uuid
+  institution_id String?  @db.Uuid
+  session_id     String?  @db.Uuid
+  student_id     String?  @db.Uuid
+  role           String?
+  /// success | failure | warning | info
+  result         String?  @default("info")
+  action         String
+  details        String?
+  /// Optional structured payload for filters / forensics
+  metadata       Json?
+  ip_address     String?
+  created_at     DateTime @default(now()) @db.Timestamptz
 
-  user        users?   @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  user        users?        @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  institution institutions? @relation(fields: [institution_id], references: [id], onDelete: SetNull)
+}
+
+/// In-app notifications (lecturer session started, etc.) — not push.
+model user_notifications {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String   @db.Uuid
+  title      String
+  body       String
+  category   String   @default("general")
+  read       Boolean  @default(false)
+  metadata   Json?
+  created_at DateTime @default(now()) @db.Timestamptz
+
+  user users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, read, created_at])
 }
