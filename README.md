@@ -33,7 +33,7 @@ Requires `DATABASE_URL` and `JWT_SECRET` (or `SUPABASE_JWT_SECRET`) in `.env`. I
 
 - Public health probe: `GET /api/health` (checks database). Point UptimeRobot / Better Stack at `https://www.smartattend.co/api/health`.
 - Admin dashboard shows failed check-ins and device alerts for the last 24 hours (also in Audit Logs).
-- Session scheduler: `GET /api/cron/sessions` (set `CRON_SECRET` in production). Vercel Cron hits it every 5 minutes (`vercel.json`). Lecturer/kiosk/staff polls also advance sessions for that school.
+- Session scheduler: `GET /api/cron/sessions` (set `CRON_SECRET` in production). Vercel Cron hits it daily on Hobby (`vercel.json`; Pro can use `*/5`). Lecturer/kiosk/staff polls also advance sessions for that school.
 
 ### Institution timezone & auto sessions
 
